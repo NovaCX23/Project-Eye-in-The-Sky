@@ -3,6 +3,17 @@
 Single source of truth for every coding assistant and every human working in this repo.
 `CLAUDE.md` imports this file. Module details live in each directory's `README.md`.
 
+## Before you write any code (every new session)
+
+1. Ask which directory you are working in, or infer it from the task, and check the ownership table below.
+   If the current user does not own it, say so and stop.
+2. Read, in this order: `config.yaml` (all thresholds), `contracts/models.py` (the data shapes),
+   the module's `README.md` (task list), and `.claude/rules/<module>.md` (consumes/produces, definition of done).
+3. Check the branch: `git status` and `git branch --show-current`. Never work directly on `main` or on a
+   `role/*` branch; create or switch to a `feat/*` branch (see "Git workflow").
+4. Run `python -m pytest` and confirm it is green before changing anything. If it is red, report it; do not
+   start a feature on a broken base.
+
 ## Project
 
 SeaGrid detects suspicious activity around Romania's maritime infrastructure in the Black Sea
@@ -81,20 +92,37 @@ Each directory has exactly one owner. Only the owner changes it.
 (`generator`/`injector`/`eval`: Dev 1, `detect`: Dev 2, `acoustic`: Dev 3,
 `fusion`/`score`/`patrol`/`pipeline`: Dev 4, `web`: Dev 5, `scenario`: Dev 1 with team agreement).
 
-Branches: `main` plus `role/data-eval`, `role/detect`, `role/acoustic`, `role/core`, `role/web-pitch`.
+Role branches: `role/data-eval`, `role/detect`, `role/acoustic`, `role/core`, `role/web-pitch`.
+
+## Git workflow
+
+```
+main  <──(/integrate, Dev 4)──  role/<role>  <──(merge after /verify)──  feat/<module>-<short-name>
+```
+
+- One feature = one branch, created from the up-to-date role branch:
+  `git switch role/detect && git pull && git switch -c feat/detect-rendezvous`.
+- Commit often: every time a working step passes the tests, roughly every 20–40 minutes. Never end a session
+  with uncommitted work. Message format: `<type>(<module>): <what>` (types: feat, fix, test, docs, chore, refactor).
+- Push the feature branch after each commit (`git push -u origin <branch>` the first time) so work is never only local.
+- Merge a feature into its role branch only after `/verify` passes (`git switch role/<role> && git merge --no-ff feat/...`).
+  Then delete the feature branch.
+- Role branches reach `main` only through `/integrate` (Dev 4). Never commit or push directly to `main`.
+- Before starting a new feature, update the role branch from `main`: `git switch role/<role> && git merge main`.
+- If an experiment breaks things, abandon the feature branch instead of patching the role branch. Never
+  `git push --force` to `main` or `role/*`; never rewrite history that others have pulled.
 
 ## Working rules
 
 - Do not modify a directory you do not own. If a change is needed there, say so and stop.
 - Do not change `contracts/` except through the `contract-change` skill, and only on explicit request.
-- `main` must always run the demo. Work on your role branch; merge only after `verify` passes.
+- `main` must always run the demo. Follow "Git workflow": feature branch, frequent commits, `/verify` before merging.
 - Prefer the simplest thing that honours the contract. Mark shortcuts with `# STUB` or `# HACK` and a one-line reason.
 - Identifiers and file names in English; READMEs, code comments, and UI text in Romanian.
 - Python 3.11+, pandas, numpy, shapely, pyyaml, pydantic, pytest. `librosa` only inside `acoustic/`.
 - Modules are run with `python -m` from the repo root. No `sys.path` hacks.
 - Read and write files as UTF-8; call `contracts.runtime.utf8_stdout()` in CLI entry points (Windows consoles).
 - Do not download datasets. Do not add features beyond the module task lists.
-- Small commits with clear messages, on your role branch.
 
 ## Authorship: no AI co-authors
 

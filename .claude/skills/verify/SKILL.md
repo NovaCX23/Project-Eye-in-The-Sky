@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Pre-commit check for SeaGrid. Runs the tests, regenerates the demo, validates out/timeline.json against the Timeline schema, and confirms the demo-scenario alert is still there. Use before every commit or merge, or whenever someone asks "does main still work?".
+description: Pre-merge check for SeaGrid. Runs the tests, regenerates the demo, validates out/timeline.json against the Timeline schema, and confirms the demo-scenario alert is still there. Use before merging a feature branch into its role branch, before /integrate, or whenever someone asks "does main still work?".
 allowed-tools: Bash(python .claude/skills/verify/verify.py *) PowerShell(python .claude/skills/verify/verify.py *)
 ---
 
@@ -12,6 +12,7 @@ allowed-tools: Bash(python .claude/skills/verify/verify.py *) PowerShell(python 
 2. The script runs, in order: `python -m pytest`, `python -m core.demo`,
    `python -m contracts.validate out/timeline.json --model Timeline`, then checks that exactly one alert exists for the
    dark vessel from `data/scenarios/demo.yaml` and that it carries the `ais_gap` factor.
-3. If it prints `VERIFY: OK`, the change may be committed. Report the alert id, score and level it printed.
+3. If it prints `VERIFY: OK`, the feature branch may be merged into its role branch (see "Git workflow" in
+   `AGENTS.md`). Report the alert id, score and level it printed.
 4. If any step fails, do not commit. Show the failing step's output, fix it only if the failing code is in a
    directory the current user owns, otherwise name the owner (see `AGENTS.md`) and stop.

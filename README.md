@@ -68,7 +68,11 @@ Fără server, bază de date, Docker sau cloud. Trecerea la varianta A (server +
 | `core/` | Dev 4 (integrare) | pipeline, fuziune, scor, explicații, recomandare, `--watch` |
 | `web/`, `pitch/` | Dev 5 | interfața, prezentarea |
 
-Ramuri: `main` (rulează mereu demo-ul) plus `role/data-eval`, `role/detect`, `role/acoustic`, `role/core`, `role/web-pitch`.
+Ramuri: `main` (rulează mereu demo-ul) ← `role/<rol>` ← `feat/<modul>-<nume>`.
+Fiecare funcționalitate are ramura ei, creată din ramura de rol. Commit-uri dese (la fiecare pas cu testele verzi)
+și push după fiecare commit. Merge în ramura de rol doar după `/verify`; în `main` doar prin `/integrate`.
+Detalii: secțiunea „Git workflow” din [AGENTS.md](AGENTS.md).
+Ramurile de rol: `role/data-eval`, `role/detect`, `role/acoustic`, `role/core`, `role/web-pitch`.
 
 Reguli complete de lucru și de design: [AGENTS.md](AGENTS.md). Fiecare director are propriul `README.md` cu sarcini.
 
