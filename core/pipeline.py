@@ -71,7 +71,11 @@ def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineS
     events = sorted(state.events.values(), key=lambda e: (e.start, e.event_id))
     names = (view.ais.dropna(subset=["vessel_name"]).groupby("mmsi")["vessel_name"].first().to_dict()
              if not view.ais.empty else {})
-    alerts = build_alerts(events, now, cfg, names, state.memory)
+    # Ultima poziție AIS cunoscută a fiecărei nave (<= now): ținta unității trimise.
+    last_seen = ({m: (float(r.lat), float(r.lon)) for m, r in
+                  view.ais.sort_values("timestamp").groupby("mmsi")[["lat", "lon"]].last().iterrows()}
+                 if not view.ais.empty else {})
+    alerts = build_alerts(events, now, cfg, names, state.memory, last_seen)
     state.batch_index += 1
     state.last_alerts = alerts
     if not emit:
