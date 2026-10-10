@@ -36,9 +36,15 @@ python -m pytest acoustic
 ```
 `librosa` is used only in this directory.
 
-## Tasks status
-1. **P0 (Real clips structure):** Manifest and loader support real clips in `acoustic/clips/real/` (`simulated: false`).
-2. **P1 (Adaptive threshold):** Implemented in `compute_adaptive_threshold()`, with quantile noise estimation and margin cap in `config.yaml`.
-3. **P1 (Confidence & transients):** Implemented in `compute_confidence()` and transient rejection loop (`transient_filter_s`, `min_event_s`).
-4. **P2 (Propeller vs. anchor chain signatures):** Implemented in `classify_signature()` with dominant frequency extraction.
-5. **P2 (Spectrograms for pitch):** Implemented in `save_spectrogram_png()` outputting PNG images to `<out-dir>/spectrograms/`.
+## Tasks (prioritised)
+1. P0: the acoustic event now lands exactly on the `/demo-check` deadline (08:25, `acoustic_event_min` + 5 in
+   `data/scenarios/demo.yaml`), with zero margin. Move the clip `offset_min` a few minutes earlier, or agree a looser
+   deadline with Dev 1 (who owns the scenario).
+2. P0: find out which clips and which metadata (time, sensor position) the organisers provide; the structure for real clips is ready.
+
+## Done
+- ✔ **P0 (Real clips structure):** Manifest and loader support real clips in `acoustic/clips/real/` (`simulated: false`).
+- ✔ **P1 (Adaptive threshold):** Implemented in `compute_adaptive_threshold()`, with quantile noise estimation and margin cap in `config.yaml`.
+- ✔ **P1 (Confidence & transients):** Implemented in `compute_confidence()` and transient rejection loop (`transient_filter_s`, `min_event_s`).
+- ✔ **P2 (Propeller vs. anchor chain signatures):** Implemented in `classify_signature()` with dominant frequency extraction.
+- ✔ **P2 (Spectrograms for pitch):** Implemented in `save_spectrogram_png()` outputting PNG images to `<out-dir>/spectrograms/`.
