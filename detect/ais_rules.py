@@ -81,6 +81,7 @@ def detect_speed_inconsistency(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]
     Se verifică în ambele direcții: prea rapid și prea lent.
     """
     c = cfg["detect"]["speed_consistency"]
+    history = np.timedelta64(int(c["history_min"] * 60), "s")
     out = []
     for mmsi, g in df.groupby("mmsi", sort=True):
         if len(g) < 2:
@@ -92,8 +93,9 @@ def detect_speed_inconsistency(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]
             a, b = g.iloc[i], g.iloc[i + 1]
             dist = haversine_km(a.lat, a.lon, b.lat, b.lon)
             implied_kn = kmh_to_kn(dist / (dt_min[i] / 60.0))
-            reported = np.nanmean([a.sog_kn, b.sog_kn])  # STUB: media SOG înainte/după, fără istoric
-            reported = 0.0 if np.isnan(reported) else float(reported)
+            # Viteza așteptată = mediana SOG din istoricul dinainte de pauză; SOG-ul de după reapariție nu contează.
+            hist = g["sog_kn"].to_numpy(dtype=float)[(t >= t[i] - history) & (t <= t[i])]
+            reported = float(np.nanmedian(hist)) if np.isfinite(hist).any() else 0.0
             direction = None
             if reported >= c["min_expected_kn"]:
                 ratio = implied_kn / reported
