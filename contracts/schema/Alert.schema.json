@@ -1,0 +1,336 @@
+{
+  "$defs": {
+    "InfraProximity": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_km": {
+          "minimum": 0,
+          "title": "Distance Km",
+          "type": "number"
+        },
+        "infra_id": {
+          "title": "Infra Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "infra_id",
+        "name",
+        "kind",
+        "distance_km"
+      ],
+      "title": "InfraProximity",
+      "type": "object"
+    },
+    "PatrolRecommendation": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_km": {
+          "minimum": 0,
+          "title": "Distance Km",
+          "type": "number"
+        },
+        "eta_min": {
+          "minimum": 0,
+          "title": "Eta Min",
+          "type": "number"
+        },
+        "simulated": {
+          "default": false,
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "unit_id": {
+          "title": "Unit Id",
+          "type": "string"
+        },
+        "unit_name": {
+          "title": "Unit Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit_id",
+        "unit_name",
+        "distance_km",
+        "eta_min"
+      ],
+      "title": "PatrolRecommendation",
+      "type": "object"
+    },
+    "ScoreFactor": {
+      "additionalProperties": false,
+      "description": "O componentă a scorului aditiv.",
+      "properties": {
+        "added_at": {
+          "description": "Momentul (now) la care factorul a intrat în scor",
+          "format": "date-time",
+          "title": "Added At",
+          "type": "string"
+        },
+        "code": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "detail": {
+          "description": "Propoziție din șablon, cu numerele detectorului",
+          "title": "Detail",
+          "type": "string"
+        },
+        "event_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Event Id"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "integer"
+        },
+        "simulated": {
+          "default": false,
+          "title": "Simulated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "label",
+        "points",
+        "detail",
+        "added_at"
+      ],
+      "title": "ScoreFactor",
+      "type": "object"
+    },
+    "ScorePoint": {
+      "additionalProperties": false,
+      "description": "Starea alertei la momentul t; interfața o afișează fără să recalculeze nimic.",
+      "properties": {
+        "eta_min": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eta Min"
+        },
+        "level": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "integer"
+        },
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "unit_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unitatea recomandată la acest moment",
+          "title": "Unit Id"
+        }
+      },
+      "required": [
+        "t",
+        "score",
+        "level"
+      ],
+      "title": "ScorePoint",
+      "type": "object"
+    }
+  },
+  "$id": "seagrid/Alert.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "O alertă fuzionată pentru un incident al unei nave.",
+  "properties": {
+    "alert_id": {
+      "description": "Id determinist: hash(mmsi, tip primar, start)",
+      "title": "Alert Id",
+      "type": "string"
+    },
+    "alert_type": {
+      "description": "Tipul evenimentului care a deschis incidentul",
+      "title": "Alert Type",
+      "type": "string"
+    },
+    "created_at": {
+      "description": "Primul now la care alerta a fost emisă",
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "event_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Event Ids",
+      "type": "array"
+    },
+    "explanation": {
+      "title": "Explanation",
+      "type": "string"
+    },
+    "factors": {
+      "items": {
+        "$ref": "#/$defs/ScoreFactor"
+      },
+      "title": "Factors",
+      "type": "array"
+    },
+    "history": {
+      "items": {
+        "$ref": "#/$defs/ScorePoint"
+      },
+      "title": "History",
+      "type": "array"
+    },
+    "lat": {
+      "maximum": 90,
+      "minimum": -90,
+      "title": "Lat",
+      "type": "number"
+    },
+    "level": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "lon": {
+      "maximum": 180,
+      "minimum": -180,
+      "title": "Lon",
+      "type": "number"
+    },
+    "mmsi": {
+      "pattern": "^\\d{9}$",
+      "title": "Mmsi",
+      "type": "string"
+    },
+    "nearest_infrastructure": {
+      "items": {
+        "$ref": "#/$defs/InfraProximity"
+      },
+      "title": "Nearest Infrastructure",
+      "type": "array"
+    },
+    "recommendation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PatrolRecommendation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "related_mmsis": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Related Mmsis",
+      "type": "array"
+    },
+    "risk_score": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Risk Score",
+      "type": "integer"
+    },
+    "simulated": {
+      "default": false,
+      "title": "Simulated",
+      "type": "boolean"
+    },
+    "start_time": {
+      "format": "date-time",
+      "title": "Start Time",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "vessel_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Vessel Name"
+    }
+  },
+  "required": [
+    "alert_id",
+    "mmsi",
+    "alert_type",
+    "start_time",
+    "created_at",
+    "updated_at",
+    "lat",
+    "lon",
+    "risk_score",
+    "level",
+    "factors",
+    "history",
+    "explanation",
+    "event_ids"
+  ],
+  "title": "Alert",
+  "type": "object"
+}

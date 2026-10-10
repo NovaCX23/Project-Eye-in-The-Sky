@@ -1,0 +1,13 @@
+{
+  "mmsi": "271000001",
+  "timestamp": "2026-03-15T07:30:00Z",
+  "lat": 44.255,
+  "lon": 29.53,
+  "sog_kn": 12.1,
+  "cog_deg": 258.0,
+  "heading_deg": 257.0,
+  "vessel_name": "MV SEA FALCON",
+  "ship_type": "cargo",
+  "source": "ais",
+  "simulated": true
+}

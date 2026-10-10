@@ -1,0 +1,19 @@
+{
+  "event_id": "evt-3f1c2a9b7d4e5f60",
+  "event_type": "ais_gap",
+  "source": "ais",
+  "mmsi": "271000001",
+  "sensor_id": null,
+  "start": "2026-03-15T07:30:00Z",
+  "end": null,
+  "lat": 44.255,
+  "lon": 29.53,
+  "confidence": 0.8,
+  "metrics": {
+    "gap_min": 35.0,
+    "threshold_min": 30,
+    "last_sog_kn": 12.1,
+    "uncertainty_km_per_h": 22.4
+  },
+  "simulated": true
+}

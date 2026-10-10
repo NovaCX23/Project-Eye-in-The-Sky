@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "mode": "replay",
+  "batch_index": 1,
+  "scenario_start": "2026-03-15T06:00:00Z",
+  "now": "2026-03-15T08:05:00Z",
+  "simulated": true,
+  "reload_interval_s": 3,
+  "vessels": [
+    {
+      "mmsi": "271000001",
+      "name": "MV SEA FALCON",
+      "ship_type": "cargo",
+      "simulated": true,
+      "points": [
+        {"t": "2026-03-15T07:29:00Z", "lat": 44.2545, "lon": 29.534, "sog": 12.0, "cog": 258.0},
+        {"t": "2026-03-15T07:30:00Z", "lat": 44.255, "lon": 29.53, "sog": 12.1, "cog": 258.0}
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event_id": "evt-3f1c2a9b7d4e5f60",
+      "event_type": "ais_gap",
+      "source": "ais",
+      "mmsi": "271000001",
+      "sensor_id": null,
+      "start": "2026-03-15T07:30:00Z",
+      "end": null,
+      "lat": 44.255,
+      "lon": 29.53,
+      "confidence": 0.8,
+      "metrics": {"gap_min": 35.0, "threshold_min": 30, "last_sog_kn": 12.1, "uncertainty_km_per_h": 22.4},
+      "simulated": true
+    }
+  ],
+  "alerts": []
+}

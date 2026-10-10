@@ -1,0 +1,116 @@
+{
+  "$id": "seagrid/PositionMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Un mesaj AIS de poziție (un rând din out/ais.csv).",
+  "properties": {
+    "cog_deg": {
+      "anyOf": [
+        {
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Course over ground",
+      "title": "Cog Deg"
+    },
+    "heading_deg": {
+      "anyOf": [
+        {
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Heading Deg"
+    },
+    "lat": {
+      "maximum": 90,
+      "minimum": -90,
+      "title": "Lat",
+      "type": "number"
+    },
+    "lon": {
+      "maximum": 180,
+      "minimum": -180,
+      "title": "Lon",
+      "type": "number"
+    },
+    "mmsi": {
+      "pattern": "^\\d{9}$",
+      "title": "Mmsi",
+      "type": "string"
+    },
+    "ship_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ship Type"
+    },
+    "simulated": {
+      "default": false,
+      "title": "Simulated",
+      "type": "boolean"
+    },
+    "sog_kn": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Speed over ground",
+      "title": "Sog Kn"
+    },
+    "source": {
+      "const": "ais",
+      "default": "ais",
+      "title": "Source",
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "vessel_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Vessel Name"
+    }
+  },
+  "required": [
+    "mmsi",
+    "timestamp",
+    "lat",
+    "lon"
+  ],
+  "title": "PositionMessage",
+  "type": "object"
+}
