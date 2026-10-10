@@ -1,39 +1,39 @@
-# core/ (Dev 4, responsabil de integrare)
+# core/ (Dev 4, integration owner)
 
-## Ce face
-- `sources.py`: transportul de intrare (fișiere). `until(now)` e singura poartă: nimic cu timestamp `> now` nu trece.
-- `pipeline.py`: un micro-batch = intrări `<= now` -> `detect.run_all` -> stocarea evenimentelor (id-uri deterministe,
-  upsert) -> fuziune -> `Timeline`. Moduri: replay (implicit, ceas simulat pas cu pas), `--now` (un batch), `--watch`.
-- `fusion.py`: grupează evenimentele AIS ale unei nave în incidente; atașează senzorii (acustic, fibră) din apropiere,
-  proximitatea de infrastructură și corelarea cu alte nave suspecte; ține minte `created_at`, momentul fiecărui factor
-  și istoricul scorului.
-- `scoring.py`: scor aditiv cu punctele din `config.yaml`, plafonat; niveluri low/medium/high/critical.
-- `explain.py`: șabloane în română, completate cu numerele detectorului. Fără LLM.
-- `patrol.py`: unitatea cu ETA minim (haversine, linie dreaptă, STUB).
-- `sinks.py`: transportul de ieșire (scriere atomică `out/timeline.json`).
-- `demo.py`: lanțul complet pentru `make demo`.
+## What it does
+- `sources.py`: input transport (files). `until(now)` is the only gate: nothing with timestamp `> now` gets through.
+- `pipeline.py`: one micro-batch = inputs `<= now` -> `detect.run_all` -> event store (deterministic ids,
+  upsert) -> fusion -> `Timeline`. Modes: replay (default, simulated clock step by step), `--now` (one batch), `--watch`.
+- `fusion.py`: groups a vessel's AIS events into incidents; attaches nearby sensors (acoustic, fibre),
+  infrastructure proximity and correlation with other suspicious vessels; remembers `created_at`, when each factor
+  was added, and the score history.
+- `scoring.py`: additive score with the points from `config.yaml`, capped; levels low/medium/high/critical.
+- `explain.py`: English templates filled with the detector's numbers. No LLM.
+- `patrol.py`: the unit with the lowest ETA (haversine, straight line, STUB).
+- `sinks.py`: output transport (atomic write of `out/timeline.json`).
+- `demo.py`: the full chain for `make demo`.
 
-## Consumă
+## Consumes
 `out/ais.csv`, `out/acoustic_events.json`, `out/fibre_events.json`, `assets/`, `config.yaml`
 (`fusion`, `score`, `patrol`, `pipeline`, `web`).
 
-## Produce
-`out/timeline.json` (contractul `Timeline`).
+## Produces
+`out/timeline.json` (the `Timeline` contract).
 
-## Rulare separată
+## Running it on its own
 ```bash
-python -m core.pipeline                              # replay până la finalul scenariului
-python -m core.pipeline --now 2026-03-15T08:30:00Z   # un singur batch
+python -m core.pipeline                              # replay to the end of the scenario
+python -m core.pipeline --now 2026-03-15T08:30:00Z   # a single batch
 python -m core.pipeline --watch --interval-s 3 --sim-step-min 5
 python -m pytest core
 ```
 
-Varianta A (server + WebSocket): se înlocuiesc doar `sources.py` și `sinks.py`; restul rămâne.
+Variant A (server + WebSocket): only `sources.py` and `sinks.py` are replaced; everything else stays.
 
-## Sarcini (prioritizate)
-1. P0: păstrați `main` verde (`/verify`, `/demo-check`); integrați ramurile cu `/integrate`.
-2. P1: textele factorilor (`detail`) reflectă starea de la `now`; la derularea înapoi UI-ul arată, de exemplu,
-   durata finală a găurii AIS. Variantă: istoric de `detail` pe factor (necesită `/contract-change`).
-3. P1: alerte deschise și de senzori fără navă AIS în zonă (o vibrație pe cablu fără nicio navă vizibilă e suspectă).
-4. P1: ETA care ocolește uscatul; disponibilitatea unităților.
-5. P2: persistarea stării între reporniri ale `--watch`.
+## Tasks (prioritised)
+1. P0: keep `main` green (`/verify`, `/demo-check`); integrate the branches with `/integrate`.
+2. P1: factor texts (`detail`) reflect the state at `now`; when scrubbing back, the UI shows, for example,
+   the final duration of the AIS gap. Option: a `detail` history per factor (needs `/contract-change`).
+3. P1: alerts opened by sensors with no AIS vessel in the area (a vibration on the cable with no visible vessel is suspicious).
+4. P1: ETA that routes around land; unit availability.
+5. P2: persist state across `--watch` restarts.

@@ -17,6 +17,6 @@ Branch to integrate: $ARGUMENTS
 4. Run `python .claude/skills/verify/verify.py`. Stop on failure.
 5. Run `python .claude/skills/demo-check/check_story.py --no-regen`.
 6. Ask the human to run `python -m http.server 8000` in the repo root, open http://localhost:8000/web/, press play,
-   and confirm the MV SEA FALCON alert appears with its factor breakdown and SIMULAT labels. Wait for the answer.
+   and confirm the MV SEA FALCON alert appears with its factor breakdown and SIMULATED labels. Wait for the answer.
 7. On confirmation: `git switch main` and `git merge --ff-only $ARGUMENTS`. Do not push unless asked.
 8. Commit messages stay human-authored: no AI trailers (the commit-msg hook rejects them; never `--no-verify`).

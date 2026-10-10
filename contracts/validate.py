@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
         for e in errors[:20]:
             print("  -", e)
         return 1
-    print(f"OK {args.path} respectă schema {args.model}.")
+    print(f"OK {args.path} matches the {args.model} schema.")
     return 0
 
 

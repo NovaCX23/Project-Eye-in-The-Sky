@@ -30,7 +30,7 @@ def schema_path(name: str) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--check", action="store_true", help="doar verifică, nu scrie")
+    ap.add_argument("--check", action="store_true", help="only check, do not write")
     args = ap.parse_args(argv)
     stale = []
     SCHEMA_DIR.mkdir(exist_ok=True)
@@ -43,9 +43,9 @@ def main(argv: list[str] | None = None) -> int:
             if not args.check:
                 p.write_text(text, encoding="utf-8", newline="\n")
     if args.check and stale:
-        print("Schema depășită, rulați python -m contracts.export_schema:", ", ".join(stale))
+        print("Schema out of date, run python -m contracts.export_schema:", ", ".join(stale))
         return 1
-    print("Schema actualizată:" if stale else "Schema la zi.", ", ".join(stale))
+    print("Schema updated:" if stale else "Schema up to date.", ", ".join(stale))
     return 0
 
 

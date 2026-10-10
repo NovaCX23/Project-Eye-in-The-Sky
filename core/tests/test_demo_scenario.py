@@ -21,7 +21,7 @@ def test_dark_vessel_alert(demo_out):
     assert any(h["level"] == "critical" for h in alert["history"])
     assert alert["recommendation"] is not None
     assert alert["simulated"] is True
-    assert "prea lent" in alert["explanation"]
+    assert "too slow" in alert["explanation"]
 
 
 def test_loiter_vessel_alert(demo_out):

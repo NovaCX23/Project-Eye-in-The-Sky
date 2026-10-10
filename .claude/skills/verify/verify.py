@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[3]
 def step(name: str, *args: str) -> bool:
     print(f"\n=== {name}: python {' '.join(args)}", flush=True)
     ok = subprocess.run([sys.executable, *args], cwd=ROOT).returncode == 0
-    print(f"=== {name}: {'OK' if ok else 'EȘUAT'}", flush=True)
+    print(f"=== {name}: {'OK' if ok else 'FAILED'}", flush=True)
     return ok
 
 
@@ -30,10 +30,10 @@ def scenario_alert_present() -> bool:
     mmsi = sc["dark_vessel"]["mmsi"]
     alerts = [a for a in tl["alerts"] if a["mmsi"] == mmsi]
     ok = len(alerts) == 1 and any(f["code"] == "ais_gap" for f in alerts[0]["factors"])
-    print(f"\n=== alerta scenariului ({mmsi}): {'OK' if ok else 'LIPSEȘTE sau DUPLICATĂ'}")
+    print(f"\n=== scenario alert ({mmsi}): {'OK' if ok else 'MISSING or DUPLICATED'}")
     if ok:
         a = alerts[0]
-        print(f"    {a['alert_id']} scor={a['risk_score']} nivel={a['level']} creată={a['created_at']}")
+        print(f"    {a['alert_id']} score={a['risk_score']} level={a['level']} created={a['created_at']}")
     return ok
 
 
@@ -43,12 +43,12 @@ def main() -> int:
     args = ap.parse_args()
     results = []
     if not args.skip_tests:
-        results.append(step("teste", "-m", "pytest"))
+        results.append(step("tests", "-m", "pytest"))
     results.append(step("demo", "-m", "core.demo"))
-    results.append(step("schemă", "-m", "contracts.validate", "out/timeline.json", "--model", "Timeline"))
+    results.append(step("schema", "-m", "contracts.validate", "out/timeline.json", "--model", "Timeline"))
     results.append(scenario_alert_present())
     ok = all(results)
-    print("\nVERIFY: " + ("OK, se poate face commit." if ok else "EȘUAT, nu faceți commit."))
+    print("\nVERIFY: " + ("OK, safe to commit." if ok else "FAILED, do not commit."))
     return 0 if ok else 1
 
 

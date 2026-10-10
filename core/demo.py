@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
     args = ap.parse_args(argv)
     run(args.seed, args.out_dir)
-    print("Gata. Porniți serverul: python -m http.server 8000  apoi deschideți http://localhost:8000/web/")
+    print("Done. Start the server: python -m http.server 8000  then open http://localhost:8000/web/")
     return 0
 
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 def points_for(code: str, cfg: dict) -> int:
     pts = cfg["score"]["points"]
     if code not in pts:
-        raise KeyError(f"Lipsește score.points.{code} în config.yaml (vezi skill-ul add-rule)")
+        raise KeyError(f"Missing score.points.{code} in config.yaml (see the add-rule skill)")
     return int(pts[code])
 
 

@@ -1,19 +1,19 @@
-# SeaGrid: structura prezentării (5–7 minute)
+# SeaGrid: presentation outline (5–7 minutes)
 
-1. **Problema (45 s).** Infrastructura critică din Marea Neagră (platforme, conducte, cabluri) e greu de supravegheat.
-   Atacurile asupra cablurilor și conductelor încep adesea cu o navă care își „pierde” AIS-ul sau stă prea mult într-un loc.
-2. **Ce face SeaGrid (45 s).** Fuzionează AIS, hidrofoane și senzori de fibră pe cablu; dă o alertă cu scor,
-   explicație și unitatea de trimis. Explicațiile vin din șabloane cu cifrele detectorului, nu dintr-un LLM.
-3. **Demo live (2–3 min)**, pe pagină, la viteza 300×:
-   - trafic normal spre Constanța, nave la ancoră în radă (fără alerte);
-   - MV SEA FALCON se stinge lângă platformă și cablu: marker gri, cercul de incertitudine crește;
-   - alerta apare după pragul de 30 min, scor mediu;
-   - FV NORTHERN DAWN staționează aproape: corelare, scor ridicat, unitate recomandată cu ETA;
-   - hidrofonul și fibra (SIMULATE) confirmă: scor critic;
-   - SEA FALCON reapare prea aproape pentru viteza raportată: „prea lent”.
-4. **Cifre (45 s).** Din `metrics.md` (seed held-out): rata de detecție, alarme false, timpul până la alertă.
-5. **Cum funcționează (45 s).** Micro-batch, nimic din viitor, praguri într-un singur fișier, id-uri deterministe,
-   drum direct spre un server live.
-6. **Ce urmează (30 s).** Date AIS reale, senzori reali, alerte doar din senzori, ETA care ocolește uscatul.
+1. **The problem (45 s).** The critical infrastructure in the Black Sea (platforms, pipelines, cables) is hard to monitor.
+   Attacks on cables and pipelines often start with a vessel that "loses" its AIS or stays too long in one place.
+2. **What SeaGrid does (45 s).** It fuses AIS, hydrophones and fibre sensors on the cable; it raises an alert with a score,
+   an explanation and the unit to send. Explanations come from templates filled with the detector's numbers, not from an LLM.
+3. **Live demo (2–3 min)**, on the page, at 300× speed:
+   - normal traffic towards Constanța, vessels at anchor (no alerts);
+   - MV SEA FALCON goes dark near the platform and the cable: grey marker, the uncertainty circle grows;
+   - the alert appears after the 30 min threshold, medium score;
+   - FV NORTHERN DAWN loiters nearby: correlation, high score, recommended unit with ETA;
+   - the hydrophone and the fibre (SIMULATED) confirm: critical score;
+   - SEA FALCON reappears too close for its reported speed: "too slow".
+4. **Numbers (45 s).** From `metrics.md` (held-out seed): detection rate, false alarms, time to alert.
+5. **How it works (45 s).** Micro-batch, nothing from the future, thresholds in a single file, deterministic ids,
+   a direct path to a live server.
+6. **What's next (30 s).** Real AIS data, real sensors, sensor-only alerts, an ETA that routes around land.
 
-Mențiuni obligatorii: date simulate, coordonate aproximative, unități fictive.
+Mandatory disclaimers: simulated data, approximate coordinates, fictitious units.

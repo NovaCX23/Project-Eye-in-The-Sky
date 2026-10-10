@@ -48,7 +48,7 @@ def load_infrastructure(path: Path | None = None) -> tuple[InfraFeature, ...]:
         elif g["type"] == "Polygon":
             coords = tuple((c[1], c[0]) for c in g["coordinates"][0])
         else:
-            raise ValueError(f"Geometrie nesuportată: {g['type']}")
+            raise ValueError(f"Unsupported geometry: {g['type']}")
         out.append(
             InfraFeature(
                 infra_id=p["id"],

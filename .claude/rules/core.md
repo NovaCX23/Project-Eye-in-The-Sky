@@ -7,7 +7,7 @@ paths:
 
 - Owns: `sources.py` (input transport, the only `<= now` gate), `pipeline.py` (micro-batch, replay, `--watch`),
   `fusion.py` (episodes, context, correlation, alert assembly), `scoring.py` (additive score, levels),
-  `explain.py` (Romanian templates), `patrol.py` (unit + ETA), `sinks.py` (output transport), `demo.py`.
+  `explain.py` (English templates), `patrol.py` (unit + ETA), `sinks.py` (output transport), `demo.py`.
 - Consumes: `out/ais.csv`, `out/acoustic_events.json`, `out/fibre_events.json`, `detect.ais_rules.run_all`,
   `contracts.*`, `config.yaml` sections `fusion`, `score`, `patrol`, `pipeline`, `web.reload_interval_s`.
 - Produces: `out/timeline.json` (Timeline contract), written atomically.
