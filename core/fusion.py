@@ -94,7 +94,9 @@ def _infra(lat: float, lon: float) -> list[InfraProximity]:
 
 
 def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dict[str, str],
-                 memory: AlertMemory) -> list[Alert]:
+                 memory: AlertMemory, last_seen: dict[str, tuple[float, float]] | None = None) -> list[Alert]:
+    """last_seen: ultima poziție AIS a fiecărei nave la `now`; unitatea trimisă merge acolo (altfel la poziția alertei)."""
+    last_seen = last_seen or {}
     fc = cfg["fusion"]
     episodes = _episodes(events, now, cfg)
     context = sorted((e for e in events if e.source in CONTEXT_SOURCES), key=lambda e: (e.start, e.event_id))
@@ -171,8 +173,8 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
 
     # Unitățile se repartizează după ce se cunosc toate alertele: prioritate după nivel, scor, vechime.
     drafts.sort(key=lambda d: (-patrol.LEVEL_ORDER.index(d.level), -d.score, d.created, d.alert_id))
-    recs = patrol.assign([(d.alert_id, d.primary.lat, d.primary.lon, d.level) for d in drafts], cfg,
-                         memory.dispatched, now, memory.unit_legs)
+    recs = patrol.assign([(d.alert_id, *last_seen.get(d.ep.mmsi, (d.primary.lat, d.primary.lon)), d.level)
+                          for d in drafts], cfg, memory.dispatched, now, memory.unit_legs)
     eta_step = cfg["patrol"]["eta_update_min"]
     for d in drafts:
         rec = recs.get(d.alert_id)

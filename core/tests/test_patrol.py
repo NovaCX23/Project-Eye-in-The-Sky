@@ -111,14 +111,17 @@ def test_demo_patrol_units_in_timeline(demo_out):
     assert all(v["simulated"] for v in patrols)
 
 
-def test_demo_unit_reaches_the_dark_vessel(demo_out):
+def test_demo_unit_reaches_the_dark_vessel_and_is_redirected(demo_out):
     sc = load_scenario()
     tl = read_json(demo_out / "timeline.json")
     alert = next(a for a in tl["alerts"] if a["mmsi"] == sc["dark_vessel"]["mmsi"])
-    etas = [h["eta_min"] for h in alert["history"] if h.get("unit_id")]
-    assert len(etas) >= 3
-    assert etas == sorted(etas, reverse=True)                    # ETA-ul scade pe măsură ce unitatea se apropie
-    assert etas[-1] == 0
+    reappeared = next(f["added_at"] for f in alert["factors"] if f["code"] == "speed_inconsistency")
+    hist = [h for h in alert["history"] if h.get("unit_id")]
+    before = [h["eta_min"] for h in hist if h["t"] < reappeared]
+    after = [h["eta_min"] for h in hist if h["t"] >= reappeared]
+    assert before == sorted(before, reverse=True) and before[-1] == 0     # ajunge la ultima poziție cunoscută
+    assert max(after) > 0                                                 # nava reapare în altă parte: redirecționare
+    assert after[-1] == 0                                                 # și o ajunge din urmă
     assert alert["explanation"].endswith("is on scene.")
 
 
