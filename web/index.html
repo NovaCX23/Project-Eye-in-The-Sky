@@ -14,40 +14,57 @@
     <span class="subtitle">Romanian maritime infrastructure — Black Sea</span>
     <span id="sim-badge" class="badge sim" hidden>SIMULATED DATA</span>
     <span class="badge approx">Approximate coordinates</span>
+
+    <!-- Filtre afișare hartă -->
+    <div class="map-filters" title="Filtrează elementele afișate pe hartă">
+      <span class="filter-label">Filtre hartă:</span>
+      <label><input type="checkbox" id="filter-hydro" checked> Hidrofoane</label>
+      <label><input type="checkbox" id="filter-coverage" checked> Raze 15 km</label>
+      <label><input type="checkbox" id="filter-vessels" checked> Nave AIS</label>
+      <label><input type="checkbox" id="filter-infra" checked> Infrastructură</label>
+    </div>
+
     <span id="status" class="status">Loading…</span>
   </header>
-
-  <div class="scenario-jumps">
-    <span class="jump-title">Tactical Timeline:</span>
-    <button type="button" class="jump-btn" data-sec="0">06:00 Start</button>
-    <button type="button" class="jump-btn" data-sec="7200">08:00 AIS Dark</button>
-    <button type="button" class="jump-btn btn-sonar" data-sec="7800">08:10 Northern Dawn (HYD-4)</button>
-    <button type="button" class="jump-btn btn-sonar" data-sec="8400">08:20 Propeller Contact (HYD-1)</button>
-    <button type="button" class="jump-btn btn-sonar btn-danger" data-sec="9600">08:40 Cable Sabotage (HYD-3)</button>
-    <button type="button" class="jump-btn" data-sec="13800">09:50 Reappearance & Intercept</button>
-  </div>
 
   <main>
     <div id="map"></div>
     <aside>
+      <!-- Panou Acustic și Istoric -->
       <section class="sonar-panel">
-        <h2>Acoustic Intelligence <span class="badge badge-sonar">4 Hydrophones</span></h2>
-        <div id="hydrophone-grid" class="hydro-grid"></div>
+        <div class="panel-header-row">
+          <h2>Supraveghere Acustică</h2>
+          <button type="button" id="btn-realtime-audio" class="btn-live-audio" title="Verifică ce semnal acustic se captează la momentul curent">
+            🎧 Ce se aude în timp real?
+          </button>
+        </div>
+
+        <div id="realtime-audio-banner" class="realtime-banner" hidden>
+          <div class="banner-title">Monitor Acustic Live (<span id="audio-time">--:--</span>)</div>
+          <div id="audio-status-text" class="banner-text">Se ascultă semnalul din Marea Neagră...</div>
+          <button type="button" id="btn-close-audio-banner" class="btn-banner-close">✕</button>
+        </div>
+
+        <h3 style="margin-top:10px;">Istoric Detecții Acustice</h3>
+        <div id="acoustic-history-list" class="acoustic-history"></div>
       </section>
 
+      <!-- Panou Alerte -->
       <section>
-        <h2>Alerts <span id="alert-count" class="count">0</span></h2>
+        <h2>Alerte Active <span id="alert-count" class="count">0</span></h2>
         <ol id="alert-list" class="alert-list"></ol>
-        <p id="no-alerts" class="muted">No alerts up to this moment.</p>
+        <p id="no-alerts" class="muted">Nicio alertă activă până în acest moment.</p>
       </section>
+
+      <!-- Detalii Alertă -->
       <section id="detail" hidden>
         <h2 id="detail-title"></h2>
         <div id="detail-meta" class="muted"></div>
-        <h3>Score by factor</h3>
+        <h3>Scor pe factori de risc</h3>
         <div id="factors"></div>
-        <h3>Explanation</h3>
+        <h3>Explicație tactică</h3>
         <ul id="detail-lines" class="lines"></ul>
-        <h3>Recommended unit</h3>
+        <h3>Unitate recomandată</h3>
         <div id="recommendation" class="muted"></div>
       </section>
     </aside>
@@ -68,10 +85,11 @@
     <label title="Follow the latest batch (--watch mode)"><input id="live" type="checkbox"> Live</label>
   </footer>
 
+  <!-- Modal Detalii Spectrogramă & Sonar -->
   <dialog id="sonar-modal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 id="modal-title">Sonar Acoustic Intelligence</h3>
+        <h3 id="modal-title">Analiză Sonar Hidrofon</h3>
         <button id="modal-close" type="button">✕</button>
       </div>
       <div id="modal-body"></div>

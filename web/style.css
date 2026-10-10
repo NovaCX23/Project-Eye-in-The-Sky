@@ -28,30 +28,22 @@ header, footer {
 footer { border-top: 1px solid var(--line); border-bottom: 0; }
 h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
 h2 { font-size: 15px; margin: 0 0 8px; }
-h3 { font-size: 12px; margin: 14px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+h3 { font-size: 12px; margin: 12px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
 .subtitle, .muted { color: var(--muted); }
 .status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 .badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
 .badge.sim { background: var(--sim); color: #1b1030; }
 .badge.approx { border: 1px solid var(--muted); color: var(--muted); }
-.badge-sonar { background: var(--sonar-dark); color: #e9d5ff; border: 1px solid var(--sonar); }
 .tag-sim { color: var(--sim); font-size: 11px; font-weight: 600; margin-left: 6px; }
 
-/* Tactical jump bar */
-.scenario-jumps {
-  display: flex; align-items: center; gap: 8px; padding: 6px 16px;
-  background: #111a24; border-bottom: 1px solid var(--line); overflow-x: auto;
+/* Filtre afișare hartă */
+.map-filters {
+  display: flex; align-items: center; gap: 10px; margin-left: 14px;
+  background: #111a24; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); font-size: 12px;
 }
-.jump-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-.jump-btn {
-  background: var(--panel); color: var(--text); border: 1px solid var(--line);
-  padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; transition: all .15s ease;
-}
-.jump-btn:hover { background: var(--panel-elevated); border-color: var(--muted); }
-.jump-btn.btn-sonar { border-color: var(--sonar); color: #d8b4fe; }
-.jump-btn.btn-sonar:hover { background: var(--sonar-dark); color: #fff; }
-.jump-btn.btn-danger { border-color: var(--critical); color: #fca5a5; }
-.jump-btn.btn-danger:hover { background: #5c181a; color: #fff; }
+.filter-label { font-weight: 600; color: var(--muted); }
+.map-filters label { display: flex; align-items: center; gap: 4px; cursor: pointer; color: #cbd5e1; }
+.map-filters input[type="checkbox"] { cursor: pointer; }
 
 main { flex: 1; display: flex; min-height: 0; }
 #map { flex: 1; min-width: 0; background: #0b1118; }
@@ -65,31 +57,42 @@ aside {
   aside { width: auto; max-width: none; border-left: 0; border-top: 1px solid var(--line); }
 }
 
-/* Sonar & Hydrophones section */
+/* Supraveghere acustică și istoric */
 .sonar-panel { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.hydro-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.hydro-card {
-  display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
-  padding: 8px 10px; background: #131d27; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; transition: all .2s;
+.panel-header-row { display: flex; justify-content: space-between; align-items: center; }
+.panel-header-row h2 { margin: 0; }
+.btn-live-audio {
+  background: var(--sonar-dark); color: #e9d5ff; border: 1px solid var(--sonar);
+  border-radius: 4px; padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: all .15s ease;
 }
-.hydro-card:hover { border-color: var(--sonar); background: var(--panel-elevated); }
-.hydro-card.active-alert { border-color: var(--sonar); background: #221535; }
-.hydro-card.active-sabotage { border-color: var(--critical); background: #321214; }
-.hydro-icon {
-  width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; background: #263445; color: var(--text);
+.btn-live-audio:hover { background: #581c87; color: #fff; }
+
+.realtime-banner {
+  margin-top: 8px; padding: 8px 10px; background: #1f1430; border: 1px solid var(--sonar);
+  border-radius: 6px; position: relative;
 }
-.hydro-card.active-alert .hydro-icon { background: var(--sonar); color: #fff; }
-.hydro-card.active-sabotage .hydro-icon { background: var(--critical); color: #fff; }
-.hydro-info { display: flex; flex-direction: column; }
-.hydro-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
-.hydro-sub { font-size: 11px; color: var(--muted); }
-.hydro-actions { display: flex; gap: 4px; }
-.btn-mini {
-  padding: 3px 6px; font-size: 11px; border-radius: 4px; border: 1px solid var(--line);
-  background: var(--panel); color: var(--text); cursor: pointer;
+.banner-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #d8b4fe; }
+.banner-text { font-size: 12px; margin-top: 4px; color: #f1f5f9; line-height: 1.4; }
+.btn-banner-close {
+  position: absolute; top: 6px; right: 8px; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px;
 }
-.btn-mini:hover { background: var(--sonar); color: #fff; border-color: var(--sonar); }
+
+.acoustic-history { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.history-item {
+  display: grid; grid-template-columns: 65px 1fr auto; gap: 8px; align-items: center;
+  padding: 6px 8px; background: #111a24; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; transition: all .15s;
+}
+.history-item:hover { border-color: var(--sonar); background: var(--panel-elevated); }
+.history-item.is-live { border-color: var(--sonar); background: #221535; }
+.history-time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 11px; color: #a5b4fc; }
+.history-content { display: flex; flex-direction: column; }
+.history-title { font-size: 12px; font-weight: 600; }
+.history-loc { font-size: 10px; color: var(--muted); }
+.history-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; text-align: center; }
+.badge-propeller { background: #3b1b68; color: #d8b4fe; border: 1px solid #7e22ce; }
+.badge-chain { background: #451a1a; color: #fca5a5; border: 1px solid #dc2626; }
+.badge-ambient { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
 
 .count { color: var(--muted); font-weight: 400; }
 .alert-list { list-style: none; margin: 0; padding: 0; }
@@ -103,6 +106,26 @@ aside {
 .alert-list .sub { grid-column: 2 / 4; color: var(--muted); font-size: 12px; }
 .lvl-low { background: var(--low); } .lvl-medium { background: var(--medium); }
 .lvl-high { background: var(--high); } .lvl-critical { background: var(--critical); }
+
+/* Radu's Critical Alert Pulsation */
+.alert-list li[data-score="90"], 
+.alert-list li[data-score="91"],
+.alert-list li[data-score="92"],
+.alert-list li[data-score="93"],
+.alert-list li[data-score="94"],
+.alert-list li[data-score="95"],
+.alert-list li[data-score="96"],
+.alert-list li[data-score="97"],
+.alert-list li[data-score="98"],
+.alert-list li[data-score="99"],
+.alert-list li[data-score="100"] {
+  animation: pulseAlert 1.5s infinite;
+}
+@keyframes pulseAlert {
+  0% { background-color: rgba(229, 72, 77, 0.1); }
+  50% { background-color: rgba(229, 72, 77, 0.3); }
+  100% { background-color: rgba(229, 72, 77, 0.1); }
+}
 
 .factor { margin-bottom: 8px; }
 .factor .row { display: flex; justify-content: space-between; font-size: 13px; }
@@ -123,7 +146,7 @@ footer button { width: 36px; height: 30px; font-size: 14px; cursor: pointer; }
 /* Modal dialog */
 #sonar-modal {
   border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text);
-  padding: 0; max-width: 650px; width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+  padding: 0; max-width: 600px; width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
 }
 #sonar-modal::backdrop { background: rgba(5,10,18,0.75); backdrop-filter: blur(3px); }
 .modal-box { padding: 16px 20px; }
@@ -136,8 +159,3 @@ footer button { width: 36px; height: 30px; font-size: 14px; cursor: pointer; }
 .modal-card { background: #111a24; padding: 10px; border-radius: 6px; border: 1px solid var(--line); }
 .modal-card b { display: block; font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .modal-card span { font-size: 14px; font-weight: 600; }
-.audio-btn {
-  margin-top: 12px; width: 100%; padding: 8px; background: var(--sonar-dark); border: 1px solid var(--sonar);
-  color: #fff; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-.audio-btn:hover { background: #581c87; }
