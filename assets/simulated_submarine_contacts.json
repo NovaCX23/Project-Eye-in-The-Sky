@@ -1,0 +1,297 @@
+{
+  "description": "SIMULATED submerged contacts for the demo replay. DISPLAY ONLY: hand-authored scenario data, not produced by the detection pipeline. SC-1 carries a SCRIPTED assessment (score, level, factors, recommended unit) shown in the alert list and labelled SCRIPTED. Times are minutes after scenario_start; unc_km is the radius of the position uncertainty.",
+  "simulated": true,
+  "low_cost_sensors": [
+    {
+      "id": "MAG-1",
+      "kind": "magnetometer_buoy",
+      "name": "Fluxgate magnetometer buoy MAG-1 (simulated)",
+      "lat": 44.46,
+      "lon": 29.96,
+      "note": "Low-cost moored buoy; detects the magnetic anomaly of a steel hull passing within ~1-2 km"
+    },
+    {
+      "id": "MAG-2",
+      "kind": "magnetometer_buoy",
+      "name": "Fluxgate magnetometer buoy MAG-2 (simulated)",
+      "lat": 44.285,
+      "lon": 29.79,
+      "note": "Low-cost moored buoy on the CABLE-1 corridor; detects the magnetic anomaly of a steel hull within ~1-2 km"
+    }
+  ],
+  "contacts": [
+    {
+      "id": "SC-1",
+      "name": "Submerged contact SC-1",
+      "classification": "Probable submarine, quiet diesel-electric transit (submerged, no snorkel)",
+      "summary": "Westbound at ~6 kn to the protected subsea cable, then stops on the seabed over it; no AIS and no correlated surface vessel",
+      "sensors": [
+        "HYD-14",
+        "HYD-16",
+        "HYD-3",
+        "DAS-CABLE-1",
+        "MAG-2"
+      ],
+      "methods": [
+        {
+          "name": "Passive TDOA triangulation",
+          "detail": "The same narrowband tonal (blade-rate harmonic near 30 Hz) arrives at HYD-14, HYD-16 and HYD-3 at different times; the time differences fix the position. Uses the existing hydrophone network, no new hardware."
+        },
+        {
+          "name": "Fibre-optic DAS on the existing cable",
+          "detail": "The telecom cable acts as a kilometres-long acoustic antenna; the track crossing is seen as a moving low-frequency disturbance along the fibre. Needs only an interrogator unit at the landing station."
+        },
+        {
+          "name": "Magnetic anomaly (MAG-2)",
+          "detail": "A fluxgate magnetometer buoy on the corridor records a short anomaly as the steel hull passes, confirming a submerged object, not a biological or surface source."
+        }
+      ],
+      "track": [
+        {
+          "min": 70,
+          "lat": 44.18,
+          "lon": 30.2,
+          "unc_km": 7.0,
+          "conf": 0.45,
+          "by": [
+            "HYD-16"
+          ]
+        },
+        {
+          "min": 120,
+          "lat": 44.21,
+          "lon": 30.08,
+          "unc_km": 4.5,
+          "conf": 0.6,
+          "by": [
+            "HYD-16",
+            "HYD-14"
+          ]
+        },
+        {
+          "min": 180,
+          "lat": 44.24,
+          "lon": 29.95,
+          "unc_km": 2.5,
+          "conf": 0.74,
+          "by": [
+            "HYD-16",
+            "HYD-14",
+            "HYD-3"
+          ]
+        },
+        {
+          "min": 240,
+          "lat": 44.278,
+          "lon": 29.795,
+          "unc_km": 1.2,
+          "conf": 0.9,
+          "by": [
+            "HYD-14",
+            "HYD-3",
+            "DAS-CABLE-1",
+            "MAG-2"
+          ]
+        },
+        {
+          "min": 270,
+          "lat": 44.279,
+          "lon": 29.79,
+          "unc_km": 1.0,
+          "conf": 0.93,
+          "by": [
+            "HYD-14",
+            "HYD-3",
+            "DAS-CABLE-1",
+            "MAG-2"
+          ]
+        },
+        {
+          "min": 300,
+          "lat": 44.277,
+          "lon": 29.785,
+          "unc_km": 1.0,
+          "conf": 0.93,
+          "by": [
+            "HYD-14",
+            "HYD-3",
+            "DAS-CABLE-1",
+            "MAG-2"
+          ]
+        },
+        {
+          "min": 330,
+          "lat": 44.25,
+          "lon": 29.88,
+          "unc_km": 2.0,
+          "conf": 0.85,
+          "by": [
+            "HYD-14",
+            "HYD-3"
+          ]
+        },
+        {
+          "min": 350,
+          "lat": 44.235,
+          "lon": 29.96,
+          "unc_km": 3.0,
+          "conf": 0.75,
+          "by": [
+            "HYD-14"
+          ]
+        }
+      ],
+      "assessment_note": "SCRIPTED scenario assessment for the demo: score, level, factors and recommendation are hand-authored to follow the same points and level thresholds as config.yaml; they are not computed by the pipeline.",
+      "assessment": [
+        {
+          "min": 70,
+          "score": 15,
+          "level": "low",
+          "factors": [
+            {
+              "label": "Unidentified narrowband tonal",
+              "points": 15,
+              "detail": "07:10 UTC: HYD-16 picks up a steady tonal near 30 Hz (blade-rate harmonic) with no surface vessel in AIS within 15 km. [SIMULATED]"
+            }
+          ]
+        },
+        {
+          "min": 120,
+          "score": 35,
+          "level": "medium",
+          "factors": [
+            {
+              "label": "Submerged position fix, no AIS vessel",
+              "points": 20,
+              "detail": "08:00 UTC: TDOA between HYD-16 and HYD-14 gives a fix ±4.5 km; no AIS track passes through the uncertainty area, so the source is not a known surface vessel. [SIMULATED]"
+            }
+          ]
+        },
+        {
+          "min": 180,
+          "score": 50,
+          "level": "high",
+          "factors": [
+            {
+              "label": "Heading for protected subsea cable",
+              "points": 15,
+              "detail": "09:00 UTC: third hydrophone (HYD-3) tightens the fix to ±2.5 km; course 285° at ~6 kn leads to CABLE-1, 13 km ahead. [SIMULATED]"
+            }
+          ]
+        },
+        {
+          "min": 240,
+          "score": 85,
+          "level": "critical",
+          "unit_id": "UNIT-3",
+          "eta_min": 38,
+          "factors": [
+            {
+              "label": "Stopped over the cable: fibre disturbance",
+              "points": 20,
+              "detail": "10:00 UTC: the contact stops at the CABLE-1 route; DAS on the cable records a localised low-frequency disturbance at the same position. [SIMULATED]"
+            },
+            {
+              "label": "Magnetic anomaly confirms steel hull",
+              "points": 15,
+              "detail": "10:00 UTC: magnetometer buoy MAG-2 on the corridor registers a hull-sized anomaly; four independent sensors now agree (±1.2 km, confidence 90%). Charlie (UNIT-3), on scene at MV SEA FALCON 21 km away, is re-tasked. [SIMULATED]"
+            }
+          ],
+          "recommendation_note": "Charlie (UNIT-3) is the nearest asset: on scene at MV SEA FALCON, 21 km away; re-tasked to SC-1. Alfa and Bravo are already committed."
+        }
+      ]
+    },
+    {
+      "id": "SC-2",
+      "name": "Submerged contact SC-2",
+      "classification": "Possible submarine or unmanned underwater vehicle, slow loiter near offshore gas infrastructure",
+      "summary": "Slow approach (~3-5 kn) then loiter near the Istria/Midia production area",
+      "sensors": [
+        "HYD-17",
+        "HYD-13",
+        "HYD-4",
+        "MAG-1"
+      ],
+      "methods": [
+        {
+          "name": "Passive TDOA triangulation",
+          "detail": "A weak tonal near 50 Hz is picked up by HYD-17, HYD-13 and HYD-4; time differences of arrival give a position fix that tightens as the contact approaches."
+        },
+        {
+          "name": "Magnetic anomaly (MAG-1)",
+          "detail": "The magnetometer buoy near the production cluster registers a repeated anomaly while the contact loiters, separating it from surface traffic."
+        }
+      ],
+      "track": [
+        {
+          "min": 180,
+          "lat": 44.6,
+          "lon": 30.2,
+          "unc_km": 8.0,
+          "conf": 0.4,
+          "by": [
+            "HYD-17"
+          ]
+        },
+        {
+          "min": 220,
+          "lat": 44.56,
+          "lon": 30.07,
+          "unc_km": 5.0,
+          "conf": 0.55,
+          "by": [
+            "HYD-17",
+            "HYD-13"
+          ]
+        },
+        {
+          "min": 260,
+          "lat": 44.51,
+          "lon": 29.98,
+          "unc_km": 3.0,
+          "conf": 0.68,
+          "by": [
+            "HYD-17",
+            "HYD-13",
+            "HYD-4"
+          ]
+        },
+        {
+          "min": 300,
+          "lat": 44.475,
+          "lon": 29.935,
+          "unc_km": 1.8,
+          "conf": 0.8,
+          "by": [
+            "HYD-13",
+            "HYD-4",
+            "MAG-1"
+          ]
+        },
+        {
+          "min": 330,
+          "lat": 44.485,
+          "lon": 29.91,
+          "unc_km": 1.8,
+          "conf": 0.81,
+          "by": [
+            "HYD-13",
+            "HYD-4",
+            "MAG-1"
+          ]
+        },
+        {
+          "min": 355,
+          "lat": 44.47,
+          "lon": 29.925,
+          "unc_km": 2.0,
+          "conf": 0.79,
+          "by": [
+            "HYD-13",
+            "MAG-1"
+          ]
+        }
+      ]
+    }
+  ]
+}
