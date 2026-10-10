@@ -1,0 +1,115 @@
+# SeaGrid: TOATE pragurile, punctajele și parametrii numerici stau aici.
+# Codul nu conține numere magice; orice valoare nouă se adaugă în acest fișier.
+# Unități: distanțe în km, viteze în noduri (kn), durate în minute, dacă nu e specificat altfel.
+
+scenario:
+  start: "2026-03-15T06:00:00Z"   # începutul timpului simulat (UTC)
+  duration_min: 360
+  report_interval_s: 60           # cadența mesajelor AIS sintetice
+  seeds:
+    tuning: 42                    # se folosește la reglarea pragurilor
+    reporting: 1337               # held-out: doar raportare, niciodată reglare
+  # Zona de acoperire AIS (bbox). Navele care ies din ea nu sunt "dark".
+  coverage_bbox: {lat_min: 43.55, lat_max: 44.95, lon_min: 28.55, lon_max: 30.90}
+
+generator:                        # data/generate.py
+  n_transit_inbound: 5
+  n_transit_outbound: 3
+  n_through: 4
+  n_anchored: 5
+  speed_kn_min: 9.0
+  speed_kn_max: 14.0
+  approach_speed_kn: 6.0          # viteză în coridorul de apropiere
+  anchored_max_sog_kn: 0.4
+  position_noise_km: 0.02
+  sog_noise_kn: 0.3
+  cog_noise_deg: 2.0
+  dropout_probability: 0.004      # probabilitate pe mesaj de a începe o pauză scurtă normală
+  dropout_min_s: 120
+  dropout_max_s: 540              # sub speed_consistency.min_gap_min
+  departure_window_min: 120       # navele plecate pornesc în primele N minute
+
+injector:                         # data/inject.py
+  random_anomalies:               # anomalii suplimentare, alese din seed, pentru evaluare
+    ais_gap: 1
+    position_jump: 1
+    loitering: 1
+  random_gap_min: 90
+  random_jump_km: 25.0
+  random_loiter_min: 90
+  random_loiter_sog_kn: 0.8
+  random_margin_min: 60           # anomaliile aleatoare nu încep/termină la marginea scenariului
+  edge_safety_km: 25.0            # anomaliile aleatoare stau departe de marginea acoperirii
+
+detect:
+  gap:
+    threshold_min: 30             # now - ultimul_mesaj > prag => ais_gap
+    edge_margin_km: 15.0          # ignoră navele dispărute lângă marginea acoperirii
+    min_uncertainty_speed_kn: 5.0 # viteza minimă folosită pentru zona de incertitudine
+  speed_consistency:
+    min_gap_min: 15               # se verifică doar la reapariție după o pauză > N min
+    min_expected_kn: 3.0          # sub această viteză raportată nu putem judeca "prea lent"
+    ratio_too_slow: 0.5           # implied / reported < 0.5 => prea lent
+    ratio_too_fast: 1.5           # implied / reported > 1.5 => prea rapid
+    stationary_max_implied_kn: 4.0  # navă oprită care "a sărit" mai repede de atât => prea rapid
+  loitering:
+    window_min: 45
+    min_coverage_ratio: 0.8       # fereastra trebuie acoperită de date în proporție de 80%
+    min_messages: 20
+    max_mean_sog_kn: 3.0
+    max_extent_km: 3.0            # diagonala bbox-ului pozițiilor din fereastră
+  position_jump:
+    max_dt_min: 10                # doar perechi consecutive apropiate în timp
+    max_implied_kn: 50.0
+  exclusion:
+    # Zonele din assets/infrastructure.geojson cu proprietatea "exclusion": true
+    applies_to: [loitering, ais_gap]
+
+acoustic:
+  band_hz: [10.0, 200.0]          # banda de joasă frecvență
+  frame_s: 1.0
+  lowfreq_ratio_threshold: 0.6    # energie în bandă / energie totală
+  min_rms: 0.01
+  min_event_s: 3.0
+  confidence_scale: 1.0
+
+fusion:
+  same_vessel_window_min: 240     # evenimentele aceleiași nave în N min => același incident
+  context_radius_km: 15.0         # senzori (acustic, fibră) atașați unei alerte
+  context_before_min: 60
+  context_after_min: 180
+  correlation_radius_km: 10.0     # altă navă suspectă în apropiere
+  infra_radius_km: 8.0
+
+score:
+  points:                         # scor aditiv, plafonat la max
+    ais_gap: 25
+    speed_inconsistency: 20
+    loitering: 15
+    position_jump: 20
+    acoustic_lowfreq: 15
+    fibre_vibration: 20
+    near_infrastructure: 15
+    correlated_vessel: 10
+  max: 100
+  alert_min: 20                   # sub acest scor nu se emite alertă
+  levels:                         # pragul minim pentru fiecare nivel
+    low: 0
+    medium: 30
+    high: 50
+    critical: 75
+
+patrol:
+  recommend_min_level: high       # recomandăm o unitate de la acest nivel în sus
+
+pipeline:
+  replay_step_min: 5              # pasul ceasului simulat în modul replay (make demo)
+  watch_interval_s: 3             # secunde reale între micro-batch-uri în --watch
+  watch_sim_step_min: 5           # minute simulate avansate la fiecare micro-batch
+  coord_decimals: 5
+
+web:
+  reload_interval_s: 3            # cât de des reîncarcă pagina timeline.json
+
+eval:
+  match_grace_min: 60             # o alertă contează pentru o anomalie dacă apare în [start, end + grace]

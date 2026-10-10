@@ -1,0 +1,10 @@
+[project]
+name = "seagrid"
+version = "0.1.0"
+description = "SeaGrid: detecția activităților suspecte lângă infrastructura maritimă românească"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["contracts", "data", "detect", "acoustic", "core", "eval", "devtools"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning:audioread.*"]

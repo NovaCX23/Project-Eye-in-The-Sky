@@ -1,0 +1,22 @@
+# Rezultate generate
+out/
+pitch/metrics.md.tmp
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Date reale (nu se comit)
+data/raw/
+acoustic/clips/real/
+
+# Setări personale Claude Code
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Sistem
+.DS_Store
+Thumbs.db

@@ -1,0 +1,7 @@
+# Hook-urile și Makefile-ul trebuie să aibă LF și pe Windows.
+* text=auto
+.githooks/* text eol=lf
+Makefile text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.wav binary
