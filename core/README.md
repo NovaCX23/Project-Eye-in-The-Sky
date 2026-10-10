@@ -40,3 +40,11 @@ Variant A (server + WebSocket): only `sources.py` and `sinks.py` are replaced; e
    recommendation threshold. Telling the two cases apart needs a field in the contract (`/contract-change`), then a UI change (Dev 5).
 4. P1: ETA that routes around land. **Needs:** a coastline / land polygon in `assets/` (team agreement, Dev 4 merges).
    In the current demo every straight line stays at sea, so this does not change the story.
+5. P2: mention the acoustic signature in the explanation (`metrics.signature`: propeller vs. anchor chain),
+   now that `acoustic/` produces it.
+
+## Done
+- ✔ Factor texts are frozen when the factor enters the score: scrubbing back never shows numbers not yet known.
+- ✔ One patrol unit per alert, assigned by priority (level, score, age); a dispatched unit stays with its alert.
+- ✔ `--watch` resumes from its saved state after a restart (`--fresh` starts over).
+- ✔ UI, explanations, data, CLI output and docs switched to English.
