@@ -223,6 +223,146 @@ def detect_loitering(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
     return out
 
 
+def detect_rendezvous(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
+    """Detectează întâlniri suspecte între două nave (STS transfer / rendezvous).
+
+    Identifică perechi de nave diferite care stau la distanță mică (<= max_distance_km),
+    ambele având viteză mică (<= max_sog_kn), timp de cel puțin `min_duration_min`.
+    Ignoră navele aflate în zonele de excludere (ancoraj, culoar portuar).
+    """
+    if "rendezvous" not in cfg.get("detect", {}):
+        return []
+    c = cfg["detect"]["rendezvous"]
+    max_dist = float(c["max_distance_km"])
+    max_sog = float(c["max_sog_kn"])
+    min_dur = float(c["min_duration_min"])
+    min_msgs = int(c.get("min_messages", 4))
+    time_win_s = float(c.get("time_window_min", 5.0)) * 60.0
+
+    slow = df[df["sog_kn"].fillna(0) <= max_sog].copy()
+    if slow["mmsi"].nunique() < 2:
+        return []
+
+    slow = slow.sort_values("timestamp")
+    mmsis = sorted(slow["mmsi"].unique())
+    out: list[SensorEvent] = []
+
+    for idx_a in range(len(mmsis)):
+        for idx_b in range(idx_a + 1, len(mmsis)):
+            ma, mb = mmsis[idx_a], mmsis[idx_b]
+            ga = slow[slow["mmsi"] == ma]
+            gb = slow[slow["mmsi"] == mb]
+            if len(ga) < min_msgs or len(gb) < min_msgs:
+                continue
+
+            merged = pd.merge_asof(
+                ga[["timestamp", "lat", "lon", "sog_kn", "simulated"]].sort_values("timestamp"),
+                gb[["timestamp", "lat", "lon", "sog_kn", "simulated"]].sort_values("timestamp"),
+                on="timestamp",
+                direction="nearest",
+                tolerance=pd.Timedelta(seconds=time_win_s),
+                suffixes=("_a", "_b"),
+            ).dropna(subset=["lat_b", "lon_b"])
+
+            if len(merged) < min_msgs:
+                continue
+
+            dist_km = haversine_km_np(
+                merged["lat_a"].to_numpy(), merged["lon_a"].to_numpy(),
+                merged["lat_b"].to_numpy(), merged["lon_b"].to_numpy(),
+            )
+            close_mask = dist_km <= max_dist
+            if not close_mask.any():
+                continue
+
+            close_pts = merged[close_mask]
+            if len(close_pts) < min_msgs:
+                continue
+
+            start_t = close_pts["timestamp"].min()
+            end_t = close_pts["timestamp"].max()
+            dur_min = (end_t - start_t).total_seconds() / 60.0
+
+            if dur_min >= min_dur:
+                clat = float((close_pts["lat_a"].mean() + close_pts["lat_b"].mean()) / 2.0)
+                clon = float((close_pts["lon_a"].mean() + close_pts["lon_b"].mean()) / 2.0)
+                if is_excluded("rendezvous", clat, clon, cfg):
+                    continue
+
+                mean_d = float(dist_km[close_mask].mean())
+                mean_s = float((close_pts["sog_kn_a"].mean() + close_pts["sog_kn_b"].mean()) / 2.0)
+                sim = bool(close_pts["simulated_a"].any() or close_pts["simulated_b"].any())
+
+                out.append(_event(
+                    "rendezvous", ma, start_t, end_t,
+                    float(close_pts["lat_a"].iloc[-1]), float(close_pts["lon_a"].iloc[-1]),
+                    confidence=min(1.0, dur_min / (2 * min_dur)),
+                    metrics={
+                        "other_mmsi": mb,
+                        "distance_km": round(mean_d, 2),
+                        "duration_min": round(dur_min, 1),
+                        "mean_sog_kn": round(mean_s, 1),
+                        "max_sog_kn": max_sog,
+                    },
+                    simulated=sim,
+                ))
+                out.append(_event(
+                    "rendezvous", mb, start_t, end_t,
+                    float(close_pts["lat_b"].iloc[-1]), float(close_pts["lon_b"].iloc[-1]),
+                    confidence=min(1.0, dur_min / (2 * min_dur)),
+                    metrics={
+                        "other_mmsi": ma,
+                        "distance_km": round(mean_d, 2),
+                        "duration_min": round(dur_min, 1),
+                        "mean_sog_kn": round(mean_s, 1),
+                        "max_sog_kn": max_sog,
+                    },
+                    simulated=sim,
+                ))
+    return out
+
+
+def detect_identity_spoofing(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
+    """Detectează falsificarea identității AIS (transponder clonat / emisie simultană la distanță).
+
+    Semnalează când același MMSI transmite mesaje cu ecart temporal foarte mic (<= max_dt_min),
+    dar la o distanță imposibilă (>= min_distance_km) implicând viteze de deplasare nerealiste (>= min_implied_kn).
+    """
+    if "identity_spoofing" not in cfg.get("detect", {}):
+        return []
+    c = cfg["detect"]["identity_spoofing"]
+    min_dist = float(c["min_distance_km"])
+    max_dt_min = float(c["max_dt_min"])
+    min_speed = float(c["min_implied_kn"])
+
+    out = []
+    for mmsi, g in df.groupby("mmsi", sort=True):
+        if len(g) < 2:
+            continue
+        g_sorted = g.sort_values("timestamp")
+        lat, lon = g_sorted["lat"].to_numpy(), g_sorted["lon"].to_numpy()
+        dt_h = np.diff(g_sorted["timestamp"].to_numpy()).astype("timedelta64[s]").astype(float) / 3600.0
+        dist = haversine_km_np(lat[:-1], lon[:-1], lat[1:], lon[1:])
+        with np.errstate(divide="ignore"):
+            implied_kn = np.where(dt_h > 0, dist / np.maximum(dt_h, 1e-9) / kn_to_kmh(1.0), np.inf)
+
+        bad = np.nonzero((dt_h * 60.0 <= max_dt_min) & (dist >= min_dist) & (implied_kn >= min_speed))[0]
+        for i in bad:
+            b = g_sorted.iloc[i + 1]
+            out.append(_event(
+                "identity_spoofing", mmsi, b.timestamp, b.timestamp, b.lat, b.lon,
+                confidence=min(1.0, float(dist[i]) / (2 * min_dist)),
+                metrics={
+                    "distance_km": round(float(dist[i]), 1),
+                    "dt_min": round(float(dt_h[i] * 60.0), 1),
+                    "implied_kn": round(float(min(implied_kn[i], 9999)), 0),
+                    "min_implied_kn": min_speed,
+                },
+                simulated=bool(b.simulated),
+            ))
+    return out
+
+
 def run_all(df: pd.DataFrame, now: datetime, cfg: dict) -> list[SensorEvent]:
     """Toate regulile AIS. `df` trebuie să conțină doar mesaje cu timestamp <= now."""
     if len(df) and df["timestamp"].max() > pd.Timestamp(now):
@@ -234,4 +374,6 @@ def run_all(df: pd.DataFrame, now: datetime, cfg: dict) -> list[SensorEvent]:
         + detect_speed_inconsistency(df, cfg)
         + detect_loitering(df, cfg)
         + detect_position_jumps(df, cfg)
+        + detect_rendezvous(df, cfg)
+        + detect_identity_spoofing(df, cfg)
     )

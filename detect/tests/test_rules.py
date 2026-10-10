@@ -115,3 +115,43 @@ def test_event_ids_stable(t0, cfg):
     a = ais_rules.detect_gaps(df, now, cfg)
     b = ais_rules.detect_gaps(df, now + timedelta(minutes=10), cfg)
     assert a[0].event_id == b[0].event_id
+
+
+def test_rendezvous_detected(t0, cfg):
+    # Două nave în larg care stau la ~250m una de alta la 0.5 kn timp de 30 min => rendezvous
+    vessel_a = straight_track("111111111", t0, range(0, 30), *OPEN_SEA, sog=0.5)
+    lat_b, lon_b = destination(OPEN_SEA[0], OPEN_SEA[1], 45.0, 0.25)  # 250 m
+    vessel_b = straight_track("222222222", t0, range(0, 30), lat_b, lon_b, sog=0.5)
+    df = to_df(vessel_a + vessel_b)
+    ev = ais_rules.detect_rendezvous(df, cfg)
+    assert len(ev) == 2
+    types = {e.event_type for e in ev}
+    mmsis = {e.mmsi for e in ev}
+    assert types == {"rendezvous"}
+    assert mmsis == {"111111111", "222222222"}
+    ev_a = next(e for e in ev if e.mmsi == "111111111")
+    assert ev_a.metrics["other_mmsi"] == "222222222"
+    assert ev_a.metrics["distance_km"] <= 0.5
+
+
+def test_rendezvous_ignored_in_anchorage(t0, cfg):
+    # În radă/ancoraj, apropierea navelor este normală
+    vessel_a = straight_track("111111111", t0, range(0, 30), *ANCHORAGE, sog=0.3)
+    lat_b, lon_b = destination(ANCHORAGE[0], ANCHORAGE[1], 45.0, 0.2)
+    vessel_b = straight_track("222222222", t0, range(0, 30), lat_b, lon_b, sog=0.3)
+    df = to_df(vessel_a + vessel_b)
+    assert ais_rules.detect_rendezvous(df, cfg) == []
+
+
+def test_identity_spoofing_detected(t0, cfg):
+    # Același MMSI raportează la distanță de 35 km la interval de 1 minut => transponder clonat
+    msg1 = straight_track("111111111", t0, [0], *OPEN_SEA, sog=12.0)
+    lat_far, lon_far = destination(OPEN_SEA[0], OPEN_SEA[1], 90.0, 35.0)
+    msg2 = straight_track("111111111", t0, [1], lat_far, lon_far, sog=12.0)
+    df = to_df(msg1 + msg2)
+    ev = ais_rules.detect_identity_spoofing(df, cfg)
+    assert len(ev) == 1
+    assert ev[0].event_type == "identity_spoofing"
+    assert ev[0].metrics["distance_km"] >= 30.0
+    assert ev[0].metrics["implied_kn"] > 500.0
+
