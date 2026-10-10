@@ -30,6 +30,7 @@ const SeaGridLoader = (() => {
         timer = setTimeout(tick, every);
       } catch (err) {
         onError(err);
+        lastKey = null; // la revenire, timeline-ul se reîncarcă și mesajul de eroare dispare
         timer = setTimeout(tick, DEFAULT_RELOAD_S * 1000);
       }
     }

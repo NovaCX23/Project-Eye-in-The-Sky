@@ -1,39 +1,40 @@
 // SeaGrid UI: interfață operațională de supraveghere maritimă și sonar intelligence.
+// Doar afișare: tot ce e detecție și scor vine din timeline.json.
 "use strict";
 
+// Constante de AFIȘARE (nu praguri de detecție).
 const MAP_CENTER = [44.25, 29.35];
 const MAP_ZOOM = 9;
 const TICK_MS = 100;
-const TRAIL_MIN = 60;
-const SENSOR_SHOW_MIN = 40;
+const TRAIL_MIN = 60;          // cât din traseu desenăm pentru nava selectată
+const SENSOR_SHOW_MIN = 40;    // cât timp rămâne vizibil un eveniment de senzor
 const ASSETS = "../assets/";
+const FLASH_SCORE = 90;        // alertele cu scor peste această valoare clipesc în roșu
+const PULSE_SCORE = 90;        // pulsația discretă a lui Radu, de la această valoare în sus
+const FLASH_MS = 350;          // perioada clipirii
 
-const LEVEL_COLOR = { low: "#4f8fd6", medium: "#e0b43a", high: "#ef7f2f", critical: "#e5484d" };
-const LEVEL_TEXT = { low: "low", medium: "medium", high: "high", critical: "critical" };
+const LEVEL_COLOR = { low: "#5b9be6", medium: "#e3b341", high: "#f08c3a", critical: "#f0525b" };
 const LEVEL_LABEL = { low: "Low", medium: "Medium", high: "High", critical: "Critical" };
 const LEVEL_RANK = { low: 0, medium: 1, high: 2, critical: 3 };
 const NORMAL_COLOR = "#3fb6a8";
-const PATROL_COLOR = "#60a5fa";
-const PATROL_TYPE = "patrol";      // ship_type al unităților de patrulare în timeline (scris de core)
-const DARK_COLOR = "#8b9bb0";
-const FLASH_SCORE = 90;        // AFIȘARE: alertele cu scor peste această valoare clipesc în roșu (nu e prag de detecție)
-const FLASH_MS = 350;          // perioada clipirii
+const DARK_COLOR = "#8195ab";
 const SIM_TAG = '<span class="tag-sim">SIMULATED</span>';
+const SCRIPT_TAG = '<span class="tag-sim tag-script">SCRIPTED</span>';
 const INFRA_STYLE = {
   pipeline: { color: "#f0a050", weight: 3 },
   cable: { color: "#b48af0", weight: 2, dashArray: "6 4" },
-  anchorage: { color: "#4f8fd6", weight: 1, fillOpacity: 0.08 },
-  port_approach: { color: "#8b9bb0", weight: 1, fillOpacity: 0.06, dashArray: "3 3" },
+  anchorage: { color: "#5b9be6", weight: 1, fillOpacity: 0.08 },
+  port_approach: { color: "#8195ab", weight: 1, fillOpacity: 0.06, dashArray: "3 3" },
 };
 // Infrastructura reală de referință (assets/reference_infrastructure.geojson): doar afișare, nu intră în scor.
 const REF_STYLE = {
   pipeline: { color: "#f0a050", weight: 3, opacity: 0.7, dashArray: "10 5" },
   power_cable: { color: "#f2d94e", weight: 3, opacity: 0.8, dashArray: "2 6", lineCap: "round" },
   data_cable: { color: "#5fd3e8", weight: 2, opacity: 0.8, dashArray: "6 4" },
-  eez_boundary: { color: "#e5484d", weight: 2, opacity: 0.7, dashArray: "12 6 2 6" },
+  eez_boundary: { color: "#f0525b", weight: 2, opacity: 0.7, dashArray: "12 6 2 6" },
   license_block: { color: "#9fe870", weight: 1, opacity: 0.6, fillColor: "#9fe870", fillOpacity: 0.06 },
 };
-const REF_POINT = { platform: "#f0a050", port: "#4f8fd6", security_hub: "#3fb6a8", naval_base: "#f472b6" };
+const REF_POINT = { platform: "#f0a050", port: "#5b9be6", security_hub: "#3fb6a8", naval_base: "#f472b6" };
 
 // Rețeaua națională extinsă de 18 hidrofoane submarine (acoperire completă ZEE Marea Neagră)
 const ALL_HYDROPHONES = [
@@ -114,8 +115,7 @@ const ALL_HYDROPHONES = [
   { id: "HYD-18", name: "EEZ North-East Outpost", lat: 44.750, lon: 30.700, summary: "Maritime perimeter towards Snake Island", hasContact: false },
 ];
 
-const HYDROPHONES = ALL_HYDROPHONES;
-const TACTICAL_CONTACTS = ALL_HYDROPHONES.filter(h => h.hasContact);
+const TACTICAL_CONTACTS = ALL_HYDROPHONES.filter((h) => h.hasContact);
 
 function findHydro(id) {
   if (!id) return null;
@@ -125,105 +125,235 @@ function findHydro(id) {
 
 const S = {
   tl: null, start: 0, end: 0, t: 0, playing: false, live: false, selected: null,
-  tracks: [], alerts: [], gapsByMmsi: {}, sensors: [], units: {}, unitByMmsi: {},
-  bannerOpen: false,
+  tracks: [], alerts: [], gapsByMmsi: {}, sensors: [], units: {}, unitMarkers: {},
+  subs: [], subSensors: {}, tlAlerts: [], legs: {},
 };
 
 const $ = (id) => document.getElementById(id);
 const ms = (iso) => Date.parse(iso);
 const fmtTime = (t) => new Date(t).toISOString().slice(11, 16) + " UTC";
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pct = (x) => (x == null ? "?" : `${(x * 100).toFixed(0)}%`);
+const num = (x, d = 2) => (x == null || Number.isNaN(Number(x)) ? "?" : Number(x).toFixed(d));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Ultimul eveniment acustic (din timeline) al unui hidrofon; null dacă pipeline-ul nu a raportat nimic.
+function hydroEvent(h) {
+  const evs = S.sensors.filter((e) => e.source === "acoustic" && findHydro(e.sensor_id) === h);
+  return evs.length ? evs[evs.length - 1] : null;
+}
+// Momentul contactului: din eveniment dacă există, altfel din scenariul scris în pagină.
+function hydroTime(h) {
+  const e = hydroEvent(h);
+  return e ? e.s : S.start + (h.offsetSec || 0) * 1000;
+}
+// Evenimentul de fibră e lângă țărm dacă așa spune nota detectorului (nu decidem pragul în pagină).
+const isNearShoreNote = (note) => /near shore|coastal/i.test(note || "");
 
 // ---------- hartă ----------
-const map = L.map("map", { preferCanvas: true }).setView(MAP_CENTER, MAP_ZOOM);
+// STUB: dalele OpenStreetMap cer internet; fără rețea harta rămâne goală, dar straturile SeaGrid se văd.
+// Dalele sunt întunecate din CSS (.leaflet-tile-pane), ca harta să nu orbească lângă panourile închise.
+const map = L.map("map", { preferCanvas: true, zoomControl: true }).setView(MAP_CENTER, MAP_ZOOM);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 13,
-  attribution: "&copy; OpenStreetMap · SeaGrid",
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · SeaGrid: simulated data, approximate coordinates',
 }).addTo(map);
 
+// Marcajele difuze (div-uri cu blur) stau în panouri proprii: hidrofoanele sub linii, unitățile peste ele.
+map.createPane("glowLow").style.zIndex = 350;
+map.createPane("glowHigh").style.zIndex = 450;
+const glowIcon = (cls, size) => L.divIcon({ className: "", html: `<div class="${cls}"></div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+
 const layers = {
-  reference: L.layerGroup().addTo(map),
-  infra: L.layerGroup().addTo(map),
-  units: L.layerGroup().addTo(map),     // bazele (fixe) + patrolLive (redesenat la fiecare tick)
-  hydroStations: L.layerGroup().addTo(map),
-  hydroCoverage: L.layerGroup().addTo(map),
-  sensors: L.layerGroup().addTo(map),
-  trails: L.layerGroup().addTo(map),
-  uncertainty: L.layerGroup().addTo(map),
-  vessels: L.layerGroup().addTo(map),
+  reference: L.layerGroup(),
+  infra: L.layerGroup(),
+  units: L.layerGroup(),
+  hydroCoverage: L.layerGroup(),
+  hydroStations: L.layerGroup(),
+  sensors: L.layerGroup(),
+  trails: L.layerGroup(),
+  uncertainty: L.layerGroup(),
+  vessels: L.layerGroup(),
+  submarines: L.layerGroup(),
+  routes: L.layerGroup(),
 };
-const patrolLive = L.layerGroup().addTo(layers.units);
-L.control.layers(null, {
-  "Real infrastructure (reference, approx.)": layers.reference,
-  "Demo infrastructure (approx.)": layers.infra,
-  "Patrol units (simulated)": layers.units,
-}, { position: "topright", collapsed: false }).addTo(map);
+for (const g of Object.values(layers)) g.addTo(map);
+
+// Filtrele din antet sunt singura sursă de adevăr: fiecare checkbox listează straturile pe care le comandă.
+for (const box of document.querySelectorAll(".map-filters input[data-layers]")) {
+  box.addEventListener("change", () => {
+    for (const key of box.dataset.layers.split(",")) {
+      const g = layers[key.trim()];
+      if (!g) continue;
+      if (box.checked) g.addTo(map); else map.removeLayer(g);
+    }
+  });
+}
 
 const legend = L.control({ position: "bottomleft" });
 legend.onAdd = () => {
   const d = L.DomUtil.create("div", "legend");
+  L.DomEvent.disableClickPropagation(d);
+  L.DomEvent.disableScrollPropagation(d);
   d.innerHTML =
+    `<button type="button" class="legend-toggle" aria-expanded="true"><span class="caret">▾</span> Legend</button>` +
+    `<div class="legend-body">` +
     `<div class="legend-head">Vessels and alerts</div>` +
     `<div><i style="background:${NORMAL_COLOR}"></i>Normal vessel</div>` +
     `<div><i style="background:${DARK_COLOR}"></i>AIS off (uncertainty area)</div>` +
-    `<div><i class="legend-patrol"></i>Patrol vessel (simulated) · dashed line = dispatched</div>` +
-    `<div><i class="legend-base"></i>Patrol base</div>` +
     Object.entries(LEVEL_COLOR).map(([k, c]) => `<div><i style="background:${c}"></i>${LEVEL_LABEL[k]} alert</div>`).join("") +
+    `<div><i class="glow-swatch"></i>Patrol unit (simulated)</div>` +
+    `<div class="legend-head">Sensors</div>` +
+    `<div><i style="background:#a855f7; border-radius:50%"></i>Hydrophone with contact</div>` +
+    `<div><i class="glow-swatch round"></i>Hydrophone on standby</div>` +
+    `<div><i style="background:#f97316; border-radius:50%"></i>Fibre-optic (DAS) event</div>` +
+    `<div><i class="glow-swatch sub"></i>Submerged contact (simulated)</div>` +
+    `<div><i class="dot" style="border-color:#2dd4bf"></i>Magnetometer buoy (simulated)</div>` +
     `<div class="legend-head">Demo infrastructure</div>` +
     `<div><i style="background:#f0a050"></i>Pipeline</div><div><i style="background:#b48af0"></i>Subsea cable</div>` +
-    `<div><i style="background:#a855f7; border-radius:50%"></i>Hydrophone (acoustic detector)</div>` +
     `<div class="legend-head">Reference (display only)</div>` +
     `<div><i class="dot" style="border-color:#f0a050"></i>Oil / gas platform</div>` +
     `<div><i style="background:#f0a050"></i>Gas pipeline</div>` +
     `<div><i style="background:#f2d94e"></i>Power cable</div>` +
     `<div><i style="background:#5fd3e8"></i>Data cable</div>` +
-    `<div><i class="dot" style="border-color:#4f8fd6"></i>Port · <i class="dot" style="border-color:#3fb6a8"></i>Security hub</div>` +
+    `<div><i class="dot" style="border-color:#5b9be6"></i>Port · <i class="dot" style="border-color:#3fb6a8"></i>Security hub</div>` +
     `<div><i class="dot" style="border-color:#f472b6"></i>Naval base / range</div>` +
-    `<div><i style="background:#e5484d"></i>Romanian EEZ boundary</div>` +
-    `<div><i style="background:rgba(159,232,112,.25); border:1px solid #9fe870"></i>Oil / gas licence block</div>`;
+    `<div><i style="background:#f0525b"></i>Romanian EEZ boundary</div>` +
+    `<div><i style="background:rgba(159,232,112,.25); border:1px solid #9fe870"></i>Oil / gas licence block</div>` +
+    `</div>`;
+  const btn = d.querySelector(".legend-toggle");
+  const setCollapsed = (on) => {
+    d.classList.toggle("collapsed", on);
+    btn.setAttribute("aria-expanded", String(!on));
+    btn.querySelector(".caret").textContent = on ? "▸" : "▾";
+    try { localStorage.setItem("seagrid.legendCollapsed", on ? "1" : "0"); } catch (e) { /* stocare indisponibilă */ }
+  };
+  let saved = "0";
+  try { saved = localStorage.getItem("seagrid.legendCollapsed") || "0"; } catch (e) { /* stocare indisponibilă */ }
+  setCollapsed(saved === "1");
+  btn.onclick = () => setCollapsed(!d.classList.contains("collapsed"));
   return d;
 };
 legend.addTo(map);
+
+// Patrule, DOAR AFIȘARE. Fără misiune, fiecare unitate descrie o buclă spre larg în jurul bazei.
+// Când o alertă recomandă unitatea (unit_id + eta_min din timeline sau din scenariul scriptat), unitatea pleacă
+// spre poziția alertei și ajunge exact la ETA-ul primit: pagina doar interpolează, nu calculează nimic.
+// Totul urmează timpul replay-ului, deci la pauză unitățile stau pe loc.
+const PATROL_EAST_KM = 7;      // bucla se întinde doar spre est (spre larg), ca să nu intre pe uscat
+const PATROL_NS_KM = 3;        // amplitudinea nord-sud a buclei
+const PATROL_PERIOD_MIN = 60;  // o buclă completă, în minute simulate
+
+function patrolLoopPos(u, t) {
+  const hours = (t - S.start) / 3.6e6;
+  const phase = [...u.id].reduce((a, c) => a + c.charCodeAt(0), 0);  // fază diferită pe unitate
+  const ang = (hours * 60 / PATROL_PERIOD_MIN) * 2 * Math.PI + phase;
+  const kmPerDegLon = 111.32 * Math.cos((u.lat * Math.PI) / 180);
+  return [u.lat + PATROL_NS_KM * Math.sin(ang) / 111.32, u.lon + (PATROL_EAST_KM / 2) * (1 - Math.cos(ang)) / kmPerDegLon];
+}
+
+// Misiunile: prima recomandare a fiecărei alerte pentru o unitate (ora, ETA, țintă), ordonate în timp.
+function buildUnitLegs() {
+  S.legs = {};
+  for (const a of S.alerts) {
+    const h = a.hist.find((x) => x.unit_id && x.eta_min != null);
+    if (!h) continue;
+    (S.legs[h.unit_id] ||= []).push({ tm: h.tm, eta: Number(h.eta_min), target: [a.lat, a.lon], label: a.vessel_name || a.mmsi });
+  }
+  for (const legs of Object.values(S.legs)) legs.sort((x, y) => x.tm - y.tm);
+}
+
+const lerpPos = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+const legProgress = (leg, t) => Math.min(1, Math.max(0, (t - leg.tm) / Math.max(1, leg.eta * 60000)));
+
+function unitStateAt(u, t) {
+  let active = null;
+  for (const leg of S.legs[u.id] || []) {
+    if (leg.tm > t) break;
+    // O misiune nouă pornește din locul în care era unitatea în acel moment (buclă sau misiunea anterioară).
+    leg.from = active ? lerpPos(active.from, active.target, legProgress(active, leg.tm)) : patrolLoopPos(u, leg.tm);
+    active = leg;
+  }
+  if (!active) return { pos: patrolLoopPos(u, t), leg: null };
+  const f = legProgress(active, t);
+  return { pos: lerpPos(active.from, active.target, f), leg: active, progress: f };
+}
+
+function updatePatrols(t) {
+  layers.routes.clearLayers();
+  for (const [id, mk] of Object.entries(S.unitMarkers)) {
+    const u = S.units[id];
+    const st = unitStateAt(u, t);
+    mk.setLatLng(st.pos);
+    let status = `simulated patrol around ${esc(u.base || "base")}`;
+    if (st.leg) {
+      const left = Math.round(st.leg.eta * (1 - st.progress));
+      status = st.progress < 1 ? `en route to ${esc(st.leg.label)} · ${left} min to arrival` : `on scene at ${esc(st.leg.label)}`;
+      if (st.progress < 1) {
+        L.polyline([st.pos, st.leg.target], { color: "#7cc4ff", weight: 2, opacity: 0.75, dashArray: "6 6", interactive: false }).addTo(layers.routes);
+        L.circleMarker(st.leg.target, { radius: 4, color: "#7cc4ff", weight: 2, fillOpacity: 0, interactive: false }).addTo(layers.routes);
+      }
+    }
+    mk.setTooltipContent(`<b>${esc(u.name)}</b><br>${u.speed_kn} kn · ${status}${u.simulated ? "<br>SIMULATED" : ""}`);
+  }
+}
 
 // Clipirea e legată de un ceas global, nu de animații CSS: lista se reconstruiește la fiecare tick.
 setInterval(() => document.body.classList.toggle("flash-on"), FLASH_MS);
 
 function refTooltip(p) {
-  return `<b>${esc(p.name)}</b>` + (p.group ? `<br>${esc(p.group)}` : "") +
+  return `<b>${esc(p.name)}</b>` + (p.group ? `<br><span class="muted">${esc(p.group)}</span>` : "") +
     (p.note ? `<br>${esc(p.note)}` : "") + "<br><i>Reference only, not scored</i>";
 }
 
 async function loadAssets() {
-  try {
-    const ref = await SeaGridLoader.fetchJSON(ASSETS + "reference_infrastructure.geojson");
+  // Cele trei fișiere se încarcă în paralel; un fișier lipsă nu le blochează pe celelalte.
+  const [ref, gj, pu, subs] = await Promise.allSettled([
+    SeaGridLoader.fetchJSON(ASSETS + "reference_infrastructure.geojson"),
+    SeaGridLoader.fetchJSON(ASSETS + "infrastructure.geojson"),
+    SeaGridLoader.fetchJSON(ASSETS + "patrol_units.json"),
+    SeaGridLoader.fetchJSON(ASSETS + "simulated_submarine_contacts.json"),
+  ]);
+  if (subs.status === "fulfilled") {
+    S.subs = subs.value.contacts || [];
+    if (S.tl) { S.alerts = S.tlAlerts.concat(scriptedAlerts()); buildUnitLegs(); }
+    for (const m of subs.value.low_cost_sensors || []) {
+      S.subSensors[m.id] = m;
+      L.circleMarker([m.lat, m.lon], { radius: 5, color: "#2dd4bf", weight: 2, fillColor: "#2dd4bf", fillOpacity: 0.25 })
+        .bindTooltip(`<b>${esc(m.name)}</b><br>${esc(m.note)}<br>SIMULATED`, { direction: "top", offset: [0, -6] })
+        .addTo(layers.hydroStations);
+    }
+  } else console.warn(subs.reason);
+  if (ref.status === "fulfilled") {
+    const data = ref.value;
     // Poligoanele (blocuri de licență) primele, ca să rămână sub linii și puncte.
-    ref.features.sort((a, b) => (b.geometry.type === "Polygon") - (a.geometry.type === "Polygon"));
-    L.geoJSON(ref, {
+    data.features.sort((a, b) => (b.geometry.type === "Polygon") - (a.geometry.type === "Polygon"));
+    L.geoJSON(data, {
       style: (f) => REF_STYLE[f.properties.kind] || { color: "#ccc", weight: 2, dashArray: "4 4" },
       pointToLayer: (f, ll) => L.circleMarker(ll, {
-        radius: 6, color: REF_POINT[f.properties.kind] || "#ccc", weight: 2, fillColor: "#16212d", fillOpacity: 1,
+        // Umplutură translucidă în culoarea punctului: lizibilă și pe tema de noapte, și pe cea de zi.
+        radius: 6, color: REF_POINT[f.properties.kind] || "#ccc", weight: 2,
+        fillColor: REF_POINT[f.properties.kind] || "#ccc", fillOpacity: 0.3,
       }),
       onEachFeature: (f, l) => l.bindTooltip(refTooltip(f.properties), { sticky: true }),
     }).addTo(layers.reference);
-  } catch (e) { console.warn(e); }
-  try {
-    const gj = await SeaGridLoader.fetchJSON(ASSETS + "infrastructure.geojson");
-    L.geoJSON(gj, {
+  } else console.warn(ref.reason);
+  if (gj.status === "fulfilled") {
+    L.geoJSON(gj.value, {
       style: (f) => INFRA_STYLE[f.properties.kind] || { color: "#ccc" },
       pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 7, color: "#fff", weight: 2, fillColor: "#f0a050", fillOpacity: 1 }),
       onEachFeature: (f, l) => l.bindTooltip(esc(f.properties.name)),
     }).addTo(layers.infra);
-  } catch (e) { console.warn(e); }
-  try {
-    const pu = await SeaGridLoader.fetchJSON(ASSETS + "patrol_units.json");
-    for (const u of pu.units) {
+  } else console.warn(gj.reason);
+  if (pu.status === "fulfilled") {
+    const icon = glowIcon("glow-unit", 26);
+    for (const u of pu.value.units) {
       S.units[u.id] = u;
-      if (u.mmsi) S.unitByMmsi[u.mmsi] = u;
-      L.marker([u.lat, u.lon], { icon: L.divIcon({ className: "patrol-base", iconSize: [12, 12] }), title: u.base || u.name })
-        .bindTooltip(`<b>Base: ${esc(u.base || "?")}</b><br>Home of ${esc(u.name)}${u.simulated ? "<br>SIMULATED" : ""}`)
+      S.unitMarkers[u.id] = L.marker([u.lat, u.lon], { icon, pane: "glowHigh", title: u.name, keyboard: false })
+        .bindTooltip(`<b>${esc(u.name)}</b><br>${u.speed_kn} kn · simulated patrol around ${esc(u.base || "base")}${u.simulated ? " · SIMULATED" : ""}`, { direction: "top", offset: [0, -12] })
         .addTo(layers.units);
     }
-  } catch (e) { console.warn(e); }
+    if (S.tl) render(); // numele unităților apar în recomandare chiar dacă timeline-ul a sosit primul
+  } else console.warn(pu.reason);
 }
 
 function lastIndexLE(times, t) {
@@ -240,52 +370,51 @@ function ingest(tl) {
   S.start = ms(tl.scenario_start);
   S.end = ms(tl.now);
   S.tracks = tl.vessels.map((v) => ({ ...v, times: v.points.map((p) => ms(p.t)) }));
-  S.alerts = tl.alerts.map((a) => ({
+  S.tlAlerts = tl.alerts.map((a) => ({
     ...a,
     created: ms(a.created_at),
     hist: a.history.map((h) => ({ ...h, tm: ms(h.t) })),
   }));
+  S.alerts = S.tlAlerts.concat(scriptedAlerts());
+  buildUnitLegs();
   S.gapsByMmsi = {};
   for (const e of tl.events.filter((e) => e.event_type === "ais_gap")) {
     (S.gapsByMmsi[e.mmsi] ||= []).push({ ...e, s: ms(e.start), e: e.end ? ms(e.end) : S.end });
   }
-  S.sensors = tl.events.filter((e) => e.source !== "ais").map((e) => ({ ...e, s: ms(e.start) }));
+  S.sensors = tl.events.filter((e) => e.source !== "ais").map((e) => ({ ...e, s: ms(e.start) }))
+    .sort((a, b) => a.s - b.s);
   $("sim-badge").hidden = !tl.simulated;
   $("slider").max = Math.max(1, Math.round((S.end - S.start) / 1000));
   if (S.live || S.t === 0 || S.t > S.end) S.t = S.live ? S.end : Math.min(Math.max(S.t, S.start), S.end);
-  $("status").textContent = `mode ${tl.mode} · now ${fmtTime(S.end)}`;
+  $("status").textContent = `mode ${tl.mode} · batch ${tl.batch_index} · now ${fmtTime(S.end)}`;
 
-  // Construire stații hidrofoane permanente pe hartă (o singură dată, fără flicker)
-  buildPermanentHydrophoneLayers();
+  buildHydrophoneLayers();
   renderAcousticHistory();
   render();
 }
 
-// Stații hidrofoane construite stabil o singură dată
+// Stațiile de hidrofoane sunt fixe: se construiesc o singură dată (fără flicker la fiecare tick).
 let hydroMarkersBuilt = false;
-function buildPermanentHydrophoneLayers() {
+function buildHydrophoneLayers() {
   if (hydroMarkersBuilt) return;
-  layers.hydroStations.clearLayers();
-  layers.hydroCoverage.clearLayers();
-
   for (const h of ALL_HYDROPHONES) {
-    const isSabotage = h.id === "HYD-3";
+    const isSabotage = h.sig === "anchor_chain";
     const isContact = h.hasContact;
-    const stCol = isSabotage ? "#e5484d" : isContact ? "#a855f7" : "#0284c7";
+    const stCol = isSabotage ? "#f0525b" : isContact ? "#a855f7" : "#0284c7";
 
-    // Cerc de acoperire 15 km (fără imagini în tooltip)
-    // Estompate intenționat: rețeaua de hidrofoane e context, nu trebuie să acopere navele și alertele.
+    // Cercul de acoperire de 15 km: estompat, ca să nu acopere navele și alertele.
     L.circle([h.lat, h.lon], {
       radius: 15000, color: stCol, weight: 1, opacity: isContact ? 0.45 : 0.12, dashArray: "5 5",
       fillOpacity: isContact ? 0.05 : 0.008, interactive: false,
     }).addTo(layers.hydroCoverage);
 
-    // Marker hidrofon fix (text curat în tooltip, fără imagini care dispar la drag)
-    L.circleMarker([h.lat, h.lon], {
-      radius: isContact ? 7 : 4, color: isContact ? "#ffffff" : stCol, weight: isContact ? 1.5 : 1, opacity: isContact ? 0.9 : 0.35,
-      fillColor: stCol, fillOpacity: isContact ? 0.85 : 0.2,
-    })
-      .bindTooltip(`<b>${h.id}</b> · ${esc(h.name)}<br><span style="color:${isContact ? '#d8b4fe' : '#93c5fd'}">${esc(h.summary)}</span>`, {
+    const marker = isContact
+      ? L.circleMarker([h.lat, h.lon], {
+        radius: 7, color: "#ffffff", weight: 1.5, opacity: 0.9, fillColor: stCol, fillOpacity: 0.85,
+      })
+      : L.marker([h.lat, h.lon], { icon: glowIcon("glow-dot", 24), pane: "glowLow", keyboard: false });
+    marker
+      .bindTooltip(`<b>${esc(h.id)}</b> · ${esc(h.name)}<br><span class="${isContact ? "tt-sonar" : "tt-info"}">${esc(h.summary)}</span>`, {
         direction: "top", offset: [0, -8],
       })
       .on("click", () => openSonarModal(h))
@@ -321,12 +450,10 @@ function render() {
   }
   const sel = S.alerts.find((a) => a.alert_id === S.selected);
 
-  // Randare nave
   layers.vessels.clearLayers();
   layers.uncertainty.clearLayers();
   layers.trails.clearLayers();
   for (const v of S.tracks) {
-    if (v.ship_type === PATROL_TYPE) continue;
     const i = lastIndexLE(v.times, t);
     if (i < 0) continue;
     const p = v.points[i];
@@ -335,17 +462,17 @@ function render() {
     const color = gap ? DARK_COLOR : level ? LEVEL_COLOR[level] : NORMAL_COLOR;
     if (gap) {
       const hours = (t - gap.s) / 3.6e6;
-      const radiusKm = (gap.metrics.uncertainty_km_per_h || 0) * hours;
+      const radiusKm = ((gap.metrics && gap.metrics.uncertainty_km_per_h) || 0) * hours;
       L.circle([gap.lat, gap.lon], { radius: radiusKm * 1000, color: DARK_COLOR, weight: 1, dashArray: "4 4", fillOpacity: 0.08 })
         .bindTooltip(`Uncertainty area: ${radiusKm.toFixed(1)} km`)
         .addTo(layers.uncertainty);
     }
     L.circleMarker([p.lat, p.lon], {
-      radius: level ? 8 : 5, color: gap ? DARK_COLOR : "#0b1118", weight: gap ? 2 : 1,
+      radius: level ? 8 : 5, color: gap ? DARK_COLOR : "#0b131d", weight: gap ? 2 : 1,
       dashArray: gap ? "2 2" : null, fillColor: color, fillOpacity: gap ? 0.2 : 0.95,
     })
       .bindTooltip(
-        `<b>${esc(v.name || "Unknown vessel")}</b> · MMSI ${v.mmsi}<br>${p.sog ?? "?"} kn · ${p.cog ?? "?"}°` +
+        `<b>${esc(v.name || "Unknown vessel")}</b> · MMSI ${esc(v.mmsi)}<br>${p.sog ?? "?"} kn · ${p.cog ?? "?"}°` +
         `${gap ? "<br>AIS off since " + fmtTime(gap.s) : ""}${v.simulated ? "<br>SIMULATED" : ""}`)
       .on("click", () => { const a = active.find((x) => x.a.mmsi === v.mmsi); if (a) select(a.a.alert_id); })
       .addTo(layers.vessels);
@@ -356,176 +483,233 @@ function render() {
     }
   }
 
-  renderPatrols(t, active);
-
-  // Randare pings acustici activi la momentul t (numai markere circulare curate, FĂRĂ imagini în tooltips)
-  layers.sensors.clearLayers();
-  // Randare pings acustici și senzori de fibră activi la momentul t
+  // Evenimente acustice și de fibră active la momentul t
   layers.sensors.clearLayers();
   for (const e of S.sensors) {
     if (e.s > t || t - e.s > SENSOR_SHOW_MIN * 60000) continue;
-    const isAcoustic = e.source === "acoustic";
-    const isSabotage = isAcoustic && e.metrics && e.metrics.signature === "anchor_chain";
-
-    if (isAcoustic) {
-      const col = isSabotage ? "#e5484d" : "#a855f7";
-      const sig = e.metrics && e.metrics.signature ? ` [${esc(e.metrics.signature).toUpperCase()} @ ${e.metrics.dominant_freq_hz || 50} Hz]` : "";
-      const labelText = `<b>SONAR CONTACT (HYDROPHONE): ${esc(e.sensor_id)}</b><br>${sig} · Confidence ${(e.confidence * 100).toFixed(0)}%<br><i>Click for the detailed report</i>`;
-
-      L.circleMarker([e.lat, e.lon], { radius: 16, color: col, weight: 3, fillOpacity: 0.35 })
-        .bindTooltip(labelText, { direction: "top", offset: [0, -12] })
-        .on("click", () => {
-          const hyd = findHydro(e.sensor_id);
-          if (hyd) openSonarModal(hyd);
-        })
+    const m = e.metrics || {};
+    if (e.source === "acoustic") {
+      const col = m.signature === "anchor_chain" ? "#f0525b" : "#a855f7";
+      const sig = m.signature ? `${esc(m.signature).toUpperCase()}${m.dominant_freq_hz ? ` @ ${num(m.dominant_freq_hz, 0)} Hz` : ""}` : "low-frequency energy";
+      L.circleMarker([e.lat, e.lon], { radius: 16, color: col, weight: 3, fillOpacity: 0.3 })
+        .bindTooltip(`<b>SONAR CONTACT: ${esc(e.sensor_id)}</b><br>${sig} · confidence ${pct(e.confidence)}<br><i>Click for the detailed report</i>`,
+          { direction: "top", offset: [0, -12] })
+        .on("click", () => { const hyd = findHydro(e.sensor_id); if (hyd) openSonarModal(hyd); else openFibreModal(e); })
         .addTo(layers.sensors);
     } else {
-      // SENZOR DE FIBRĂ OPTICĂ (DAS) - Culoare Cyan #38bdf8 distinctă
-      const km = e.metrics && e.metrics.cable_km ? Number(e.metrics.cable_km).toFixed(1) : "?";
-      const note = e.metrics && e.metrics.note ? e.metrics.note : "cable vibration";
-      const isNearShore = note.includes("shore") || Number(km) < 15;
-      const colFibre = isNearShore ? "#38bdf8" : "#f97316";
-
-      let descText = "";
-      if (isNearShore) {
-        descText = `<span style="color:#93c5fd;">ℹ️ <b>Coastal mechanical noise</b> (waves/traffic at km ${km} near shore). Harmless, no threat.</span>`;
-      } else {
-        descText = `<span style="color:#f87171;">⚠️ <b>Strong mechanical vibration on the cable</b> (suspected subsea sabotage!).</span>`;
-      }
-
-      const labelText =
-        `<b>FIBRE-OPTIC SENSOR (DAS)</b> · ${esc(e.metrics.cable_id || "CABLE-1")}<br>` +
-        `Position: km <b>${km}</b> from shore<br>` +
-        `${descText}<br>` +
-        `Amplitude: ${e.metrics.amplitude ?? "?"} · Confidence: ${(e.confidence * 100).toFixed(0)}%`;
-
-      L.circleMarker([e.lat, e.lon], { radius: 14, color: colFibre, weight: 3, fillColor: colFibre, fillOpacity: 0.4 })
-        .bindTooltip(labelText, { direction: "top", offset: [0, -12] })
+      const nearShore = isNearShoreNote(m.note);
+      const colFibre = nearShore ? "#38bdf8" : "#f97316";
+      const desc = nearShore
+        ? `<span class="tt-info">Coastal mechanical noise near shore (low confidence).</span>`
+        : `<span class="tt-warn">Mechanical vibration on the cable.</span>`;
+      const fibreMarker = nearShore
+        ? L.marker([e.lat, e.lon], { icon: glowIcon("glow-dot glow-lg", 44), pane: "glowHigh", keyboard: false })
+        : L.circleMarker([e.lat, e.lon], { radius: 14, color: colFibre, weight: 3, fillColor: colFibre, fillOpacity: 0.35 });
+      fibreMarker
+        .bindTooltip(
+          `<b>FIBRE-OPTIC SENSOR (DAS)</b> · ${esc(m.cable_id || e.sensor_id || "cable")}<br>` +
+          `km <b>${num(m.cable_km, 1)}</b> from shore · ${esc(m.note || "")}<br>${desc}<br>` +
+          `Amplitude ${m.amplitude ?? "?"} · confidence ${pct(e.confidence)}`,
+          { direction: "top", offset: [0, -12] })
         .on("click", () => openFibreModal(e))
         .addTo(layers.sensors);
     }
   }
 
+  renderSubmarines(t);
+  updatePatrols(t);
   updateRealtimeAudioBanner(t);
   highlightActiveHistoryItem(t);
   renderAlertList(active);
   renderDetail(t);
 }
 
+// ---------- contacte submarine (scenariu SIMULAT, doar afișare) ----------
+// Pozițiile vin din assets/simulated_submarine_contacts.json; pagina doar interpolează între puncte în timp.
+const SUB_COLOR = "#2dd4bf";
+const SUB_LOST_MIN = 20;       // cât timp mai afișăm ultima estimare după ultimul punct
+const DAS_LABEL = "DAS-CABLE-1";
+
+function subStateAt(c, t) {
+  const pts = c.track.map((p) => ({ ...p, tm: S.start + p.min * 60000 }));
+  if (!pts.length || t < pts[0].tm) return null;
+  const last = pts[pts.length - 1];
+  if (t > last.tm + SUB_LOST_MIN * 60000) return null;
+  if (t >= last.tm) return { ...last, lost: t > last.tm, past: pts.map((p) => [p.lat, p.lon]) };
+  const i = pts.findIndex((p) => p.tm > t) - 1;
+  const a = pts[i], b = pts[i + 1], f = (t - a.tm) / (b.tm - a.tm);
+  const lerp = (x, y) => x + (y - x) * f;
+  return {
+    lat: lerp(a.lat, b.lat), lon: lerp(a.lon, b.lon), unc_km: lerp(a.unc_km, b.unc_km), conf: lerp(a.conf, b.conf),
+    by: a.by, tm: t, lost: false,
+    past: pts.slice(0, i + 1).map((p) => [p.lat, p.lon]).concat([[lerp(a.lat, b.lat), lerp(a.lon, b.lon)]]),
+  };
+}
+
+function sensorPos(id) {
+  const h = findHydro(id);
+  if (h) return [h.lat, h.lon];
+  const m = S.subSensors[id];
+  return m ? [m.lat, m.lon] : null;
+}
+
+// Alerta unui contact submarin vine din evaluarea SCRIPTATĂ din fișierul de scenariu (scor, nivel, factori),
+// nu e calculată în pagină. O transformăm doar în aceeași formă ca alertele din timeline, ca să fie afișată la fel.
+function scriptedAlerts() {
+  if (!S.start) return [];
+  return S.subs.filter((c) => c.assessment && c.assessment.length).map((c) => {
+    const steps = c.assessment.map((x) => ({ ...x, tm: S.start + x.min * 60000 }));
+    const focus = c.track.find((p) => p.min >= steps[steps.length - 1].min) || c.track[c.track.length - 1];
+    return {
+      alert_id: `scripted-${c.id}`, scripted: true, simulated: true, mmsi: null, sub_id: c.id,
+      vessel_name: c.name, alert_type: "submerged_contact",
+      created: steps[0].tm, start_time: new Date(S.start + c.track[0].min * 60000).toISOString(),
+      lat: focus.lat, lon: focus.lon,
+      hist: steps.map((x) => ({ tm: x.tm, score: x.score, level: x.level, unit_id: x.unit_id || null, eta_min: x.eta_min ?? null })),
+      factors: steps.flatMap((x) => (x.factors || []).map((f) => ({ ...f, added_at: new Date(x.tm).toISOString(), simulated: true }))),
+    };
+  });
+}
+
+function renderSubmarines(t) {
+  layers.submarines.clearLayers();
+  const active = [];
+  for (const c of S.subs) {
+    const st = subStateAt(c, t);
+    if (!st) continue;
+    active.push({ c, st });
+    L.polyline(st.past, { color: SUB_COLOR, weight: 2, opacity: 0.55, dashArray: "2 6", lineCap: "round" }).addTo(layers.submarines);
+    // Linii de triangulare spre senzorii care contribuie la poziție
+    for (const id of st.by || []) {
+      const pos = sensorPos(id);
+      if (pos) L.polyline([pos, [st.lat, st.lon]], { color: SUB_COLOR, weight: 1, opacity: 0.35, dashArray: "4 6", interactive: false }).addTo(layers.submarines);
+    }
+    L.circle([st.lat, st.lon], {
+      radius: st.unc_km * 1000, color: SUB_COLOR, weight: 1, opacity: 0.5, fillColor: SUB_COLOR, fillOpacity: 0.07, dashArray: "3 5", interactive: false,
+    }).addTo(layers.submarines);
+    L.marker([st.lat, st.lon], { icon: glowIcon(`glow-sub${st.lost ? " lost" : ""}`, 30), pane: "glowHigh", keyboard: false })
+      .bindTooltip(`<b>${esc(c.name)}</b> · SIMULATED<br>${esc(c.classification)}<br>` +
+        `±${st.unc_km.toFixed(1)} km · confidence ${pct(st.conf)}${st.lost ? " · <i>contact lost</i>" : ""}<br><i>Click for detection details</i>`,
+        { direction: "top", offset: [0, -14] })
+      .on("click", () => openSubModal(c, st))
+      .addTo(layers.submarines);
+  }
+  renderSubList(active);
+}
+
+function renderSubList(active) {
+  const box = $("sub-list");
+  if (!box) return;
+  $("sub-count").textContent = active.length;
+  $("no-subs").hidden = active.length > 0;
+  box.innerHTML = active.map(({ c, st }) => `
+    <div class="history-item sub-item" data-id="${esc(c.id)}" role="button" tabindex="0">
+      <span class="history-time">${fmtTime(S.start + c.track[0].min * 60000)}</span>
+      <div class="history-content">
+        <span class="history-title">${esc(c.name)}${SIM_TAG}</span>
+        <span class="history-loc">${esc(c.summary)}</span>
+      </div>
+      <span class="history-badge badge-sub">${st.lost ? "Lost" : "±" + st.unc_km.toFixed(1) + " km"}</span>
+    </div>`).join("");
+  for (const el of box.querySelectorAll(".sub-item")) {
+    const open = () => { const x = active.find((a) => a.c.id === el.dataset.id); if (x) { map.panTo([x.st.lat, x.st.lon]); openSubModal(x.c, x.st); } };
+    el.onclick = open;
+    el.onkeydown = (ev) => { if (ev.key === "Enter") open(); };
+  }
+}
+
+function openSubModal(c, st) {
+  const modal = $("sonar-modal");
+  if (!modal) return;
+  const sensorName = (id) => (findHydro(id) ? `${id} (hydrophone)` : S.subSensors[id] ? `${id} (magnetometer buoy)` : id === DAS_LABEL ? `${id} (fibre-optic DAS)` : id);
+  $("modal-title").textContent = `${c.name} — submerged contact`;
+  $("modal-body").innerHTML = `
+    <div class="modal-row">
+      <span class="modal-badge" style="background:#0f766e;">${st.lost ? "CONTACT LOST" : "TRACKING"} · SIMULATED</span>
+      <span class="muted small">${st.lat.toFixed(3)}°N, ${st.lon.toFixed(3)}°E · ${fmtTime(st.tm)}</span>
+    </div>
+    <div class="modal-text"><b>Classification:</b> ${esc(c.classification)}.<br>${esc(c.summary)}.</div>
+    <div class="modal-grid">
+      ${card("Position uncertainty", `±${st.unc_km.toFixed(1)} km`)}
+      ${card("Confidence", pct(st.conf))}
+      ${card("Sensors in this fix", esc((st.by || []).join(", ")) || "—")}
+      ${card("First detected", fmtTime(S.start + c.track[0].min * 60000))}
+    </div>
+    <h3>How it is detected (low-cost)</h3>
+    <ul class="lines">${(c.methods || []).map((m) => `<li><b>${esc(m.name)}.</b> ${esc(m.detail)}</li>`).join("")}</ul>
+    <p class="muted small" style="margin:10px 0 0;">Contributing sensors: ${c.sensors.map((id) => esc(sensorName(id))).join(" · ")}.<br>
+    Scenario data for the demo: shown on the map only, not part of the risk score.</p>`;
+  modal.showModal();
+}
+
 function renderAcousticHistory() {
   const list = $("acoustic-history-list");
   if (!list) return;
-
-  const contacts = TACTICAL_CONTACTS.slice().sort((a, b) => a.offsetSec - b.offsetSec);
-  list.innerHTML = contacts.map((h) => {
-    const timeIso = fmtTime(S.start + h.offsetSec * 1000);
-    return `
-      <div class="history-item" data-id="${h.id}" onclick="jumpToSec(${h.offsetSec}); openSonarModal(findHydro('${h.id}'))">
-        <span class="history-time">${timeIso}</span>
+  const contacts = TACTICAL_CONTACTS.slice().sort((a, b) => hydroTime(a) - hydroTime(b));
+  list.innerHTML = contacts.map((h) => `
+      <div class="history-item" data-id="${esc(h.id)}" role="button" tabindex="0">
+        <span class="history-time">${fmtTime(hydroTime(h))}</span>
         <div class="history-content">
-          <span class="history-title">${esc(h.id)} · ${esc(h.name.split('(')[0].trim())}</span>
+          <span class="history-title">${esc(h.id)} · ${esc(h.name.split("(")[0].trim())}</span>
           <span class="history-loc">${esc(h.summary)}</span>
         </div>
-        <span class="history-badge ${h.badgeClass}">${esc(h.badgeText)}</span>
-      </div>`;
-  }).join("");
-}
-
-function highlightActiveHistoryItem(t) {
-  const elapsedSec = (t - S.start) / 1000;
-  for (const item of document.querySelectorAll(".history-item")) {
-    const hyd = findHydro(item.dataset.id);
-    if (!hyd) continue;
-    const isLive = Math.abs(elapsedSec - hyd.offsetSec) < (SENSOR_SHOW_MIN * 60);
-    item.classList.toggle("is-live", isLive);
+        <span class="history-badge ${esc(h.badgeClass)}">${esc(h.badgeText)}</span>
+      </div>`).join("");
+  for (const item of list.querySelectorAll(".history-item")) {
+    const open = () => { const h = findHydro(item.dataset.id); jumpTo(hydroTime(h)); openSonarModal(h); };
+    item.onclick = open;
+    item.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } };
   }
 }
 
-// Actualizare banner "Ce se aude în timp real"
+const isHydroLive = (h, t) => t >= hydroTime(h) && t - hydroTime(h) < SENSOR_SHOW_MIN * 60000;
+
+function highlightActiveHistoryItem(t) {
+  for (const item of document.querySelectorAll(".history-item")) {
+    const h = findHydro(item.dataset.id);
+    if (h) item.classList.toggle("is-live", isHydroLive(h, t));
+  }
+}
+
+// Banner „Ce se aude în timp real”
 function updateRealtimeAudioBanner(t) {
   const banner = $("realtime-audio-banner");
   if (!banner || banner.hidden) return;
-
   $("audio-time").textContent = fmtTime(t);
-  const elapsedSec = (t - S.start) / 1000;
-
-  // Căutăm dacă vreun hidrofon are eveniment activ în acest moment
-  const activeHyd = TACTICAL_CONTACTS.find((h) => Math.abs(elapsedSec - h.offsetSec) < (SENSOR_SHOW_MIN * 60));
-
+  const activeHyd = TACTICAL_CONTACTS.find((h) => isHydroLive(h, t));
+  const box = $("audio-status-text");
   if (activeHyd) {
-    $("audio-status-text").innerHTML =
-      `<b style="color:#d8b4fe;">${esc(activeHyd.id)} (${esc(activeHyd.name)}):</b> ${esc(activeHyd.realtimeText)}` +
-      `<br><button type="button" class="btn-mini" style="margin-top:6px;" onclick="openSonarModal(findHydro('${activeHyd.id}'))">Open Spectrogram</button>`;
+    box.innerHTML = `<b class="tt-sonar">${esc(activeHyd.id)} (${esc(activeHyd.name)}):</b> ${esc(activeHyd.realtimeText)}<br>` +
+      `<button type="button" class="btn-mini" style="margin-top:6px;">Open spectrogram</button>`;
+    box.querySelector("button").onclick = () => openSonarModal(activeHyd);
   } else {
-    $("audio-status-text").innerHTML =
-      `At this time (${fmtTime(t)}) only the <i>natural background noise of the Black Sea</i> is being captured. No suspicious vessel or abnormal acoustic activity recorded.`;
+    box.innerHTML = `At ${fmtTime(t)} only the <i>natural background noise of the Black Sea</i> is being captured. No suspicious vessel or abnormal acoustic activity recorded.`;
   }
 }
 
-// Toggling banner audio
 $("btn-realtime-audio").onclick = () => {
   const b = $("realtime-audio-banner");
   b.hidden = !b.hidden;
   if (!b.hidden) updateRealtimeAudioBanner(S.t);
 };
-$("btn-close-audio-banner").onclick = () => {
-  $("realtime-audio-banner").hidden = true;
-};
+$("btn-close-audio-banner").onclick = () => { $("realtime-audio-banner").hidden = true; };
 
-// Render lista alerte (păstrând animația colegului Radu)
 function renderAlertList(active) {
   $("alert-count").textContent = active.length;
   $("no-alerts").hidden = active.length > 0;
-  $("alert-list").innerHTML = active.map(({ a, st }) => `
-    <li data-id="${a.alert_id}" data-score="${Math.floor(st.score)}" class="${a.alert_id === S.selected ? "selected" : ""} ${st.score > FLASH_SCORE ? "flash" : ""}">
-      <span class="chip lvl-${st.level}"></span>
-      <span>${esc(a.vessel_name || a.mmsi)}${a.simulated ? SIM_TAG : ""}</span>
+  $("alert-list").innerHTML = active.map(({ a, st }) => {
+    const cls = [a.alert_id === S.selected ? "selected" : "", st.score > FLASH_SCORE ? "flash" : st.score >= PULSE_SCORE ? "pulse" : ""].join(" ");
+    return `
+    <li data-id="${esc(a.alert_id)}" class="${cls}" tabindex="0">
+      <span class="chip lvl-${esc(st.level)}"></span>
+      <span class="name">${esc(a.vessel_name || a.mmsi)}${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}</span>
       <span class="score">${st.score}</span>
-      <span class="sub">${esc(a.alert_type)} · level ${LEVEL_LABEL[st.level]} · since ${fmtTime(a.created)}</span>
-    </li>`).join("");
-
-  for (const li of $("alert-list").querySelectorAll("li")) li.onclick = () => select(li.dataset.id);
-}
-
-// Unitățile de patrulare: poziția vine din pista lor din timeline; misiunea și ETA-ul din istoricul alertei
-// (ScorePoint.unit_id / eta_min). Nimic nu se calculează aici.
-function renderPatrols(t, active) {
-  patrolLive.clearLayers();
-  const missionByUnit = {};
-  for (const { a, st } of active) if (st.unit_id) missionByUnit[st.unit_id] = { a, st };
-  // Ținta afișată: poziția navei la t (din pista ei), altfel poziția alertei.
-  const targetOf = (a) => {
-    const v = S.tracks.find((x) => x.mmsi === a.mmsi && x.ship_type !== PATROL_TYPE);
-    const k = v ? lastIndexLE(v.times, t) : -1;
-    return k >= 0 ? [v.points[k].lat, v.points[k].lon] : [a.lat, a.lon];
-  };
-  for (const v of S.tracks) {
-    if (v.ship_type !== PATROL_TYPE) continue;
-    const i = lastIndexLE(v.times, t);
-    if (i < 0) continue;
-    const p = v.points[i];
-    const u = S.unitByMmsi[v.mmsi];
-    const m = u && missionByUnit[u.id];
-    const from = lastIndexLE(v.times, t - TRAIL_MIN * 60000);
-    L.polyline(v.points.slice(Math.max(0, from), i + 1).map((q) => [q.lat, q.lon]),
-      { color: PATROL_COLOR, weight: 2, opacity: 0.45 }).addTo(patrolLive);
-    let status = "Patrolling";
-    if (m) {
-      const onScene = m.st.eta_min === 0;
-      const target = esc(m.a.vessel_name || m.a.mmsi);
-      status = onScene ? `On scene: ${target}` : `Dispatched to ${target} · ETA ${m.st.eta_min.toFixed(0)} min`;
-      if (!onScene) {
-        L.polyline([[p.lat, p.lon], targetOf(m.a)], { color: PATROL_COLOR, weight: 2, dashArray: "6 6", opacity: 0.9 })
-          .bindTooltip(`${esc(v.name)} → ${target} · ETA ${m.st.eta_min.toFixed(0)} min`, { sticky: true })
-          .addTo(patrolLive);
-      }
-    }
-    // Leaflet pune propriul transform pe icon, deci rombul e un element interior rotit.
-    L.marker([p.lat, p.lon], { icon: L.divIcon({ className: `patrol-icon${m ? " on-mission" : ""}`, html: "<span></span>",
-                                                iconSize: [18, 18] }), zIndexOffset: 1000 })
-      .bindTooltip(`<b>${esc(v.name)}</b><br>${status}<br>${p.sog ?? "?"} kn${v.simulated ? "<br>SIMULATED" : ""}`)
-      .on("click", () => { if (m) select(m.a.alert_id); })
-      .addTo(patrolLive);
+      <span class="sub">${esc(a.alert_type)} · ${LEVEL_LABEL[st.level] || esc(st.level)} · since ${fmtTime(a.created)}</span>
+    </li>`;
+  }).join("");
+  for (const li of $("alert-list").querySelectorAll("li")) {
+    li.onclick = () => select(li.dataset.id);
+    li.onkeydown = (ev) => { if (ev.key === "Enter") select(li.dataset.id); };
   }
 }
 
@@ -535,186 +719,142 @@ function renderDetail(t) {
   $("detail").hidden = !st;
   if (!st) return;
   const factors = a.factors.filter((f) => ms(f.added_at) <= t);
-  $("detail-title").innerHTML = `${esc(a.vessel_name || "Unknown vessel")} · ${st.score}/100 ${a.simulated ? SIM_TAG : ""}`;
-  $("detail-meta").textContent =
-    `MMSI ${a.mmsi} · level ${LEVEL_LABEL[st.level]} · onset ${fmtTime(ms(a.start_time))} · alert ${fmtTime(a.created)} · id ${a.alert_id}`;
+  $("detail-title").innerHTML = `${esc(a.vessel_name || "Unknown vessel")} · ${st.score}/100 ${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}`;
+  $("detail-meta").textContent = (a.scripted
+    ? `Submerged contact ${a.sub_id} · scripted demo scenario (not computed by the pipeline) · level ${LEVEL_LABEL[st.level] || st.level} · alert ${fmtTime(a.created)}`
+    : `MMSI ${a.mmsi} · level ${LEVEL_LABEL[st.level] || st.level} · onset ${fmtTime(ms(a.start_time))} · alert ${fmtTime(a.created)} · id ${a.alert_id}`);
   $("factors").innerHTML = factors.map((f) => `
     <div class="factor"><div class="row"><span>${esc(f.label)}${f.simulated ? SIM_TAG : ""}</span><b>+${f.points}</b></div>
-    <div class="bar"><span style="width:${f.points}%"></span></div></div>`).join("") +
+    <div class="bar"><span style="width:${Math.min(100, f.points)}%"></span></div></div>`).join("") +
     `<div class="factor total"><div class="row"><span>Total (capped)</span><b>${st.score}</b></div>
-     <div class="bar"><span style="width:${st.score}%"></span></div></div>`;
+     <div class="bar"><span style="width:${Math.min(100, st.score)}%"></span></div></div>`;
 
   $("detail-lines").innerHTML = factors.map((f) => {
     let extra = "";
     if (f.code === "acoustic_lowfreq") {
+      // Dovada acustică vine din evenimentul legat de factor, nu din valori scrise în pagină.
+      const ev = S.sensors.find((e) => e.event_id === f.event_id) || null;
+      const m = (ev && ev.metrics) || {};
+      const hyd = ev ? findHydro(ev.sensor_id) : null;
       extra = `
-        <div style="background:#131c26; border:1px solid #3b2064; border-radius:6px; padding:8px; margin-top:6px;">
-          <div style="color:#d8b4fe; font-size:11px; font-weight:700;">HYDROPHONE ACOUSTIC CONTACT: PROPELLER CAVITATION</div>
-          <div style="color:var(--muted); font-size:11px; margin-top:2px;">Peak frequency: 50.0 Hz · Confidence: 98.3%</div>
-          <button type="button" class="btn-mini" style="margin-top:5px;" onclick="openSonarModal(findHydro('HYD-1'))">View Sonar Spectrogram</button>
+        <div class="evidence">
+          <div class="evidence-title">ACOUSTIC CONTACT${ev ? ` · ${esc(ev.sensor_id)}` : ""}${m.signature ? ` · ${esc(m.signature).toUpperCase()}` : ""}</div>
+          <div class="evidence-sub">Peak frequency ${m.dominant_freq_hz ? num(m.dominant_freq_hz, 1) + " Hz" : "?"} · confidence ${pct(ev && ev.confidence)}</div>
+          ${hyd ? `<button type="button" class="btn-mini" data-hyd="${esc(hyd.id)}">View sonar spectrogram</button>` : ""}
         </div>`;
     }
     return `<li>${esc(f.detail)}${extra}</li>`;
   }).join("");
+  for (const b of $("detail-lines").querySelectorAll("button[data-hyd]")) b.onclick = () => openSonarModal(findHydro(b.dataset.hyd));
 
   const u = st.unit_id && S.units[st.unit_id];
   $("recommendation").innerHTML = st.unit_id
-    ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ${st.eta_min === 0 ? "on scene" : `ETA ${st.eta_min.toFixed(0)} min`}` +
-      `${u && u.simulated ? SIM_TAG : ""}`
-    : "No unit recommended yet (below the alert threshold).";
+    ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ETA ${st.eta_min != null ? Number(st.eta_min).toFixed(0) + " min" : "?"}${u && u.simulated ? SIM_TAG : ""}`
+    : "No unit recommended yet (below the recommendation level).";
 }
 
 function select(id) {
   S.selected = id;
   const a = S.alerts.find((x) => x.alert_id === id);
-  if (a) map.panTo([a.lat, a.lon]);
+  const sub = a && a.scripted ? S.subs.find((c) => c.id === a.sub_id) : null;
+  const pos = sub ? subStateAt(sub, S.t) : null;
+  if (pos) map.panTo([pos.lat, pos.lon]); else if (a) map.panTo([a.lat, a.lon]);
   render();
 }
 
-// Modalul de analiză sonar (Spectrogramă stabilă, fără audio sintetizat)
+// ---------- modale ----------
+function card(label, value, color) {
+  return `<div class="modal-card"><b>${esc(label)}</b><span${color ? ` style="color:${color}"` : ""}>${value}</span></div>`;
+}
+
+// Pragul de detecție raportat de pipeline (din orice eveniment acustic), ca să nu-l scriem în pagină.
+function reportedThreshold() {
+  const e = S.sensors.find((x) => x.source === "acoustic" && x.metrics && x.metrics.ratio_threshold != null);
+  return e ? num(e.metrics.ratio_threshold) : "?";
+}
+
 function openSonarModal(hyd) {
   const modal = $("sonar-modal");
   if (!modal || !hyd) return;
-  $("modal-title").textContent = `Sonar Analysis: ${hyd.id} — ${hyd.name}`;
+  $("modal-title").textContent = `Sonar analysis: ${hyd.id} — ${hyd.name}`;
+  const coords = `${hyd.lat.toFixed(3)}°N, ${hyd.lon.toFixed(3)}°E`;
+  const ev = hydroEvent(hyd);
 
-  if (!hyd.hasContact) {
+  if (!hyd.hasContact || (!ev && hyd.sig !== "ambient")) {
     $("modal-body").innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span class="badge" style="background:#0284c7; color:#fff; font-size:12px; padding:3px 10px;">STANDBY · NO CONTACT</span>
-        <span style="color:var(--muted); font-size:12px;">Coordinates: ${hyd.lat.toFixed(3)}°N, ${hyd.lon.toFixed(3)}°E</span>
+      <div class="modal-row">
+        <span class="modal-badge" style="background:#0284c7;">STANDBY · NO CONTACT</span>
+        <span class="muted small">${coords}</span>
       </div>
-      <div style="font-size:13px; margin-bottom:12px; color:#e2e8f0; line-height:1.4;">
-        <b>Tactical Assessment:</b> Hydrophone operational in the Romanian EEZ early-warning network. No abnormal acoustic activity or propeller cavitation recorded within 15 km during the scenario.
-      </div>
-      <div style="background:#0b1118; border:1px dashed #334155; border-radius:6px; padding:24px 16px; text-align:center; color:var(--muted); font-size:12px; margin-bottom:12px;">
-        <div style="color:#38bdf8; font-weight:700; margin-bottom:4px;">NORMAL AMBIENT LEVEL (SEA STATE 2)</div>
-        Clean spectrum: natural background sea noise. Adaptive filter active, no anomaly detected.
-      </div>
+      <div class="modal-text"><b>Assessment:</b> no acoustic event was reported by this hydrophone during the scenario.</div>
+      <div class="modal-note">Simulated station. The pipeline only raises an event when low-frequency energy exceeds its adaptive threshold.</div>
       <div class="modal-grid">
-        <div class="modal-card">
-          <b>Hydrophone Status</b>
-          <span style="color:#38bdf8;">ACTIVE (STANDBY)</span>
-        </div>
-        <div class="modal-card">
-          <b>Dominant Frequency</b>
-          <span>N/A (diffuse noise)</span>
-        </div>
-        <div class="modal-card">
-          <b>Low-Energy Ratio</b>
-          <span>0.082 / 1.0 (below threshold)</span>
-        </div>
-        <div class="modal-card">
-          <b>Current Adaptive Threshold</b>
-          <span>0.60 (stable sea background)</span>
-        </div>
-      </div>
-    `;
+        ${card("Status", "Active (standby)", "#38bdf8")}
+        ${card("Events in scenario", "0")}
+        ${card("Detection threshold", reportedThreshold() + " low-frequency ratio")}
+        ${card("Coverage radius", "15 km (display)")}
+      </div>`;
     modal.showModal();
     return;
   }
 
-  const isSabotage = hyd.sig === "anchor_chain";
-  const badgeColor = isSabotage ? "var(--critical)" : "var(--sonar)";
-
-  $("modal-body").innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-      <span class="badge" style="background:${badgeColor}; color:#fff; font-size:12px; padding:3px 10px;">${esc(hyd.badgeText)}</span>
-      <span style="color:var(--muted); font-size:12px;">Coordinates: ${hyd.lat.toFixed(3)}°N, ${hyd.lon.toFixed(3)}°E</span>
-    </div>
-    <div style="font-size:13px; margin-bottom:10px; color:#e2e8f0; line-height:1.4;">
-      <b>Tactical Assessment:</b> ${esc(hyd.realtimeText)}
-    </div>
+  const m = (ev && ev.metrics) || {};
+  const badgeColor = hyd.sig === "anchor_chain" ? "var(--critical)" : "var(--sonar)";
+  const img = hyd.clip ? `
     <div>
-      <div style="font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:700;">STFT Spectrogram (Spectral Density 10–500 Hz):</div>
-      <img src="../out/spectrograms/${hyd.clip}" class="modal-spec-img" alt="Sonar spectrogram">
+      <div class="modal-spec-label">STFT spectrogram</div>
+      <img src="../out/spectrograms/${encodeURIComponent(hyd.clip)}" class="modal-spec-img" alt="Sonar spectrogram" onerror="this.parentElement.hidden=true">
+    </div>` : "";
+  $("modal-body").innerHTML = `
+    <div class="modal-row">
+      <span class="modal-badge" style="background:${badgeColor};">${esc(hyd.badgeText)}</span>
+      <span class="muted small">${coords}${ev ? ` · ${fmtTime(ev.s)}` : ""}</span>
     </div>
+    <div class="modal-text"><b>Assessment:</b> ${esc(hyd.realtimeText)}</div>
+    ${img}
     <div class="modal-grid">
-      <div class="modal-card">
-        <b>Signature Classification</b>
-        <span style="color:${badgeColor}">${esc(hyd.sig.toUpperCase())}</span>
-      </div>
-      <div class="modal-card">
-        <b>Dominant Frequency</b>
-        <span>${hyd.freq > 0 ? hyd.freq + ".0 Hz" : "No peak (broadband noise)"}</span>
-      </div>
-      <div class="modal-card">
-        <b>Low-Energy Ratio</b>
-        <span>${hyd.freq > 0 ? "0.965 / 1.0 (above the 0.60 threshold)" : "0.094 (below threshold)"}</span>
-      </div>
-      <div class="modal-card">
-        <b>Ambient Noise Threshold</b>
-        <span>${hyd.freq > 0 ? "Base adaptive threshold: 0.60" : "Raised adaptive threshold: 0.65"}</span>
-      </div>
-    </div>
-  `;
-
+      ${card("Signature", esc((m.signature || hyd.sig || "?").toUpperCase()), badgeColor)}
+      ${card("Dominant frequency", m.dominant_freq_hz ? num(m.dominant_freq_hz, 1) + " Hz" : "No peak (broadband)")}
+      ${card("Low-frequency ratio", ev ? `${num(m.lowfreq_ratio, 3)} (threshold ${num(m.ratio_threshold)})` : "Below threshold")}
+      ${card("Confidence", ev ? `${pct(ev.confidence)} · ${num(m.duration_s, 0)} s` : "No event")}
+    </div>`;
   modal.showModal();
 }
 
 function openFibreModal(e) {
   const modal = $("sonar-modal");
-  if (!modal) return;
-  const km = e.metrics && e.metrics.cable_km ? Number(e.metrics.cable_km).toFixed(1) : "?";
-  const note = e.metrics && e.metrics.note ? e.metrics.note : "cable vibration";
-  const isNearShore = note.includes("shore") || Number(km) < 15;
-
-  $("modal-title").textContent = `Fibre-Optic Sensor (DAS): ${esc(e.sensor_id || "DAS-CABLE-1")}`;
+  if (!modal || !e) return;
+  const m = e.metrics || {};
+  const nearShore = isNearShoreNote(m.note);
+  $("modal-title").textContent = `Fibre-optic sensor (DAS): ${e.sensor_id || "cable"}`;
   $("modal-body").innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-      <span class="badge" style="background:${isNearShore ? '#0284c7' : '#dc2626'}; color:#fff; font-size:12px; padding:3px 10px;">
-        ${isNearShore ? "HARMLESS COASTAL NOISE" : "SUSPECTED SABOTAGE"}
-      </span>
-      <span style="color:var(--muted); font-size:12px;">Subsea Cable ${esc(e.metrics.cable_id || "CABLE-1")} · km ${km}</span>
+    <div class="modal-row">
+      <span class="modal-badge" style="background:${nearShore ? "#0284c7" : "#dc2626"};">${nearShore ? "COASTAL NOISE" : "CABLE VIBRATION"}</span>
+      <span class="muted small">Cable ${esc(m.cable_id || "?")} · km ${num(m.cable_km, 1)} · ${fmtTime(e.s)}</span>
     </div>
-    <div style="font-size:13px; margin-bottom:12px; color:#e2e8f0; line-height:1.5;">
-      <b>What does this signal at 06:30 mean?</b><br>
-      ${isNearShore 
-        ? "This is a <b>shore-side mechanical noise event</b> at km 8 off the Constanța coast. The subsea cable uses DAS (Distributed Acoustic Sensing). At km 8, at 06:30, the sensor recorded harmless noise from breaking waves or coastal fishing boats. The amplitude is very low (0.2) and the confidence only 30%, so the system <b>does NOT raise a security alert</b>." 
-        : "Strong vibration on the offshore subsea cable. High amplitude consistent with physical contact or an anchor dragged across the cable."}
+    <div class="modal-text">
+      ${nearShore
+        ? `Distributed acoustic sensing (DAS) on the subsea cable recorded mechanical noise <b>near the shore</b> at km ${num(m.cable_km, 1)}: waves or coastal traffic. Amplitude ${m.amplitude ?? "?"} and confidence ${pct(e.confidence)} are low, so on its own it does not raise a security alert.`
+        : `Distributed acoustic sensing (DAS) on the subsea cable recorded <b>mechanical vibration offshore</b> at km ${num(m.cable_km, 1)}, consistent with physical contact or an anchor dragged across the cable. Amplitude ${m.amplitude ?? "?"}, confidence ${pct(e.confidence)}.`}
     </div>
     <div class="modal-grid">
-      <div class="modal-card">
-        <b>Sensor Type</b>
-        <span>Subsea Fibre Optic (DAS)</span>
-      </div>
-      <div class="modal-card">
-        <b>Position on Cable</b>
-        <span>km ${km} from shore</span>
-      </div>
-      <div class="modal-card">
-        <b>Vibration Amplitude</b>
-        <span>${e.metrics.amplitude ?? "?"} (danger threshold: > 0.5)</span>
-      </div>
-      <div class="modal-card">
-        <b>Detector Note</b>
-        <span>${esc(note)}</span>
-      </div>
+      ${card("Sensor type", "Subsea fibre optic (DAS)")}
+      ${card("Position on cable", `km ${num(m.cable_km, 1)} from shore`)}
+      ${card("Vibration amplitude", esc(m.amplitude ?? "?"))}
+      ${card("Detector note", esc(m.note || "—"))}
     </div>
-  `;
+    <p class="muted small" style="margin:12px 0 0;">${e.simulated ? "SIMULATED event." : ""}</p>`;
   modal.showModal();
 }
 
 $("modal-close").onclick = () => $("sonar-modal").close();
 $("sonar-modal").onclick = (e) => { if (e.target === $("sonar-modal")) $("sonar-modal").close(); };
 
-// Filtre hartă
-$("filter-hydro").onchange = (e) => {
-  if (e.target.checked) layers.hydroStations.addTo(map); else map.removeLayer(layers.hydroStations);
-};
-$("filter-coverage").onchange = (e) => {
-  if (e.target.checked) layers.hydroCoverage.addTo(map); else map.removeLayer(layers.hydroCoverage);
-};
-$("filter-vessels").onchange = (e) => {
-  if (e.target.checked) { layers.vessels.addTo(map); layers.trails.addTo(map); layers.uncertainty.addTo(map); }
-  else { map.removeLayer(layers.vessels); map.removeLayer(layers.trails); map.removeLayer(layers.uncertainty); }
-};
-$("filter-infra").onchange = (e) => {
-  if (e.target.checked) layers.infra.addTo(map); else map.removeLayer(layers.infra);
-};
-
-function jumpToSec(seconds) {
-  S.t = S.start + seconds * 1000;
-  if (!S.playing) render();
+// ---------- replay ----------
+function jumpTo(tms) {
+  S.t = Math.min(Math.max(tms, S.start), S.end);
+  if (S.live) { S.live = false; $("live").checked = false; }
+  render();
 }
 
 setInterval(() => {
@@ -727,6 +867,7 @@ setInterval(() => {
 function setPlaying(on) {
   S.playing = on;
   $("play").textContent = on ? "❚❚" : "▶";
+  $("play").setAttribute("aria-label", on ? "Pause" : "Play");
 }
 
 $("play").onclick = () => {
@@ -735,12 +876,30 @@ $("play").onclick = () => {
 };
 $("slider").oninput = (e) => {
   S.t = S.start + Number(e.target.value) * 1000;
+  if (S.live) { S.live = false; $("live").checked = false; }
   render();
 };
 $("live").onchange = (e) => {
   S.live = e.target.checked;
   if (S.live) { S.t = S.end; render(); }
 };
+// Spațiu = play/pause, când focusul nu e într-un câmp de formular.
+document.addEventListener("keydown", (ev) => {
+  if (ev.code !== "Space" || ev.target.closest("input, select, button, textarea, [tabindex]") || $("sonar-modal").open) return;
+  ev.preventDefault();
+  $("play").click();
+});
+
+// Zi / noapte: atributul data-theme e setat din <head> înainte de randare (fără flash).
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const btn = $("theme-toggle");
+  btn.textContent = theme === "day" ? "☾ Night" : "☀ Day";
+  btn.setAttribute("aria-label", theme === "day" ? "Switch to night mode" : "Switch to day mode");
+  try { localStorage.setItem("seagrid.theme", theme); } catch (e) { /* stocare indisponibilă */ }
+}
+applyTheme(document.documentElement.dataset.theme === "day" ? "day" : "night");
+$("theme-toggle").onclick = () => applyTheme(document.documentElement.dataset.theme === "day" ? "night" : "day");
 
 loadAssets();
 SeaGridLoader.start(ingest, (err) => {
