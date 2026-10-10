@@ -17,6 +17,7 @@ const LEVEL_COLOR = { low: "#5b9be6", medium: "#e3b341", high: "#f08c3a", critic
 const LEVEL_LABEL = { low: "Low", medium: "Medium", high: "High", critical: "Critical" };
 const LEVEL_RANK = { low: 0, medium: 1, high: 2, critical: 3 };
 const NORMAL_COLOR = "#3fb6a8";
+const PATROL_TYPE = "patrol";   // ship_type al unităților de patrulare în timeline (scris de core)
 const DARK_COLOR = "#8195ab";
 const SIM_TAG = '<span class="tag-sim">SIMULATED</span>';
 const SCRIPT_TAG = '<span class="tag-sim tag-script">SCRIPTED</span>';
@@ -125,8 +126,8 @@ function findHydro(id) {
 
 const S = {
   tl: null, start: 0, end: 0, t: 0, playing: false, live: false, selected: null,
-  tracks: [], alerts: [], gapsByMmsi: {}, sensors: [], units: {}, unitMarkers: {},
-  subs: [], subSensors: {}, tlAlerts: [], legs: {},
+  tracks: [], alerts: [], gapsByMmsi: {}, sensors: [], units: {}, unitByMmsi: {},
+  subs: [], subSensors: {}, tlAlerts: [],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -201,7 +202,8 @@ legend.onAdd = () => {
     `<div><i style="background:${NORMAL_COLOR}"></i>Normal vessel</div>` +
     `<div><i style="background:${DARK_COLOR}"></i>AIS off (uncertainty area)</div>` +
     Object.entries(LEVEL_COLOR).map(([k, c]) => `<div><i style="background:${c}"></i>${LEVEL_LABEL[k]} alert</div>`).join("") +
-    `<div><i class="glow-swatch"></i>Patrol unit (simulated)</div>` +
+    `<div><i class="glow-swatch"></i>Patrol unit (simulated) · dashed line = dispatched</div>` +
+    `<div><i class="base-swatch"></i>Patrol base</div>` +
     `<div class="legend-head">Sensors</div>` +
     `<div><i style="background:#a855f7; border-radius:50%"></i>Hydrophone with contact</div>` +
     `<div><i class="glow-swatch round"></i>Hydrophone on standby</div>` +
@@ -235,65 +237,69 @@ legend.onAdd = () => {
 };
 legend.addTo(map);
 
-// Patrule, DOAR AFIȘARE. Fără misiune, fiecare unitate descrie o buclă spre larg în jurul bazei.
-// Când o alertă recomandă unitatea (unit_id + eta_min din timeline sau din scenariul scriptat), unitatea pleacă
-// spre poziția alertei și ajunge exact la ETA-ul primit: pagina doar interpolează, nu calculează nimic.
-// Totul urmează timpul replay-ului, deci la pauză unitățile stau pe loc.
-const PATROL_EAST_KM = 7;      // bucla se întinde doar spre est (spre larg), ca să nu intre pe uscat
-const PATROL_NS_KM = 3;        // amplitudinea nord-sud a buclei
-const PATROL_PERIOD_MIN = 60;  // o buclă completă, în minute simulate
-
-function patrolLoopPos(u, t) {
-  const hours = (t - S.start) / 3.6e6;
-  const phase = [...u.id].reduce((a, c) => a + c.charCodeAt(0), 0);  // fază diferită pe unitate
-  const ang = (hours * 60 / PATROL_PERIOD_MIN) * 2 * Math.PI + phase;
-  const kmPerDegLon = 111.32 * Math.cos((u.lat * Math.PI) / 180);
-  return [u.lat + PATROL_NS_KM * Math.sin(ang) / 111.32, u.lon + (PATROL_EAST_KM / 2) * (1 - Math.cos(ang)) / kmPerDegLon];
+// Unitățile de patrulare (Chris, core/patrol.py): poziția vine din pista lor din timeline (ship_type "patrol"),
+// misiunea și ETA-ul din istoricul alertei (unit_id / eta_min). Nimic nu se calculează aici.
+// Excepție, doar pentru alerta SCRIPTATĂ a submarinului (care nu există în pipeline): din momentul redirecționării,
+// unitatea e afișată pe drumul de la poziția ei de atunci spre contact, ajungând la ETA-ul scris în scenariu.
+function trackPosAt(v, t) {
+  const k = lastIndexLE(v.times, t);
+  return k >= 0 ? [v.points[k].lat, v.points[k].lon] : null;
 }
 
-// Misiunile: prima recomandare a fiecărei alerte pentru o unitate (ora, ETA, țintă), ordonate în timp.
-function buildUnitLegs() {
-  S.legs = {};
-  for (const a of S.alerts) {
-    const h = a.hist.find((x) => x.unit_id && x.eta_min != null);
-    if (!h) continue;
-    (S.legs[h.unit_id] ||= []).push({ tm: h.tm, eta: Number(h.eta_min), target: [a.lat, a.lon], label: a.vessel_name || a.mmsi });
-  }
-  for (const legs of Object.values(S.legs)) legs.sort((x, y) => x.tm - y.tm);
-}
-
-const lerpPos = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-const legProgress = (leg, t) => Math.min(1, Math.max(0, (t - leg.tm) / Math.max(1, leg.eta * 60000)));
-
-function unitStateAt(u, t) {
-  let active = null;
-  for (const leg of S.legs[u.id] || []) {
-    if (leg.tm > t) break;
-    // O misiune nouă pornește din locul în care era unitatea în acel moment (buclă sau misiunea anterioară).
-    leg.from = active ? lerpPos(active.from, active.target, legProgress(active, leg.tm)) : patrolLoopPos(u, leg.tm);
-    active = leg;
-  }
-  if (!active) return { pos: patrolLoopPos(u, t), leg: null };
-  const f = legProgress(active, t);
-  return { pos: lerpPos(active.from, active.target, f), leg: active, progress: f };
-}
-
-function updatePatrols(t) {
+function renderPatrols(t, active) {
   layers.routes.clearLayers();
-  for (const [id, mk] of Object.entries(S.unitMarkers)) {
-    const u = S.units[id];
-    const st = unitStateAt(u, t);
-    mk.setLatLng(st.pos);
-    let status = `simulated patrol around ${esc(u.base || "base")}`;
-    if (st.leg) {
-      const left = Math.round(st.leg.eta * (1 - st.progress));
-      status = st.progress < 1 ? `en route to ${esc(st.leg.label)} · ${left} min to arrival` : `on scene at ${esc(st.leg.label)}`;
-      if (st.progress < 1) {
-        L.polyline([st.pos, st.leg.target], { color: "#7cc4ff", weight: 2, opacity: 0.75, dashArray: "6 6", interactive: false }).addTo(layers.routes);
-        L.circleMarker(st.leg.target, { radius: 4, color: "#7cc4ff", weight: 2, fillOpacity: 0, interactive: false }).addTo(layers.routes);
+  // Misiunea curentă a fiecărei unități: cea mai recentă recomandare dintre alertele active.
+  const missionByUnit = {};
+  for (const { a, st } of active) {
+    if (!st.unit_id) continue;
+    const first = a.hist.find((h) => h.unit_id === st.unit_id);
+    const since = first ? first.tm : a.created;
+    const cur = missionByUnit[st.unit_id];
+    if (!cur || since > cur.since) missionByUnit[st.unit_id] = { a, st, since, eta0: first ? first.eta_min : st.eta_min };
+  }
+  const targetOf = (a) => {
+    if (a.scripted) return [a.lat, a.lon];
+    const v = S.tracks.find((x) => x.mmsi === a.mmsi && x.ship_type !== PATROL_TYPE);
+    return (v && trackPosAt(v, t)) || [a.lat, a.lon];
+  };
+  for (const v of S.tracks) {
+    if (v.ship_type !== PATROL_TYPE) continue;
+    let pos = trackPosAt(v, t);
+    if (!pos) continue;
+    const u = S.unitByMmsi[v.mmsi];
+    const m = u && missionByUnit[u.id];
+    let status = "Patrolling";
+    let etaLeft = null;
+    if (m) {
+      const target = targetOf(m.a);
+      if (m.a.scripted) {
+        const from = trackPosAt(v, m.since) || pos;
+        const f = Math.min(1, Math.max(0, (t - m.since) / Math.max(1, m.eta0 * 60000)));
+        pos = [from[0] + (target[0] - from[0]) * f, from[1] + (target[1] - from[1]) * f];
+        etaLeft = Math.round(m.eta0 * (1 - f));
+      } else {
+        etaLeft = m.st.eta_min;
       }
+      const name = esc(m.a.vessel_name || m.a.mmsi);
+      const onScene = etaLeft === 0;
+      status = onScene ? `On scene: ${name}` : `Dispatched to ${name} · ETA ${Number(etaLeft).toFixed(0)} min${m.a.scripted ? " (scripted re-task)" : ""}`;
+      if (!onScene) {
+        L.polyline([pos, target], { color: "#7cc4ff", weight: 2, dashArray: "6 6", opacity: 0.85 })
+          .bindTooltip(`${esc(v.name)} → ${name} · ETA ${Number(etaLeft).toFixed(0)} min`, { sticky: true })
+          .addTo(layers.routes);
+      }
+    } else {
+      // Urma ultimei ore de patrulare, discretă
+      const from = lastIndexLE(v.times, t - TRAIL_MIN * 60000);
+      const i = lastIndexLE(v.times, t);
+      L.polyline(v.points.slice(Math.max(0, from), i + 1).map((q) => [q.lat, q.lon]),
+        { color: "#7cc4ff", weight: 2, opacity: 0.3, interactive: false }).addTo(layers.routes);
     }
-    mk.setTooltipContent(`<b>${esc(u.name)}</b><br>${u.speed_kn} kn · ${status}${u.simulated ? "<br>SIMULATED" : ""}`);
+    const p = v.points[lastIndexLE(v.times, t)];
+    L.marker(pos, { icon: glowIcon(`glow-unit${m ? " on-mission" : ""}`, 26), pane: "glowHigh", keyboard: false })
+      .bindTooltip(`<b>${esc(v.name)}</b><br>${status}<br>${p.sog ?? "?"} kn${v.simulated ? "<br>SIMULATED" : ""}`, { direction: "top", offset: [0, -12] })
+      .on("click", () => { if (m) select(m.a.alert_id); })
+      .addTo(layers.routes);
   }
 }
 
@@ -315,7 +321,7 @@ async function loadAssets() {
   ]);
   if (subs.status === "fulfilled") {
     S.subs = subs.value.contacts || [];
-    if (S.tl) { S.alerts = S.tlAlerts.concat(scriptedAlerts()); buildUnitLegs(); }
+    if (S.tl) S.alerts = S.tlAlerts.concat(scriptedAlerts());
     for (const m of subs.value.low_cost_sensors || []) {
       S.subSensors[m.id] = m;
       L.circleMarker([m.lat, m.lon], { radius: 5, color: "#2dd4bf", weight: 2, fillColor: "#2dd4bf", fillOpacity: 0.25 })
@@ -345,11 +351,12 @@ async function loadAssets() {
     }).addTo(layers.infra);
   } else console.warn(gj.reason);
   if (pu.status === "fulfilled") {
-    const icon = glowIcon("glow-unit", 26);
+    // Bazele sunt fixe; unitățile în mișcare se desenează din pistele din timeline (renderPatrols).
     for (const u of pu.value.units) {
       S.units[u.id] = u;
-      S.unitMarkers[u.id] = L.marker([u.lat, u.lon], { icon, pane: "glowHigh", title: u.name, keyboard: false })
-        .bindTooltip(`<b>${esc(u.name)}</b><br>${u.speed_kn} kn · simulated patrol around ${esc(u.base || "base")}${u.simulated ? " · SIMULATED" : ""}`, { direction: "top", offset: [0, -12] })
+      if (u.mmsi) S.unitByMmsi[String(u.mmsi)] = u;
+      L.marker([u.lat, u.lon], { icon: glowIcon("patrol-base", 14), keyboard: false })
+        .bindTooltip(`<b>Base: ${esc(u.base || "?")}</b><br>Home of ${esc(u.name)}${u.simulated ? "<br>SIMULATED" : ""}`, { direction: "top", offset: [0, -8] })
         .addTo(layers.units);
     }
     if (S.tl) render(); // numele unităților apar în recomandare chiar dacă timeline-ul a sosit primul
@@ -376,7 +383,6 @@ function ingest(tl) {
     hist: a.history.map((h) => ({ ...h, tm: ms(h.t) })),
   }));
   S.alerts = S.tlAlerts.concat(scriptedAlerts());
-  buildUnitLegs();
   S.gapsByMmsi = {};
   for (const e of tl.events.filter((e) => e.event_type === "ais_gap")) {
     (S.gapsByMmsi[e.mmsi] ||= []).push({ ...e, s: ms(e.start), e: e.end ? ms(e.end) : S.end });
@@ -454,6 +460,7 @@ function render() {
   layers.uncertainty.clearLayers();
   layers.trails.clearLayers();
   for (const v of S.tracks) {
+    if (v.ship_type === PATROL_TYPE) continue;   // patrulele au desenul lor (renderPatrols)
     const i = lastIndexLE(v.times, t);
     if (i < 0) continue;
     const p = v.points[i];
@@ -517,7 +524,7 @@ function render() {
   }
 
   renderSubmarines(t);
-  updatePatrols(t);
+  renderPatrols(t, active);
   updateRealtimeAudioBanner(t);
   highlightActiveHistoryItem(t);
   renderAlertList(active);
@@ -749,7 +756,7 @@ function renderDetail(t) {
 
   const u = st.unit_id && S.units[st.unit_id];
   $("recommendation").innerHTML = st.unit_id
-    ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ETA ${st.eta_min != null ? Number(st.eta_min).toFixed(0) + " min" : "?"}${u && u.simulated ? SIM_TAG : ""}`
+    ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ${st.eta_min === 0 ? "on scene" : `ETA ${st.eta_min != null ? Number(st.eta_min).toFixed(0) + " min" : "?"}`}${u && u.simulated ? SIM_TAG : ""}`
     : "No unit recommended yet (below the recommendation level).";
 }
 
