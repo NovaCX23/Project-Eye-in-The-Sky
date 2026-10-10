@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 LEVEL_TEXT = {"low": "low", "medium": "medium", "high": "high", "critical": "critical"}
 DIRECTION_TEXT = {"too_slow": "too slow", "too_fast": "too fast"}
 
@@ -17,14 +19,17 @@ LABELS = {
 }
 
 TEMPLATES = {
-    "ais_gap": "AIS off for {gap_min:.0f} min (threshold {threshold_min} min); last reported speed {last_sog_kn:.1f} kn.",
+    "ais_gap": (
+        "AIS silent since {since}: no message for {gap_min:.0f} min when flagged (threshold {threshold_min} min); "
+        "last reported speed {last_sog_kn:.1f} kn."
+    ),
     "speed_inconsistency": (
         "On reappearance it had covered {distance_km:.1f} km in {gap_min:.0f} min ({implied_kn:.1f} kn), while reporting "
         "{reported_kn:.1f} kn (expected ~{expected_km:.0f} km): {direction_text}."
     ),
     "loitering": (
-        "Loitering for {duration_min:.0f} min at a mean speed of {mean_sog_kn:.1f} kn (threshold {max_mean_sog_kn} kn), "
-        "within an area of {extent_km:.1f} km."
+        "Loitering since {since}: {duration_min:.0f} min at a mean speed of {mean_sog_kn:.1f} kn when flagged "
+        "(threshold {max_mean_sog_kn} kn), within an area of {extent_km:.1f} km."
     ),
     "position_jump": (
         "Position jump of {distance_km:.1f} km in {dt_min:.1f} min ({implied_kn:.0f} kn; "
@@ -44,6 +49,10 @@ SIMULATED_SUFFIX = " [SIMULATED]"
 HEADER = "{name} (MMSI {mmsi}): risk {score}/100, level {level_text}."
 RECOMMENDATION = "Recommendation: {unit_name}, ETA {eta_min:.0f} min ({distance_km:.1f} km)."
 UNKNOWN_VESSEL = "Unknown vessel"
+
+
+def clock(t: datetime) -> str:
+    return t.strftime("%H:%M UTC")
 
 
 def label(code: str) -> str:

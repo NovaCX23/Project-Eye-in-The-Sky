@@ -32,8 +32,6 @@ Variant A (server + WebSocket): only `sources.py` and `sinks.py` are replaced; e
 
 ## Tasks (prioritised)
 1. P0: keep `main` green (`/verify`, `/demo-check`); integrate the branches with `/integrate`.
-2. P1: factor texts (`detail`) reflect the state at `now`; when scrubbing back, the UI shows, for example,
-   the final duration of the AIS gap. Option: a `detail` history per factor (needs `/contract-change`).
-3. P1: alerts opened by sensors with no AIS vessel in the area (a vibration on the cable with no visible vessel is suspicious).
-4. P1: ETA that routes around land; unit availability.
-5. P2: persist state across `--watch` restarts.
+2. P1: alerts opened by sensors with no AIS vessel in the area (a vibration on the cable with no visible vessel is suspicious).
+3. P1: ETA that routes around land; unit availability.
+4. P2: persist state across `--watch` restarts.

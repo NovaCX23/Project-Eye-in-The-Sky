@@ -27,6 +27,9 @@ class AlertMemory:
 
     created_at: dict[str, datetime] = field(default_factory=dict)
     factor_added: dict[tuple[str, str], datetime] = field(default_factory=dict)
+    # Dovada unui factor (detail, event_id, simulated) se îngheață la intrarea în scor: la derularea înapoi,
+    # interfața nu trebuie să arate cifre pe care sistemul nu le știa încă (ex. durata finală a găurii AIS).
+    factor_evidence: dict[tuple[str, str], tuple[str, str | None, bool]] = field(default_factory=dict)
     history: dict[str, list[ScorePoint]] = field(default_factory=dict)
     # Odată ce un eveniment a deschis o alertă, incidentul își păstrează id-ul,
     # chiar dacă ulterior apare un eveniment cu același start (ex. inconsistența de viteză).
@@ -90,7 +93,8 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
 
         for code in sorted({e.event_type for e in ep.events}):
             best = max((e for e in ep.events if e.event_type == code), key=lambda e: (e.confidence, e.event_id))
-            raw.append((code, scoring.points_for(code, cfg), explain.factor_detail(code, best.metrics, best.simulated),
+            vals = dict(best.metrics, since=explain.clock(best.start))
+            raw.append((code, scoring.points_for(code, cfg), explain.factor_detail(code, vals, best.simulated),
                         best.event_id, best.simulated))
 
         infra = _infra(p.lat, p.lon)
@@ -111,7 +115,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
                     by_type[c.event_type] = (d, c)
         for code in sorted(by_type):
             d, c = by_type[code]
-            vals = dict(c.metrics, dist_km=d, sensor_id=c.sensor_id)
+            vals = dict(c.metrics, dist_km=d, sensor_id=c.sensor_id, since=explain.clock(c.start))
             raw.append((code, scoring.points_for(code, cfg), explain.factor_detail(code, vals, c.simulated),
                         c.event_id, c.simulated))
 
@@ -140,6 +144,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
         factors = []
         for code, pts, detail, eid, sim in raw:
             added = memory.factor_added.setdefault((alert_id, code), now)
+            detail, eid, sim = memory.factor_evidence.setdefault((alert_id, code), (detail, eid, sim))
             factors.append(ScoreFactor(code=code, label=explain.label(code), points=pts, detail=detail,
                                        event_id=eid, added_at=added, simulated=sim))
         rec = patrol.recommend(p.lat, p.lon, level, cfg)
