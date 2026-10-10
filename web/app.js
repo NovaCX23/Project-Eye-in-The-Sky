@@ -22,8 +22,51 @@ const INFRA_STYLE = {
   port_approach: { color: "#8b9bb0", weight: 1, fillOpacity: 0.06, dashArray: "3 3" },
 };
 
-// Rețeaua de hidrofoane rărită și eșalonată pe durata scenariului (06:00 - 12:00 UTC)
-const HYDROPHONES = [
+// Rețeaua națională extinsă de 18 hidrofoane submarine (acoperire completă ZEE Marea Neagră)
+const ALL_HYDROPHONES = [
+  // Linia 1: Supraveghere Infrastructură Critică & Contacte Scenariu
+  {
+    id: "HYD-1",
+    name: "Platforma de Gaz Ana (Tranzit la Negru)",
+    lat: 44.265, lon: 29.490,
+    offsetSec: 8700, // 08:25 UTC
+    clip: "lowfreq_tone.png",
+    sig: "propeller",
+    freq: 50,
+    badgeText: "Elice 50 Hz",
+    badgeClass: "badge-propeller",
+    summary: "Cavitație elice navă cargo fără AIS",
+    hasContact: true,
+    realtimeText: "ALERTĂ SONAR: Cavitație puternică de elice (50 Hz fundamentală + armonica de 100 Hz). Intensitate RMS: 0.21, raport energie joasă: 0.965. Confirmă nava în deplasare pe sub apă lângă platformă.",
+  },
+  {
+    id: "HYD-3",
+    name: "Cablul Submarin de Comunicații (Sabotaj)",
+    lat: 44.180, lon: 29.400,
+    offsetSec: 13800, // 09:50 UTC
+    clip: "anchor_drag.png",
+    sig: "anchor_chain",
+    freq: 120,
+    badgeText: "Lanț Ancoră 120 Hz",
+    badgeClass: "badge-chain",
+    summary: "Frecare lanț ancoră târât pe cablu submarin",
+    hasContact: true,
+    realtimeText: "ALERTĂ CRITICĂ SABOTAJ: Semnătură de frecare metalică și zdrăngănit pe fundul mării la 120 Hz. Se corelează cu senzorul de vibrație din cablul de fibră optică!",
+  },
+  {
+    id: "HYD-4",
+    name: "Perimetru Nord (Pescador Suspect Staționar)",
+    lat: 44.380, lon: 29.620,
+    offsetSec: 18000, // 11:00 UTC
+    clip: "engine_rumble.png",
+    sig: "propeller",
+    freq: 65,
+    badgeText: "Motor 65 Hz",
+    badgeClass: "badge-propeller",
+    summary: "Motor auxiliar navă loitering (Northern Dawn)",
+    hasContact: true,
+    realtimeText: "CONTACT ACUSTIC: Huruit de motor diesel auxiliar la turație mică (65 Hz). Corelat cu pescadorul care staționează în zonă.",
+  },
   {
     id: "HYD-2",
     name: "Perimetru Exterior (Control Zgomot Fond)",
@@ -35,48 +78,37 @@ const HYDROPHONES = [
     badgeText: "Zgomot Fond (0 FA)",
     badgeClass: "badge-ambient",
     summary: "Zgomot marin ambiant normal",
+    hasContact: true,
     realtimeText: "Semnal captat: Zgomot oceanic de bandă largă (stare normală a mării). Nivel de fond estimat: 0.09. Filtru adaptiv activ — nicio alarmă falsă generată.",
   },
-  {
-    id: "HYD-1",
-    name: "Platforma de Gaz Ana (Tranzit la Negru)",
-    lat: 44.265, lon: 29.490,
-    offsetSec: 8700, // 08:25 UTC (în mijlocul pauzei AIS a MV SEA FALCON)
-    clip: "lowfreq_tone.png",
-    sig: "propeller",
-    freq: 50,
-    badgeText: "Elice 50 Hz",
-    badgeClass: "badge-propeller",
-    summary: "Cavitație elice navă cargo fără AIS",
-    realtimeText: "ALERTĂ SONAR: Cavitație puternică de elice (50 Hz fundamentală + armonica de 100 Hz). Intensitate RMS: 0.21, raport energie joasă: 0.965. Confirmă nava în deplasare lângă platformă.",
-  },
-  {
-    id: "HYD-3",
-    name: "Cablul Submarin de Comunicații (Sabotaj)",
-    lat: 44.180, lon: 29.400,
-    offsetSec: 13800, // 09:50 UTC (la 1h 25min după primul contact)
-    clip: "anchor_drag.png",
-    sig: "anchor_chain",
-    freq: 120,
-    badgeText: "Lanț Ancoră 120 Hz",
-    badgeClass: "badge-chain",
-    summary: "Frecare lanț ancoră târât pe cablu submarin",
-    realtimeText: "ALERTĂ CRITICĂ SABOTAJ: Semnătură de frecare metalică și zdrăngănit pe fundul mării la 120 Hz. Se corelează cu senzorul de vibrație din cablul de fibră optică!",
-  },
-  {
-    id: "HYD-4",
-    name: "Perimetru Nord (Pescador Suspect Staționar)",
-    lat: 44.380, lon: 29.620,
-    offsetSec: 18000, // 11:00 UTC (la peste 1 oră după incidentul cu cablul)
-    clip: "engine_rumble.png",
-    sig: "propeller",
-    freq: 65,
-    badgeText: "Motor 65 Hz",
-    badgeClass: "badge-propeller",
-    summary: "Motor auxiliar navă loitering (Northern Dawn)",
-    realtimeText: "CONTACT ACUSTIC: Huruit de motor diesel auxiliar la turație mică (65 Hz). Corelat cu pescadorul care staționează în zonă.",
-  },
+
+  // Linia 2: Bariera Costieră Litoral (Sud -> Nord)
+  { id: "HYD-5", name: "Mangalia Sud (Granița Maritimă)", lat: 43.780, lon: 28.750, summary: "Supraveghere costieră sud", hasContact: false },
+  { id: "HYD-6", name: "Vama Veche Costier", lat: 43.680, lon: 28.680, summary: "Senzor acustic ape puțin adânci", hasContact: false },
+  { id: "HYD-7", name: "Agigea / Constanța Sud", lat: 44.080, lon: 28.820, summary: "Protecție intrări portuare Agigea", hasContact: false },
+  { id: "HYD-8", name: "Culoar Abordaj Port Constanța", lat: 44.150, lon: 28.980, summary: "Culoar de trafic maritim comercial", hasContact: false },
+  { id: "HYD-9", name: "Capul Midia Terminal Petrolier", lat: 44.330, lon: 28.780, summary: "Monitorizare infrastructură terminal Midia", hasContact: false },
+  { id: "HYD-10", name: "Periboina / Gura Portiței", lat: 44.520, lon: 29.050, summary: "Barieră acustică lagunară", hasContact: false },
+  { id: "HYD-11", name: "Sfântu Gheorghe Sud (Deltă)", lat: 44.750, lon: 29.450, summary: "Brațul Sfântu Gheorghe", hasContact: false },
+  { id: "HYD-12", name: "Sulina Culoar Comercial Nord", lat: 44.920, lon: 29.820, summary: "Ieșire canal Sulina (trafic grâne)", hasContact: false },
+
+  // Linia 3: Perimetru Offshore & ZEE Est (Ape Adânci)
+  { id: "HYD-13", name: "Platforma Lebăda / Sinoe Est", lat: 44.480, lon: 29.800, summary: "Cluster extracție petrolieră OMV", hasContact: false },
+  { id: "HYD-14", name: "Cablu Submarin Segment Adânc", lat: 44.220, lon: 30.150, summary: "Traseu cablu de date spre Caucaz", hasContact: false },
+  { id: "HYD-15", name: "Conductă Submarină Midia Larg", lat: 44.380, lon: 29.150, summary: "Segment median conductă gaz", hasContact: false },
+  { id: "HYD-16", name: "Avanpost ZEE Sud-Est", lat: 44.100, lon: 30.500, summary: "Baliză hidrofon autonomă ZEE", hasContact: false },
+  { id: "HYD-17", name: "Avanpost ZEE Centru-Est", lat: 44.400, lon: 30.650, summary: "Avertizare timpurie adâncime", hasContact: false },
+  { id: "HYD-18", name: "Avanpost ZEE Nord-Est", lat: 44.750, lon: 30.700, summary: "Perimetru maritim spre Insula Șerpilor", hasContact: false },
 ];
+
+const HYDROPHONES = ALL_HYDROPHONES;
+const TACTICAL_CONTACTS = ALL_HYDROPHONES.filter(h => h.hasContact);
+
+function findHydro(id) {
+  if (!id) return null;
+  const s = String(id).trim();
+  return ALL_HYDROPHONES.find((h) => h.id === s || h.id === s.replace("HYD-0", "HYD-") || h.id === s.replace("HYD-", "HYD-0"));
+}
 
 const S = {
   tl: null, start: 0, end: 0, t: 0, playing: false, live: false, selected: null,
@@ -182,20 +214,21 @@ function buildPermanentHydrophoneLayers() {
   layers.hydroStations.clearLayers();
   layers.hydroCoverage.clearLayers();
 
-  for (const h of HYDROPHONES) {
+  for (const h of ALL_HYDROPHONES) {
     const isSabotage = h.id === "HYD-3";
-    const stCol = isSabotage ? "#e5484d" : "#a855f7";
+    const isContact = h.hasContact;
+    const stCol = isSabotage ? "#e5484d" : isContact ? "#a855f7" : "#0284c7";
 
     // Cerc de acoperire 15 km (fără imagini în tooltip)
     L.circle([h.lat, h.lon], {
-      radius: 15000, color: stCol, weight: 1, dashArray: "5 5", fillOpacity: 0.03,
+      radius: 15000, color: stCol, weight: 1, dashArray: "5 5", fillOpacity: isContact ? 0.04 : 0.02,
     }).addTo(layers.hydroCoverage);
 
     // Marker hidrofon fix (text curat în tooltip, fără imagini care dispar la drag)
     L.circleMarker([h.lat, h.lon], {
-      radius: 8, color: "#ffffff", weight: 2, fillColor: stCol, fillOpacity: 0.95,
+      radius: isContact ? 8 : 5.5, color: "#ffffff", weight: isContact ? 2 : 1.2, fillColor: stCol, fillOpacity: isContact ? 0.95 : 0.75,
     })
-      .bindTooltip(`<b>${h.id}</b> · ${esc(h.name)}<br><span style="color:#d8b4fe">${esc(h.summary)}</span>`, {
+      .bindTooltip(`<b>${h.id}</b> · ${esc(h.name)}<br><span style="color:${isContact ? '#d8b4fe' : '#93c5fd'}">${esc(h.summary)}</span>`, {
         direction: "top", offset: [0, -8],
       })
       .on("click", () => openSonarModal(h))
@@ -282,7 +315,7 @@ function render() {
       L.circleMarker([e.lat, e.lon], { radius: 16, color: col, weight: 3, fillOpacity: 0.35 })
         .bindTooltip(labelText, { direction: "top", offset: [0, -12] })
         .on("click", () => {
-          const hyd = HYDROPHONES.find((h) => h.id === e.sensor_id);
+          const hyd = findHydro(e.sensor_id);
           if (hyd) openSonarModal(hyd);
         })
         .addTo(layers.sensors);
@@ -323,10 +356,11 @@ function renderAcousticHistory() {
   const list = $("acoustic-history-list");
   if (!list) return;
 
-  list.innerHTML = HYDROPHONES.map((h) => {
+  const contacts = TACTICAL_CONTACTS.slice().sort((a, b) => a.offsetSec - b.offsetSec);
+  list.innerHTML = contacts.map((h) => {
     const timeIso = fmtTime(S.start + h.offsetSec * 1000);
     return `
-      <div class="history-item" data-id="${h.id}" onclick="jumpToSec(${h.offsetSec}); openSonarModal(HYDROPHONES.find(x => x.id === '${h.id}'))">
+      <div class="history-item" data-id="${h.id}" onclick="jumpToSec(${h.offsetSec}); openSonarModal(findHydro('${h.id}'))">
         <span class="history-time">${timeIso}</span>
         <div class="history-content">
           <span class="history-title">${esc(h.id)} · ${esc(h.name.split('(')[0].trim())}</span>
@@ -340,7 +374,7 @@ function renderAcousticHistory() {
 function highlightActiveHistoryItem(t) {
   const elapsedSec = (t - S.start) / 1000;
   for (const item of document.querySelectorAll(".history-item")) {
-    const hyd = HYDROPHONES.find((h) => h.id === item.dataset.id);
+    const hyd = findHydro(item.dataset.id);
     if (!hyd) continue;
     const isLive = Math.abs(elapsedSec - hyd.offsetSec) < (SENSOR_SHOW_MIN * 60);
     item.classList.toggle("is-live", isLive);
@@ -356,12 +390,12 @@ function updateRealtimeAudioBanner(t) {
   const elapsedSec = (t - S.start) / 1000;
 
   // Căutăm dacă vreun hidrofon are eveniment activ în acest moment
-  const activeHyd = HYDROPHONES.find((h) => Math.abs(elapsedSec - h.offsetSec) < (SENSOR_SHOW_MIN * 60));
+  const activeHyd = TACTICAL_CONTACTS.find((h) => Math.abs(elapsedSec - h.offsetSec) < (SENSOR_SHOW_MIN * 60));
 
   if (activeHyd) {
     $("audio-status-text").innerHTML =
       `<b style="color:#d8b4fe;">${esc(activeHyd.id)} (${esc(activeHyd.name)}):</b> ${esc(activeHyd.realtimeText)}` +
-      `<br><button type="button" class="btn-mini" style="margin-top:6px;" onclick="openSonarModal(HYDROPHONES.find(x => x.id === '${activeHyd.id}'))">Deschide Spectrograma</button>`;
+      `<br><button type="button" class="btn-mini" style="margin-top:6px;" onclick="openSonarModal(findHydro('${activeHyd.id}'))">Deschide Spectrograma</button>`;
   } else {
     $("audio-status-text").innerHTML =
       `La această oră (${fmtTime(t)}) se captează doar <i>zgomotul natural de fond al Mării Negre</i>. Nicio navă suspectă sau activitate acustică anormală înregistrată.`;
@@ -415,7 +449,7 @@ function renderDetail(t) {
         <div style="background:#131c26; border:1px solid #3b2064; border-radius:6px; padding:8px; margin-top:6px;">
           <div style="color:#d8b4fe; font-size:11px; font-weight:700;">CONTACT ACUSTIC HIDROFON: CAVITAȚIE ELICE</div>
           <div style="color:var(--muted); font-size:11px; margin-top:2px;">Frecvență de vârf: 50.0 Hz · Încredere: 98.3%</div>
-          <button type="button" class="btn-mini" style="margin-top:5px;" onclick="openSonarModal(HYDROPHONES[1])">Vezi Spectrograma Sonar</button>
+          <button type="button" class="btn-mini" style="margin-top:5px;" onclick="openSonarModal(findHydro('HYD-1'))">Vezi Spectrograma Sonar</button>
         </div>`;
     }
     return `<li>${esc(f.detail)}${extra}</li>`;
@@ -437,8 +471,44 @@ function select(id) {
 // Modalul de analiză sonar (Spectrogramă stabilă, fără audio sintetizat)
 function openSonarModal(hyd) {
   const modal = $("sonar-modal");
-  if (!modal) return;
+  if (!modal || !hyd) return;
   $("modal-title").textContent = `Analiză Sonar: ${hyd.id} — ${hyd.name}`;
+
+  if (!hyd.hasContact) {
+    $("modal-body").innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span class="badge" style="background:#0284c7; color:#fff; font-size:12px; padding:3px 10px;">STANDBY · FĂRĂ CONTACT</span>
+        <span style="color:var(--muted); font-size:12px;">Coordonate: ${hyd.lat.toFixed(3)}°N, ${hyd.lon.toFixed(3)}°E</span>
+      </div>
+      <div style="font-size:13px; margin-bottom:12px; color:#e2e8f0; line-height:1.4;">
+        <b>Evaluare Tactică:</b> Hidrofon operațional în rețeaua de avertizare timpurie a ZEE România. Nu s-a înregistrat activitate acustică anormală sau cavitație de elice în raza de 15 km pe durata scenariului.
+      </div>
+      <div style="background:#0b1118; border:1px dashed #334155; border-radius:6px; padding:24px 16px; text-align:center; color:var(--muted); font-size:12px; margin-bottom:12px;">
+        <div style="color:#38bdf8; font-weight:700; margin-bottom:4px;">NIVEL AMBIANT NORMAL (SEA STATE 2)</div>
+        Spectru curat: Zgomot marin natural de fond. Filtru adaptiv activ — nicio anomalie detectată.
+      </div>
+      <div class="modal-grid">
+        <div class="modal-card">
+          <b>Stare Hidrofon</b>
+          <span style="color:#38bdf8;">ACTIV (STANDBY)</span>
+        </div>
+        <div class="modal-card">
+          <b>Frecvență Dominantă</b>
+          <span>N/A (Zgomot difuz)</span>
+        </div>
+        <div class="modal-card">
+          <b>Raport Energie Joasă</b>
+          <span>0.082 / 1.0 (Sub prag)</span>
+        </div>
+        <div class="modal-card">
+          <b>Prag Adaptiv Curent</b>
+          <span>0.60 (Fond marin stabil)</span>
+        </div>
+      </div>
+    `;
+    modal.showModal();
+    return;
+  }
 
   const isSabotage = hyd.sig === "anchor_chain";
   const badgeColor = isSabotage ? "var(--critical)" : "var(--sonar)";
