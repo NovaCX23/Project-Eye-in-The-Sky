@@ -91,7 +91,10 @@
 
   <footer>
     <button id="play" type="button" title="Play / pause" aria-label="Play">▶</button>
-    <input id="slider" type="range" min="0" max="1" step="1" value="0" aria-label="Time">
+    <div class="slider-wrapper">
+      <input id="slider" type="range" min="0" max="1" step="1" value="0" aria-label="Time">
+      <div id="slider-markers"></div>
+    </div>
     <span id="clock" class="clock">--:--</span>
     <label class="ctl">Speed
       <select id="speed">
