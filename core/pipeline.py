@@ -19,6 +19,7 @@ import pandas as pd
 from contracts.models import SensorEvent, Timeline, TrackPoint, VesselTrack
 from contracts.runtime import OUT_DIR, iso, load_config, parse_time, utf8_stdout
 from core import sources
+from core import state as state_store
 from core.fusion import AlertMemory, build_alerts
 from core.sinks import write_timeline
 from detect import ais_rules
@@ -26,7 +27,7 @@ from detect import ais_rules
 
 @dataclass
 class PipelineState:
-    # STUB: starea trăiește doar în memorie; la repornirea --watch se reconstruiește de la început.
+    # În --watch starea se salvează după fiecare batch (core/state.py); replay și --now pornesc de la zero.
     events: dict[str, SensorEvent] = field(default_factory=dict)
     memory: AlertMemory = field(default_factory=AlertMemory)
     batch_index: int = 0
@@ -112,12 +113,24 @@ def replay(in_dir: Path, out_dir: Path, cfg: dict, step_min: float | None = None
 
 
 def watch(in_dir: Path, out_dir: Path, cfg: dict, interval_s: float, sim_step_min: float,
-          max_ticks: int | None = None) -> None:
-    """Micro-batch la fiecare interval_s secunde reale; `now` avansează cu sim_step_min pe ceasul simulat."""
+          max_ticks: int | None = None, fresh: bool = False) -> None:
+    """Micro-batch la fiecare interval_s secunde reale; `now` avansează cu sim_step_min pe ceasul simulat.
+
+    Starea se salvează după fiecare batch; la repornire se reia de unde a rămas (cu fresh=True, de la început).
+    """
     start = parse_time(cfg["scenario"]["start"])
     end = start + timedelta(minutes=cfg["scenario"]["duration_min"])
-    state = PipelineState()
-    now, ticks = start, 0
+    state_path = out_dir / state_store.STATE_FILE
+    state, now = PipelineState(), start
+    if not fresh:
+        restored, info = state_store.load(state_path, sources.load_all(in_dir), cfg, PipelineState)
+        if restored is not None and info < end:
+            state, now = restored, info
+            print(f"[core.pipeline --watch] resuming from {iso(now)} (batch {state.batch_index}).")
+        else:
+            reason = info if restored is None else "the saved run had already reached the scenario end"
+            print(f"[core.pipeline --watch] starting from the scenario start: {reason}.")
+    ticks = 0
     print(f"[core.pipeline --watch] every {interval_s}s, +{sim_step_min} simulated min. Ctrl+C to stop.")
     try:
         while now < end and (max_ticks is None or ticks < max_ticks):
@@ -125,6 +138,7 @@ def watch(in_dir: Path, out_dir: Path, cfg: dict, interval_s: float, sim_step_mi
             inputs = sources.load_all(in_dir)  # recitim fișierele: pot apărea date noi
             tl = run_batch(inputs, now, cfg, state, mode="watch")
             write_timeline(tl, out_dir)
+            state_store.save(state_path, state, now, inputs, cfg)
             print(f"  batch {tl.batch_index:3d} now={iso(now)} vessels={len(tl.vessels)} "
                   f"events={len(tl.events)} alerts={len(tl.alerts)}")
             ticks += 1
@@ -142,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
     ap.add_argument("--now", help="a single batch at this moment (ISO 8601)")
     ap.add_argument("--watch", action="store_true")
+    ap.add_argument("--fresh", action="store_true", help="with --watch: ignore the saved state, start from the beginning")
     ap.add_argument("--interval-s", type=float, default=cfg["pipeline"]["watch_interval_s"])
     ap.add_argument("--sim-step-min", type=float, default=cfg["pipeline"]["watch_sim_step_min"])
     ap.add_argument("--max-ticks", type=int, default=None)
@@ -151,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Missing {args.in_dir / 'ais.csv'}. Run first: python -m core.demo")
         return 1
     if args.watch:
-        watch(args.in_dir, args.out_dir, cfg, args.interval_s, args.sim_step_min, args.max_ticks)
+        watch(args.in_dir, args.out_dir, cfg, args.interval_s, args.sim_step_min, args.max_ticks, args.fresh)
         return 0
     if args.now:
         now = parse_time(args.now)
