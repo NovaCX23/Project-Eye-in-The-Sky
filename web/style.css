@@ -225,7 +225,10 @@ aside {
 .evidence-sub { color: var(--muted); font-size: 11.5px; margin: 2px 0 6px; }
 
 /* ---------- subsol (replay) ---------- */
-footer input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+.slider-wrapper { flex: 1; min-width: 160px; position: relative; display: flex; flex-direction: column; justify-content: center; padding-bottom: 6px; }
+.slider-wrapper input[type=range] { width: 100%; margin: 0; position: relative; z-index: 2; accent-color: var(--accent); }
+#slider-markers { position: absolute; left: 8px; right: 8px; bottom: 0; height: 6px; pointer-events: none; z-index: 1; }
+.timeline-marker { position: absolute; bottom: 0; width: 4px; height: 6px; border-radius: 2px; transform: translateX(-50%); box-shadow: 0 0 2px rgba(0,0,0,0.8); }
 #play {
   width: 38px; height: 32px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer;
   background: var(--panel-3); color: var(--text-strong); font-size: 13px;

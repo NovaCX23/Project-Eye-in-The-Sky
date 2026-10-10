@@ -30,11 +30,11 @@ The map tiles (OpenStreetMap) need internet. Without a network, the SeaGrid laye
 
 ## Tasks (prioritised)
 1. P0: demo rehearsal: the story must read clearly at 300× (alert, rising score, recommended unit).
-2. P1: a timeline with markers for the alert moments under the slider.
-3. P1: highlight the infrastructure nearest to the selected alert.
-4. P2: an offline map background (an image of the coast) for a room without internet.
+2. P1: highlight the infrastructure nearest to the selected alert.
+3. P2: an offline map background (an image of the coast) for a room without internet.
 
 ## Done
+- ✔ A timeline with markers for the alert moments under the slider.
 - ✔ Critical alerts pulse on the map.
 - ✔ Toggleable reference layer of real infrastructure (approx., not scored).
 - ✔ Acoustic panel: hydrophone and DAS fibre sensors shown separately, signatures, spectrograms and acoustic history.

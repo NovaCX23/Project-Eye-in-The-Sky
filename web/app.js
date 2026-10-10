@@ -127,7 +127,7 @@ function findHydro(id) {
 const S = {
   tl: null, start: 0, end: 0, t: 0, playing: false, live: false, selected: null,
   tracks: [], alerts: [], gapsByMmsi: {}, sensors: [], units: {}, unitByMmsi: {},
-  subs: [], subSensors: {}, tlAlerts: [],
+  subs: [], subSensors: {}, tlAlerts: [], revealedAlerts: new Set(),
 };
 
 const $ = (id) => document.getElementById(id);
@@ -529,6 +529,7 @@ function render() {
   highlightActiveHistoryItem(t);
   renderAlertList(active);
   renderDetail(t);
+  renderTimelineMarkers(t);
 }
 
 // ---------- contacte submarine (scenariu SIMULAT, doar afișare) ----------
@@ -647,6 +648,27 @@ function openSubModal(c, st) {
     <p class="muted small" style="margin:10px 0 0;">Contributing sensors: ${c.sensors.map((id) => esc(sensorName(id))).join(" · ")}.<br>
     Scenario data for the demo: shown on the map only, not part of the risk score.</p>`;
   modal.showModal();
+}
+
+function renderTimelineMarkers(t) {
+  const container = $("slider-markers");
+  if (!container) return;
+  const dur = S.end - S.start;
+  if (dur <= 0) {
+    container.innerHTML = "";
+    return;
+  }
+  S.alerts.forEach(a => {
+    if (a.created <= t) S.revealedAlerts.add(a.alert_id);
+  });
+  container.innerHTML = S.alerts
+    .filter(a => S.revealedAlerts.has(a.alert_id))
+    .map(a => {
+      const pct = ((a.created - S.start) / dur) * 100;
+      const st = a.hist && a.hist.length > 0 ? a.hist[0] : null;
+      const color = st ? LEVEL_COLOR[st.level] : LEVEL_COLOR.high;
+      return `<div class="timeline-marker" style="left: ${pct}%; background: ${color}" title="${esc(a.alert_type)} at ${fmtTime(a.created)}"></div>`;
+    }).join("");
 }
 
 function renderAcousticHistory() {
