@@ -2,7 +2,7 @@
   "$id": "seagrid/SensorEvent.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Un eveniment produs de un detector (AIS, acustic sau fibră).",
+  "description": "An event produced by a detector (AIS, acoustic or fibre).",
   "properties": {
     "confidence": {
       "maximum": 1,
@@ -21,11 +21,11 @@
         }
       ],
       "default": null,
-      "description": "None = în desfășurare la momentul now",
+      "description": "None = still ongoing at time now",
       "title": "End"
     },
     "event_id": {
-      "description": "Id determinist: hash(sursă, tip, mmsi/senzor, start)",
+      "description": "Deterministic id: hash(source, type, mmsi/sensor, start)",
       "title": "Event Id",
       "type": "string"
     },
@@ -66,7 +66,7 @@
           }
         ]
       },
-      "description": "Numerele detectorului, folosite în explicații",
+      "description": "The detector's numbers, used in explanations",
       "title": "Metrics",
       "type": "object"
     },

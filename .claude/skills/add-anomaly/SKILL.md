@@ -16,6 +16,6 @@ Owner: Dev 1 (`data/`, `eval/`). Do not touch `detect/` or `core/`.
 4. Test in `data/tests/test_data.py`: generate + inject for a fixed seed into `tmp_path` and assert the ground-truth
    record exists and the injected change is visible in `ais.csv`.
 5. Determinism: run `python -m data.inject --seed 42` twice and confirm identical output.
-6. Run `python -m pytest data eval` and `/eval-report`. A new anomaly no detector catches yet shows as `RATAT`;
+6. Run `python -m pytest data eval` and `/eval-report`. A new anomaly no detector catches yet shows as `MISSED`;
    that is expected, so report it to Dev 2.
 7. Run `/demo-check`: the demo scenario must be unchanged.

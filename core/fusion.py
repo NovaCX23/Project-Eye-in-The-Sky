@@ -127,7 +127,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
             d, other = min(related, key=lambda x: (x[0], x[1].mmsi))
             raw.append(("correlated_vessel", scoring.points_for("correlated_vessel", cfg),
                         explain.factor_detail("correlated_vessel", {
-                            "other_name": names.get(other.mmsi) or "necunoscută", "other_mmsi": other.mmsi, "dist_km": d}),
+                            "other_name": names.get(other.mmsi) or "unknown", "other_mmsi": other.mmsi, "dist_km": d}),
                         other.primary.event_id, other.primary.simulated))
 
         score = scoring.total([r[1] for r in raw], cfg)

@@ -1,31 +1,31 @@
 # eval/ (Dev 1)
 
-## Ce face
-`evaluate.py` compară alertele din `timeline.json` cu `ground_truth.json` și tipărește:
-rata de detecție, numărul de alarme false, alarme false raportate la navele normale, timpul mediu până la alertă
-(`created_at` minus începutul anomaliei), defalcarea pe tipuri și lista anomaliilor ratate.
+## What it does
+`evaluate.py` compares the alerts in `timeline.json` with `ground_truth.json` and prints:
+detection rate, number of false alarms, false alarms per normal vessel, mean time to alert
+(`created_at` minus the anomaly start), a per-type breakdown and the list of missed anomalies.
 
-Potrivire (STUB): o alertă detectează o anomalie dacă are același MMSI și a fost creată în
-`[start, end + eval.match_grace_min]`. Orice altă alertă e alarmă falsă.
+Matching (STUB): an alert detects an anomaly if it has the same MMSI and was created within
+`[start, end + eval.match_grace_min]`. Any other alert is a false alarm.
 
-## Consumă
-`out/ground_truth.json`, `out/timeline.json` (sau `out/eval/<set>/...`), `config.yaml` (`eval`, `scenario.seeds`).
+## Consumes
+`out/ground_truth.json`, `out/timeline.json` (or `out/eval/<set>/...`), `config.yaml` (`eval`, `scenario.seeds`).
 
-## Produce
-Tabel markdown la consolă; cu `--write-md`, tabelul seed-ului held-out în `pitch/metrics.md`.
+## Produces
+A markdown table on the console; with `--write-md`, the held-out seed table in `pitch/metrics.md`.
 
-## Rulare separată
+## Running it on its own
 ```bash
-python -m eval.evaluate                                             # evaluează out/ (după make demo)
+python -m eval.evaluate                                             # evaluates out/ (after make demo)
 python -m eval.evaluate --seed-set tuning --run                     # = make eval
 python -m eval.evaluate --seed-set both --run --write-md pitch/metrics.md   # = make eval-report
 python -m pytest eval
 ```
 
-Seed-ul `reporting` (1337) e held-out: nu se reglează nimic pe el.
+The `reporting` seed (1337) is held out: nothing is tuned on it.
 
-## Sarcini (prioritizate)
-1. P0: aflați cum evaluează organizatorii (format, potrivire, ce înseamnă „alarmă falsă”) și aliniați `evaluate.py`.
-2. P1: alarme false pe oră de trafic, pe lângă cele pe navă.
-3. P1: medie pe mai multe seed-uri de raportare.
-4. P2: export CSV al potrivirilor pentru depanare.
+## Tasks (prioritised)
+1. P0: find out how the organisers evaluate (format, matching, what counts as a "false alarm") and align `evaluate.py`.
+2. P1: false alarms per hour of traffic, in addition to per vessel.
+3. P1: average over several reporting seeds.
+4. P2: CSV export of the matches for debugging.

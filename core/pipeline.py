@@ -105,7 +105,7 @@ def replay(in_dir: Path, out_dir: Path, cfg: dict, step_min: float | None = None
             if a.alert_id not in seen:
                 seen.add(a.alert_id)
                 if verbose:
-                    print(f"  [{iso(now)}] ALERTĂ {a.alert_id} {a.vessel_name} ({a.mmsi}) {a.alert_type} scor={a.risk_score}")
+                    print(f"  [{iso(now)}] ALERT {a.alert_id} {a.vessel_name} ({a.mmsi}) {a.alert_type} score={a.risk_score}")
         now += step
     write_timeline(tl, out_dir)
     return tl
@@ -118,29 +118,29 @@ def watch(in_dir: Path, out_dir: Path, cfg: dict, interval_s: float, sim_step_mi
     end = start + timedelta(minutes=cfg["scenario"]["duration_min"])
     state = PipelineState()
     now, ticks = start, 0
-    print(f"[core.pipeline --watch] la fiecare {interval_s}s, +{sim_step_min} min simulate. Ctrl+C pentru oprire.")
+    print(f"[core.pipeline --watch] every {interval_s}s, +{sim_step_min} simulated min. Ctrl+C to stop.")
     try:
         while now < end and (max_ticks is None or ticks < max_ticks):
             now = min(end, now + timedelta(minutes=sim_step_min))
             inputs = sources.load_all(in_dir)  # recitim fișierele: pot apărea date noi
             tl = run_batch(inputs, now, cfg, state, mode="watch")
             write_timeline(tl, out_dir)
-            print(f"  batch {tl.batch_index:3d} now={iso(now)} nave={len(tl.vessels)} "
-                  f"evenimente={len(tl.events)} alerte={len(tl.alerts)}")
+            print(f"  batch {tl.batch_index:3d} now={iso(now)} vessels={len(tl.vessels)} "
+                  f"events={len(tl.events)} alerts={len(tl.alerts)}")
             ticks += 1
             if now < end and (max_ticks is None or ticks < max_ticks):
                 time.sleep(interval_s)
     except KeyboardInterrupt:
-        print("Oprit.")
+        print("Stopped.")
 
 
 def main(argv: list[str] | None = None) -> int:
     utf8_stdout()
     cfg = load_config()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--in-dir", type=Path, default=OUT_DIR, help="unde sunt ais.csv și evenimentele senzorilor")
+    ap.add_argument("--in-dir", type=Path, default=OUT_DIR, help="where ais.csv and the sensor events are")
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
-    ap.add_argument("--now", help="un singur batch la acest moment (ISO 8601)")
+    ap.add_argument("--now", help="a single batch at this moment (ISO 8601)")
     ap.add_argument("--watch", action="store_true")
     ap.add_argument("--interval-s", type=float, default=cfg["pipeline"]["watch_interval_s"])
     ap.add_argument("--sim-step-min", type=float, default=cfg["pipeline"]["watch_sim_step_min"])
@@ -148,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args(argv)
     if not (args.in_dir / "ais.csv").exists():
-        print(f"Lipsește {args.in_dir / 'ais.csv'}. Rulați întâi: python -m core.demo")
+        print(f"Missing {args.in_dir / 'ais.csv'}. Run first: python -m core.demo")
         return 1
     if args.watch:
         watch(args.in_dir, args.out_dir, cfg, args.interval_s, args.sim_step_min, args.max_ticks)
@@ -161,9 +161,9 @@ def main(argv: list[str] | None = None) -> int:
         t = time.perf_counter()
         tl = replay(args.in_dir, args.out_dir, cfg, verbose=not args.quiet)
         if not args.quiet:
-            print(f"[core.pipeline] replay în {time.perf_counter() - t:.1f}s")
-    print(f"[core.pipeline] now={iso(tl.now)}: {len(tl.vessels)} nave, {len(tl.events)} evenimente, "
-          f"{len(tl.alerts)} alerte -> {args.out_dir / 'timeline.json'}")
+            print(f"[core.pipeline] replay in {time.perf_counter() - t:.1f}s")
+    print(f"[core.pipeline] now={iso(tl.now)}: {len(tl.vessels)} vessels, {len(tl.events)} events, "
+          f"{len(tl.alerts)} alerts -> {args.out_dir / 'timeline.json'}")
     return 0
 
 

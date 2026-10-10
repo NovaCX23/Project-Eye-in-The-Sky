@@ -10,11 +10,11 @@ const SENSOR_SHOW_MIN = 30;    // cât timp rămâne vizibil un eveniment de sen
 const ASSETS = "../assets/";
 
 const LEVEL_COLOR = { low: "#4f8fd6", medium: "#e0b43a", high: "#ef7f2f", critical: "#e5484d" };
-const LEVEL_RO = { low: "scăzut", medium: "mediu", high: "ridicat", critical: "critic" };
+const LEVEL_TEXT = { low: "low", medium: "medium", high: "high", critical: "critical" };
 const LEVEL_RANK = { low: 0, medium: 1, high: 2, critical: 3 };
 const NORMAL_COLOR = "#3fb6a8";
 const DARK_COLOR = "#8b9bb0";
-const SIM_TAG = '<span class="tag-sim">SIMULAT</span>';
+const SIM_TAG = '<span class="tag-sim">SIMULATED</span>';
 const INFRA_STYLE = {
   pipeline: { color: "#f0a050", weight: 3 },
   cable: { color: "#b48af0", weight: 2, dashArray: "6 4" },
@@ -37,7 +37,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const map = L.map("map", { preferCanvas: true }).setView(MAP_CENTER, MAP_ZOOM);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 13,
-  attribution: "&copy; OpenStreetMap · SeaGrid: date simulate, coordonate aproximative",
+  attribution: "&copy; OpenStreetMap · SeaGrid: simulated data, approximate coordinates",
 }).addTo(map);
 const layers = {
   infra: L.layerGroup().addTo(map),
@@ -52,10 +52,10 @@ const legend = L.control({ position: "bottomleft" });
 legend.onAdd = () => {
   const d = L.DomUtil.create("div", "legend");
   d.innerHTML =
-    `<div><i style="background:${NORMAL_COLOR}"></i>navă normală</div>` +
-    `<div><i style="background:${DARK_COLOR}"></i>AIS oprit (zonă de incertitudine)</div>` +
-    Object.entries(LEVEL_COLOR).map(([k, c]) => `<div><i style="background:${c}"></i>alertă ${LEVEL_RO[k]}</div>`).join("") +
-    `<div><i style="background:#f0a050"></i>conductă</div><div><i style="background:#b48af0"></i>cablu</div>`;
+    `<div><i style="background:${NORMAL_COLOR}"></i>normal vessel</div>` +
+    `<div><i style="background:${DARK_COLOR}"></i>AIS off (uncertainty area)</div>` +
+    Object.entries(LEVEL_COLOR).map(([k, c]) => `<div><i style="background:${c}"></i>${LEVEL_TEXT[k]} alert</div>`).join("") +
+    `<div><i style="background:#f0a050"></i>pipeline</div><div><i style="background:#b48af0"></i>cable</div>`;
   return d;
 };
 legend.addTo(map);
@@ -74,7 +74,7 @@ async function loadAssets() {
     for (const u of pu.units) {
       S.units[u.id] = u;
       L.marker([u.lat, u.lon], { title: u.name })
-        .bindTooltip(`${esc(u.name)} · ${u.speed_kn} kn${u.simulated ? " · SIMULAT" : ""}`)
+        .bindTooltip(`${esc(u.name)} · ${u.speed_kn} kn${u.simulated ? " · SIMULATED" : ""}`)
         .addTo(layers.units);
     }
   } catch (e) { console.warn(e); }
@@ -108,7 +108,7 @@ function ingest(tl) {
   $("sim-badge").hidden = !tl.simulated;
   $("slider").max = Math.max(1, Math.round((S.end - S.start) / 1000));
   if (S.live || S.t === 0 || S.t > S.end) S.t = S.live ? S.end : Math.min(Math.max(S.t, S.start), S.end);
-  $("status").textContent = `mod ${tl.mode} · batch ${tl.batch_index} · now ${fmtTime(S.end)}`;
+  $("status").textContent = `mode ${tl.mode} · batch ${tl.batch_index} · now ${fmtTime(S.end)}`;
   render();
 }
 
@@ -154,7 +154,7 @@ function render() {
       const hours = (t - gap.s) / 3.6e6;
       const radiusKm = (gap.metrics.uncertainty_km_per_h || 0) * hours;
       L.circle([gap.lat, gap.lon], { radius: radiusKm * 1000, color: DARK_COLOR, weight: 1, dashArray: "4 4", fillOpacity: 0.08 })
-        .bindTooltip(`Zonă de incertitudine: ${radiusKm.toFixed(1)} km`)
+        .bindTooltip(`Uncertainty area: ${radiusKm.toFixed(1)} km`)
         .addTo(layers.uncertainty);
     }
     L.circleMarker([p.lat, p.lon], {
@@ -162,8 +162,8 @@ function render() {
       dashArray: gap ? "2 2" : null, fillColor: color, fillOpacity: gap ? 0.2 : 0.95,
     })
       .bindTooltip(
-        `<b>${esc(v.name || "necunoscută")}</b> · MMSI ${v.mmsi}<br>${p.sog ?? "?"} kn · ${p.cog ?? "?"}°` +
-        `${gap ? "<br>AIS oprit din " + fmtTime(gap.s) : ""}${v.simulated ? "<br>SIMULAT" : ""}`)
+        `<b>${esc(v.name || "unknown")}</b> · MMSI ${v.mmsi}<br>${p.sog ?? "?"} kn · ${p.cog ?? "?"}°` +
+        `${gap ? "<br>AIS off since " + fmtTime(gap.s) : ""}${v.simulated ? "<br>SIMULATED" : ""}`)
       .on("click", () => { const a = active.find((x) => x.a.mmsi === v.mmsi); if (a) select(a.a.alert_id); })
       .addTo(layers.vessels);
     if (sel && sel.mmsi === v.mmsi) {
@@ -176,9 +176,9 @@ function render() {
   layers.sensors.clearLayers();
   for (const e of S.sensors) {
     if (e.s > t || t - e.s > SENSOR_SHOW_MIN * 60000) continue;
-    const label = e.source === "acoustic" ? `Acustic ${esc(e.sensor_id)}` : `Fibră km ${e.metrics.cable_km}`;
+    const label = e.source === "acoustic" ? `Acoustic ${esc(e.sensor_id)}` : `Fibre km ${e.metrics.cable_km}`;
     L.circleMarker([e.lat, e.lon], { radius: 12, color: "#b48af0", weight: 2, fillOpacity: 0.15 })
-      .bindTooltip(`${label} · încredere ${e.confidence}${e.simulated ? " · SIMULAT" : ""}`,
+      .bindTooltip(`${label} · confidence ${e.confidence}${e.simulated ? " · SIMULATED" : ""}`,
                    { permanent: true, direction: "top", className: e.simulated ? "sim-label" : "" })
       .addTo(layers.sensors);
   }
@@ -195,7 +195,7 @@ function renderAlertList(active) {
       <span class="chip lvl-${st.level}"></span>
       <span>${esc(a.vessel_name || a.mmsi)}${a.simulated ? SIM_TAG : ""}</span>
       <span class="score">${st.score}</span>
-      <span class="sub">${esc(a.alert_type)} · nivel ${LEVEL_RO[st.level]} · de la ${fmtTime(a.created)}</span>
+      <span class="sub">${esc(a.alert_type)} · level ${LEVEL_TEXT[st.level]} · since ${fmtTime(a.created)}</span>
     </li>`).join("");
   for (const li of $("alert-list").querySelectorAll("li")) li.onclick = () => select(li.dataset.id);
 }
@@ -206,19 +206,19 @@ function renderDetail(t) {
   $("detail").hidden = !st;
   if (!st) return;
   const factors = a.factors.filter((f) => ms(f.added_at) <= t);
-  $("detail-title").innerHTML = `${esc(a.vessel_name || "Navă necunoscută")} · ${st.score}/100 ${a.simulated ? SIM_TAG : ""}`;
+  $("detail-title").innerHTML = `${esc(a.vessel_name || "Unknown vessel")} · ${st.score}/100 ${a.simulated ? SIM_TAG : ""}`;
   $("detail-meta").textContent =
-    `MMSI ${a.mmsi} · nivel ${LEVEL_RO[st.level]} · început ${fmtTime(ms(a.start_time))} · alertă ${fmtTime(a.created)} · id ${a.alert_id}`;
+    `MMSI ${a.mmsi} · level ${LEVEL_TEXT[st.level]} · started ${fmtTime(ms(a.start_time))} · alert ${fmtTime(a.created)} · id ${a.alert_id}`;
   $("factors").innerHTML = factors.map((f) => `
     <div class="factor"><div class="row"><span>${esc(f.label)}${f.simulated ? SIM_TAG : ""}</span><b>+${f.points}</b></div>
     <div class="bar"><span style="width:${f.points}%"></span></div></div>`).join("") +
-    `<div class="factor total"><div class="row"><span>Total (plafonat)</span><b>${st.score}</b></div>
+    `<div class="factor total"><div class="row"><span>Total (capped)</span><b>${st.score}</b></div>
      <div class="bar"><span style="width:${st.score}%"></span></div></div>`;
   $("detail-lines").innerHTML = factors.map((f) => `<li>${esc(f.detail)}</li>`).join("");
   const u = st.unit_id && S.units[st.unit_id];
   $("recommendation").innerHTML = st.unit_id
     ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ETA ${st.eta_min.toFixed(0)} min${u && u.simulated ? SIM_TAG : ""}`
-    : "Încă nu (nivelul alertei este sub pragul de recomandare).";
+    : "Not yet (the alert level is below the recommendation threshold).";
 }
 
 function select(id) {
@@ -256,6 +256,6 @@ $("live").onchange = (e) => {
 
 loadAssets();
 SeaGridLoader.start(ingest, (err) => {
-  $("status").textContent = `Nu pot încărca ${SeaGridLoader.SRC}: rulați make demo și serviți rădăcina repo-ului.`;
+  $("status").textContent = `Cannot load ${SeaGridLoader.SRC}: run make demo and serve the repo root.`;
   console.error(err);
 });

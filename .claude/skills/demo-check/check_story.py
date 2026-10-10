@@ -24,11 +24,11 @@ def t(s: str) -> datetime:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--no-regen", action="store_true", help="nu regenera; verifică out/timeline.json existent")
+    ap.add_argument("--no-regen", action="store_true", help="do not regenerate; check the existing out/timeline.json")
     args = ap.parse_args()
     if not args.no_regen:
         if subprocess.run([sys.executable, "-m", "core.demo"], cwd=ROOT).returncode != 0:
-            print("core.demo a eșuat")
+            print("core.demo failed")
             return 1
     sc = yaml.safe_load((ROOT / "data/scenarios/demo.yaml").read_text(encoding="utf-8"))
     tl = json.loads((ROOT / "out/timeline.json").read_text(encoding="utf-8"))
@@ -44,31 +44,31 @@ def main() -> int:
     def beat(name: str, when: datetime | None, deadline: datetime | None, extra: str = "") -> None:
         ok = when is not None and (deadline is None or when <= deadline)
         beats.append(ok)
-        lim = f" (termen {mins(deadline)})" if deadline else ""
-        print(f"[{'OK ' if ok else 'ERR'}] {name}: {mins(when) if when else 'lipsește'}{lim} {extra}")
+        lim = f" (deadline {mins(deadline)})" if deadline else ""
+        print(f"[{'OK ' if ok else 'ERR'}] {name}: {mins(when) if when else 'missing'}{lim} {extra}")
 
     gap = next((e for e in tl["events"] if e["mmsi"] == dark and e["event_type"] == "ais_gap"), None)
-    beat("nava se stinge (ultimul mesaj AIS)", t(gap["start"]) if gap else None,
+    beat("vessel goes dark (last AIS message)", t(gap["start"]) if gap else None,
          at(sc["dark_vessel"]["gap_start_min"]))
-    beat("alertă pentru nava stinsă", t(dark_alert["created_at"]) if dark_alert else None, at(exp["dark_alert_by_min"]))
-    beat("a doua navă staționează (alertă loitering)", t(loit_alert["created_at"]) if loit_alert else None,
+    beat("alert for the dark vessel", t(dark_alert["created_at"]) if dark_alert else None, at(exp["dark_alert_by_min"]))
+    beat("second vessel loiters (loitering alert)", t(loit_alert["created_at"]) if loit_alert else None,
          at(exp["loiter_alert_by_min"]))
     ac = next((e for e in tl["events"] if e["event_type"] == "acoustic_lowfreq"), None)
-    beat("eveniment acustic", t(ac["start"]) if ac else None, at(exp["acoustic_event_min"] + 5),
-         "SIMULAT" if ac and ac["simulated"] else "")
+    beat("acoustic event", t(ac["start"]) if ac else None, at(exp["acoustic_event_min"] + 5),
+         "SIMULATED" if ac and ac["simulated"] else "")
     fb = [e for e in tl["events"] if e["event_type"] == "fibre_vibration" and t(e["start"]) >= at(exp["fibre_event_min"])]
-    beat("eveniment fibră", t(fb[0]["start"]) if fb else None, at(exp["fibre_event_min"] + 5),
-         "SIMULAT" if fb and fb[0]["simulated"] else "")
+    beat("fibre event", t(fb[0]["start"]) if fb else None, at(exp["fibre_event_min"] + 5),
+         "SIMULATED" if fb and fb[0]["simulated"] else "")
     crit = next((h for h in (dark_alert or {}).get("history", []) if h["level"] == "critical"), None)
-    beat("scorul ajunge la critic", t(crit["t"]) if crit else None, at(exp["critical_by_min"]),
-         f"scor {crit['score']}" if crit else "")
+    beat("score reaches critical", t(crit["t"]) if crit else None, at(exp["critical_by_min"]),
+         f"score {crit['score']}" if crit else "")
     rec = next((h for h in (dark_alert or {}).get("history", []) if h.get("unit_id")), None)
-    beat("unitate recomandată", t(rec["t"]) if rec else None, at(exp["critical_by_min"]),
+    beat("patrol unit recommended", t(rec["t"]) if rec else None, at(exp["critical_by_min"]),
          f"{rec['unit_id']} ETA {rec['eta_min']:.0f} min" if rec else "")
     si = next((f for f in (dark_alert or {}).get("factors", []) if f["code"] == "speed_inconsistency"), None)
-    beat("reapariție inconsistentă cu viteza", t(si["added_at"]) if si else None, None, si["detail"] if si else "")
+    beat("reappearance inconsistent with speed", t(si["added_at"]) if si else None, None, si["detail"] if si else "")
     ok = all(beats)
-    print("\nDEMO-CHECK: " + ("toate momentele sunt la locul lor." if ok else "lipsesc momente din poveste."))
+    print("\nDEMO-CHECK: " + ("every story beat is in place." if ok else "story beats are missing."))
     return 0 if ok else 1
 
 

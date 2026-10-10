@@ -2,20 +2,20 @@
   "$defs": {
     "Alert": {
       "additionalProperties": false,
-      "description": "O alertă fuzionată pentru un incident al unei nave.",
+      "description": "A fused alert for one vessel incident.",
       "properties": {
         "alert_id": {
-          "description": "Id determinist: hash(mmsi, tip primar, start)",
+          "description": "Deterministic id: hash(mmsi, primary type, start)",
           "title": "Alert Id",
           "type": "string"
         },
         "alert_type": {
-          "description": "Tipul evenimentului care a deschis incidentul",
+          "description": "Type of the event that opened the incident",
           "title": "Alert Type",
           "type": "string"
         },
         "created_at": {
-          "description": "Primul now la care alerta a fost emisă",
+          "description": "First now at which the alert was emitted",
           "format": "date-time",
           "title": "Created At",
           "type": "string"
@@ -218,10 +218,10 @@
     },
     "ScoreFactor": {
       "additionalProperties": false,
-      "description": "O componentă a scorului aditiv.",
+      "description": "One component of the additive score.",
       "properties": {
         "added_at": {
-          "description": "Momentul (now) la care factorul a intrat în scor",
+          "description": "The moment (now) at which the factor entered the score",
           "format": "date-time",
           "title": "Added At",
           "type": "string"
@@ -232,7 +232,7 @@
           "type": "string"
         },
         "detail": {
-          "description": "Propoziție din șablon, cu numerele detectorului",
+          "description": "Template sentence filled with the detector's numbers",
           "title": "Detail",
           "type": "string"
         },
@@ -274,7 +274,7 @@
     },
     "ScorePoint": {
       "additionalProperties": false,
-      "description": "Starea alertei la momentul t; interfața o afișează fără să recalculeze nimic.",
+      "description": "Alert state at time t; the UI displays it without recomputing anything.",
       "properties": {
         "eta_min": {
           "anyOf": [
@@ -320,7 +320,7 @@
             }
           ],
           "default": null,
-          "description": "Unitatea recomandată la acest moment",
+          "description": "Recommended unit at this moment",
           "title": "Unit Id"
         }
       },
@@ -334,7 +334,7 @@
     },
     "SensorEvent": {
       "additionalProperties": false,
-      "description": "Un eveniment produs de un detector (AIS, acustic sau fibră).",
+      "description": "An event produced by a detector (AIS, acoustic or fibre).",
       "properties": {
         "confidence": {
           "maximum": 1,
@@ -353,11 +353,11 @@
             }
           ],
           "default": null,
-          "description": "None = în desfășurare la momentul now",
+          "description": "None = still ongoing at time now",
           "title": "End"
         },
         "event_id": {
-          "description": "Id determinist: hash(sursă, tip, mmsi/senzor, start)",
+          "description": "Deterministic id: hash(source, type, mmsi/sensor, start)",
           "title": "Event Id",
           "type": "string"
         },
@@ -398,7 +398,7 @@
               }
             ]
           },
-          "description": "Numerele detectorului, folosite în explicații",
+          "description": "The detector's numbers, used in explanations",
           "title": "Metrics",
           "type": "object"
         },
@@ -564,7 +564,7 @@
   "$id": "seagrid/Timeline.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Fișierul out/timeline.json, singura intrare a interfeței web.",
+  "description": "The out/timeline.json file, the web UI's only input.",
   "properties": {
     "alerts": {
       "items": {
@@ -595,7 +595,7 @@
       "type": "string"
     },
     "now": {
-      "description": "Nimic din fișier nu are timestamp > now",
+      "description": "Nothing in the file has timestamp > now",
       "format": "date-time",
       "title": "Now",
       "type": "string"

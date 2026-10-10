@@ -40,9 +40,9 @@ loiter_vessel:                 # a doua navă, AIS pornit, viteză mică în ace
   exit_speed_kn: 10.0
 
 fibre_events:                  # senzor fibră (DAS) pe CABLE-1, SIMULAT de injector
-  - {offset_min: 30, near: [44.180, 28.800], amplitude: 0.2, confidence: 0.3, note: "zgomot de fond lângă țărm"}
-  - {offset_min: 150, near: [44.258, 29.470], amplitude: 0.9, confidence: 0.8, note: "vibrație puternică"}
-  - {offset_min: 170, near: [44.259, 29.480], amplitude: 0.8, confidence: 0.75, note: "vibrație repetată"}
+  - {offset_min: 30, near: [44.180, 28.800], amplitude: 0.2, confidence: 0.3, note: "background noise near shore"}
+  - {offset_min: 150, near: [44.258, 29.470], amplitude: 0.9, confidence: 0.8, note: "strong vibration"}
+  - {offset_min: 170, near: [44.259, 29.480], amplitude: 0.8, confidence: 0.75, note: "repeated vibration"}
 
 expected:                      # folosit de skill-ul demo-check (minute de la start, termen maxim)
   dark_alert_by_min: 130

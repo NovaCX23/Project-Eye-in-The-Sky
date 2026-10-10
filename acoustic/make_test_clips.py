@@ -48,7 +48,7 @@ def make_clips(out_dir: Path = CLIPS_DIR) -> list[Path]:
 def main() -> int:
     utf8_stdout()
     for p in make_clips():
-        print(f"[acoustic.make_test_clips] scris {p}")
+        print(f"[acoustic.make_test_clips] wrote {p}")
     return 0
 
 

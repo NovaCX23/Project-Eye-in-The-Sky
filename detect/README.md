@@ -1,35 +1,35 @@
 # detect/ (Dev 2)
 
-## Ce face
-Reguli AIS naive, dar reale (prind scenariul demo), în `ais_rules.py`:
+## What it does
+Naive but real AIS rules (they catch the demo scenario), in `ais_rules.py`:
 
-| Regulă | Logică | Prag (config.yaml) |
+| Rule | Logic | Threshold (config.yaml) |
 |---|---|---|
-| `ais_gap` | `now - ultimul_mesaj > prag`; ignoră marginea acoperirii și zonele de excludere | `detect.gap.*` |
-| `speed_inconsistency` | la reapariție după o pauză: distanța haversine vs. viteza raportată, **prea lent** și **prea rapid** | `detect.speed_consistency.*` |
-| `loitering` | fereastră glisantă: viteză medie mică și poziții strânse, în afara zonelor de excludere | `detect.loitering.*` |
-| `position_jump` | două mesaje apropiate în timp cu viteză implicită imposibilă | `detect.position_jump.*` |
+| `ais_gap` | `now - last_message > threshold`; ignores the coverage edge and the exclusion zones | `detect.gap.*` |
+| `speed_inconsistency` | on reappearance after a gap: haversine distance vs. reported speed, **too slow** and **too fast** | `detect.speed_consistency.*` |
+| `loitering` | sliding window: low mean speed and tightly clustered positions, outside the exclusion zones | `detect.loitering.*` |
+| `position_jump` | two messages close in time with an impossible implied speed | `detect.position_jump.*` |
 
-`zones.py` decide ce reguli țin cont de zonele de excludere (rada de ancoraj, coridorul portului).
+`zones.py` decides which rules take the exclusion zones into account (the anchorage, the port corridor).
 
-## Consumă
-DataFrame cu mesaje `PositionMessage` cu timestamp `<= now` (garantat de `core/sources.py`; `run_all` aruncă eroare altfel),
+## Consumes
+A DataFrame of `PositionMessage` rows with timestamp `<= now` (guaranteed by `core/sources.py`; `run_all` raises otherwise),
 `now`, `config.yaml`.
 
-## Produce
-`list[SensorEvent]` cu `source="ais"`, id determinist și toate numerele explicației în `metrics`.
-Fără I/O, fără stare: nu știe cum sunt livrate rezultatele.
+## Produces
+`list[SensorEvent]` with `source="ais"`, a deterministic id and every number the explanation needs in `metrics`.
+No I/O, no state: it does not know how results are delivered.
 
-## Rulare separată
+## Running it on its own
 ```bash
 python -m pytest detect
-python -m core.demo && python -m eval.evaluate      # efectul asupra metricilor
+python -m core.demo && python -m eval.evaluate      # effect on the metrics
 ```
-Din Python: `from detect.ais_rules import run_all`.
+From Python: `from detect.ais_rules import run_all`.
 
-## Sarcini (prioritizate)
-1. P0: reglați pragurile pe seed-ul de tuning (`/tune-thresholds`): loitering-ul aleator departe de infrastructură e ratat pe held-out.
-2. P1: loitering cu rază față de centroid în loc de diagonala bbox; episod care începe la prima poziție lentă, nu la marginea ferestrei.
-3. P1: viteză așteptată din istoricul înainte de pauză (nu doar media SOG).
-4. P1: regulă nouă cu `/add-rule`, de exemplu rendezvous (două nave lente, apropiate).
-5. P2: ignorare a navelor de serviciu (pilot, remorcher) după tip.
+## Tasks (prioritised)
+1. P0: tune the thresholds on the tuning seed (`/tune-thresholds`): random loitering far from infrastructure is missed on held-out.
+2. P1: loitering by radius around the centroid instead of the bbox diagonal; an episode that starts at the first slow position, not at the window edge.
+3. P1: expected speed from the history before the gap (not just the mean SOG).
+4. P1: a new rule with `/add-rule`, for example rendezvous (two slow vessels close together).
+5. P2: ignore service vessels (pilot, tug) by type.

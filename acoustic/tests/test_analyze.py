@@ -14,7 +14,7 @@ def test_tone_triggers_and_noise_does_not(tmp_path, cfg):
     noise, tone = make_clips(tmp_path)
     assert analyze_clip(noise, _meta(noise.name), cfg) == []
     events = analyze_clip(tone, _meta(tone.name), cfg)
-    assert events, "tonul de 50 Hz trebuia să producă un eveniment"
+    assert events, "the 50 Hz tone should have produced an event"
     e = events[0]
     assert e.event_type == "acoustic_lowfreq" and e.source == "acoustic" and e.simulated
     assert e.metrics["lowfreq_ratio"] > cfg["acoustic"]["lowfreq_ratio_threshold"]

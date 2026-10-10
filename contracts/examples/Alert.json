@@ -13,18 +13,18 @@
   "factors": [
     {
       "code": "ais_gap",
-      "label": "Semnal AIS pierdut",
+      "label": "AIS signal lost",
       "points": 25,
-      "detail": "Nu a mai transmis AIS de 35 min (prag 30 min).",
+      "detail": "No AIS transmitted for 35 min (threshold 30 min).",
       "event_id": "evt-3f1c2a9b7d4e5f60",
       "added_at": "2026-03-15T08:05:00Z",
       "simulated": true
     },
     {
       "code": "near_infrastructure",
-      "label": "Aproape de infrastructură critică",
+      "label": "Near critical infrastructure",
       "points": 15,
-      "detail": "Ultima poziție la 1.0 km de Cablu submarin de date (aprox.).",
+      "detail": "Last position 1.0 km from Subsea data cable (approx.).",
       "event_id": null,
       "added_at": "2026-03-15T08:05:00Z",
       "simulated": false
@@ -33,11 +33,11 @@
   "history": [
     {"t": "2026-03-15T08:05:00Z", "score": 40, "level": "medium"}
   ],
-  "explanation": "MV SEA FALCON (MMSI 271000001), risc 40/100 (mediu).",
+  "explanation": "MV SEA FALCON (MMSI 271000001): risk 40/100, level medium.",
   "event_ids": ["evt-3f1c2a9b7d4e5f60"],
   "related_mmsis": [],
   "nearest_infrastructure": [
-    {"infra_id": "CABLE-1", "name": "Cablu submarin de date (aprox.)", "kind": "cable", "distance_km": 1.0}
+    {"infra_id": "CABLE-1", "name": "Subsea data cable (approx.)", "kind": "cable", "distance_km": 1.0}
   ],
   "recommendation": null,
   "simulated": true

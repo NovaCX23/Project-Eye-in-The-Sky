@@ -1,83 +1,83 @@
 # SeaGrid
 
-Detecția activităților suspecte în jurul infrastructurii maritime românești din Marea Neagră:
-platforme de gaz, conducte, cabluri submarine, apropierea de portul Constanța.
+Detection of suspicious activity around Romania's maritime infrastructure in the Black Sea:
+gas platforms, pipelines, subsea cables, the approach to the port of Constanța.
 
-**Toate datele sunt sintetice (SIMULATE), iar coordonatele infrastructurii sunt aproximative.**
+**All data is synthetic (SIMULATED), and infrastructure coordinates are approximate.**
 
-Scenariul demo: un cargo cu destinația Constanța își oprește AIS-ul 2 ore lângă o platformă și un cablu.
-La reapariție, poziția nu se potrivește cu viteza raportată. În paralel, o a doua navă staționează la viteză mică
-în aceeași zonă. SeaGrid corelează traseele cu harta infrastructurii, cu un hidrofon și cu senzorul de fibră,
-apoi ridică o alertă cu scor de risc, explicație și unitatea de patrulare recomandată (cu ETA).
+Demo scenario: a cargo ship bound for Constanța turns its AIS off for 2 hours near a platform and a cable.
+On reappearance, its position does not match its reported speed. Meanwhile, a second vessel loiters at low speed
+in the same area. SeaGrid correlates the tracks with the infrastructure map, a hydrophone and the fibre sensor,
+then raises an alert with a risk score, an explanation and the recommended patrol unit (with ETA).
 
-## Pornire rapidă
+## Quick start
 
 ```bash
 python -m venv .venv
 # Windows (PowerShell):  .\.venv\Scripts\Activate.ps1      Linux/macOS:  source .venv/bin/activate
-python -m devtools.bootstrap        # = make setup: dependențe + hook-uri git
-python -m core.demo                 # = make demo: scrie out/timeline.json
+python -m devtools.bootstrap        # = make setup: dependencies + git hooks
+python -m core.demo                 # = make demo: writes out/timeline.json
 python -m http.server 8000          # = make serve
-# deschideți http://localhost:8000/web/ și apăsați ▶
+# open http://localhost:8000/web/ and press ▶
 ```
 
-Python 3.11 sau mai nou. Versiunile din `requirements.txt` sunt fixate și au wheel-uri pentru 3.11–3.14.
+Python 3.11 or newer. Versions in `requirements.txt` are pinned and have wheels for 3.11–3.14.
 
-## Comenzi
+## Commands
 
-Fiecare țintă `make` e un înveliș subțire peste o comandă `python -m`. Fără `make` (Windows), rulați coloana din dreapta.
+Each `make` target is a thin wrapper around a `python -m` command. Without `make` (Windows), run the right-hand column.
 
-| make | comandă directă | ce face |
+| make | direct command | what it does |
 |---|---|---|
-| `make setup` | `python -m devtools.bootstrap` | instalează dependențele, activează `.githooks/` |
-| `make test` | `python -m pytest` | toate testele |
-| `make demo` | `python -m core.demo` | trafic (seed 42) + scenariu + acustic + pipeline -> `out/timeline.json` |
-| `make eval` | `python -m eval.evaluate --seed-set tuning --run` | tabelul de metrici pe seed-ul de tuning |
+| `make setup` | `python -m devtools.bootstrap` | installs dependencies, activates `.githooks/` |
+| `make test` | `python -m pytest` | all tests |
+| `make demo` | `python -m core.demo` | traffic (seed 42) + scenario + acoustic + pipeline -> `out/timeline.json` |
+| `make eval` | `python -m eval.evaluate --seed-set tuning --run` | metrics table on the tuning seed |
 | `make eval-report` | `python -m eval.evaluate --seed-set both --run --write-md pitch/metrics.md` | tuning + held-out |
-| `make watch` | `python -m core.pipeline --watch` | micro-batch-uri pe ceas simulat (după `make demo`) |
-| `make serve` | `python -m http.server 8000` | server static; pagina e la `/web/` |
-| `make schema` | `python -m contracts.export_schema` | regenerează JSON Schema |
-| `make validate` | `python -m contracts.validate out/timeline.json --model Timeline` | validează ieșirea |
-| `make data` | `python -m data.generate` apoi `python -m data.inject` | doar datele |
-| `make acoustic` | `python -m acoustic.analyze` | doar evenimentele acustice |
-| `make pipeline` | `python -m core.pipeline` | doar pipeline-ul (replay) |
+| `make watch` | `python -m core.pipeline --watch` | micro-batches on a simulated clock (after `make demo`) |
+| `make serve` | `python -m http.server 8000` | static server; the page is at `/web/` |
+| `make schema` | `python -m contracts.export_schema` | regenerates the JSON Schema |
+| `make validate` | `python -m contracts.validate out/timeline.json --model Timeline` | validates the output |
+| `make data` | `python -m data.generate` then `python -m data.inject` | data only |
+| `make acoustic` | `python -m acoustic.analyze` | acoustic events only |
+| `make pipeline` | `python -m core.pipeline` | pipeline only (replay) |
 
-Mod live: într-un terminal `python -m core.pipeline --watch`, în altul `python -m http.server 8000`, apoi bifați „Live” în pagină.
+Live mode: run `python -m core.pipeline --watch` in one terminal and `python -m http.server 8000` in another, then tick "Live" on the page.
 
-## Arhitectură (varianta B, micro-batch)
+## Architecture (variant B, micro-batch)
 
 ```
 data/ ──> out/ais.csv, out/fibre_events.json, out/ground_truth.json
 acoustic/ ──> out/acoustic_events.json
-core/sources.py (doar date <= now) -> detect/ (reguli) -> core/fusion (scor, explicații, patrulă) -> core/sinks.py -> out/timeline.json
-web/ citește out/timeline.json și îl redă cu slider și control de viteză
+core/sources.py (only data <= now) -> detect/ (rules) -> core/fusion (score, explanations, patrol) -> core/sinks.py -> out/timeline.json
+web/ reads out/timeline.json and replays it with a slider and speed control
 ```
 
-Fără server, bază de date, Docker sau cloud. Trecerea la varianta A (server + WebSocket) schimbă doar
-`core/sources.py`, `core/sinks.py` și `web/loader.js`.
+No server, database, Docker or cloud. Moving to variant A (server + WebSocket) changes only
+`core/sources.py`, `core/sinks.py` and `web/loader.js`.
 
-## Structură și proprietari
+## Structure and owners
 
-| Director | Proprietar | Rol |
+| Directory | Owner | Role |
 |---|---|---|
-| `contracts/` | comun (doar prin skill-ul `contract-change`) | modele, JSON Schema, exemple, haversine |
-| `assets/` | comun | infrastructură (aprox.), unități de patrulare (simulate) |
-| `data/`, `eval/` | Dev 1 | date AIS, generator, injector, ground truth, evaluare |
-| `detect/` | Dev 2 | reguli AIS, zone de excludere |
-| `acoustic/` | Dev 3 | detector de joasă frecvență |
-| `core/` | Dev 4 (integrare) | pipeline, fuziune, scor, explicații, recomandare, `--watch` |
-| `web/`, `pitch/` | Dev 5 | interfața, prezentarea |
+| `contracts/` | shared (only through the `contract-change` skill) | models, JSON Schema, examples, haversine |
+| `assets/` | shared | infrastructure (approx.), patrol units (simulated) |
+| `data/`, `eval/` | Dev 1 | AIS data, generator, injector, ground truth, evaluation |
+| `detect/` | Dev 2 | AIS rules, exclusion zones |
+| `acoustic/` | Dev 3 | low-frequency detector |
+| `core/` | Dev 4 (integration) | pipeline, fusion, score, explanations, recommendation, `--watch` |
+| `web/`, `pitch/` | Dev 5 | the UI, the presentation |
 
-Ramuri: `main` (rulează mereu demo-ul) ← `role/<rol>` ← `feat/<modul>-<nume>`.
-Fiecare funcționalitate are ramura ei, creată din ramura de rol. Commit-uri dese (la fiecare pas cu testele verzi)
-și push după fiecare commit. Merge în ramura de rol doar după `/verify`; în `main` doar prin `/integrate`.
-Detalii: secțiunea „Git workflow” din [AGENTS.md](AGENTS.md).
-Ramurile de rol: `role/data-eval`, `role/detect`, `role/acoustic`, `role/core`, `role/web-pitch`.
+Branches: `main` (always runs the demo) ← `role/<role>` ← `feat/<module>-<name>`.
+Each feature gets its own branch, created from the role branch. Commit often (at every step with green tests)
+and push after each commit. Merge into the role branch only after `/verify`; into `main` only through `/integrate`.
+Details: the "Git workflow" section of [AGENTS.md](AGENTS.md).
+Role branches: `role/data-eval`, `role/detect`, `role/acoustic`, `role/core`, `role/web-pitch`.
 
-Reguli complete de lucru și de design: [AGENTS.md](AGENTS.md). Fiecare director are propriul `README.md` cu sarcini.
+Full working and design rules: [AGENTS.md](AGENTS.md). Each directory has its own `README.md` with tasks.
 
-## Autorat
+## Authorship
 
-Commit-urile sunt făcute doar de oameni, cu identitatea git configurată pe mașină. Hook-ul `.githooks/commit-msg`
-respinge mesajele care atribuie autorat unui instrument AI (`Co-Authored-By`, „Generated with” etc.).
-`make setup` îl activează prin `git config core.hooksPath .githooks`.
+Commits are made only by humans, with the git identity configured on the machine. The `.githooks/commit-msg` hook
+rejects messages that attribute authorship to an AI tool (`Co-Authored-By`, "Generated with", etc.).
+`make setup` activates it via `git config core.hooksPath .githooks`.

@@ -1,45 +1,45 @@
-# SeaGrid pe scurt (TL;DR pentru oricine)
+# SeaGrid in a nutshell (TL;DR for anyone)
 
-## Ce e asta?
-Un program care stă de pază la „cablurile și țevile” României din Marea Neagră:
-platforme de gaz, conducte, cabluri de internet de pe fundul mării și intrarea în portul Constanța.
+## What is this?
+A program that stands guard over Romania's "cables and pipes" in the Black Sea:
+gas platforms, pipelines, internet cables on the seabed and the entrance to the port of Constanța.
 
-Se uită la navele din zonă și strigă „atenție!” când una se poartă dubios.
+It watches the ships in the area and shouts "heads up!" when one behaves suspiciously.
 
-## Ce înseamnă „dubios”?
-- **Își stinge „GPS-ul public” (AIS).** Fiecare navă mare își anunță poziția prin radio. Dacă tace mai mult de 30 de minute lângă ceva important, e suspect.
-- **Reapare unde nu trebuie.** Dacă zicea că merge cu 12 noduri, dar după 2 ore e mult prea aproape (sau prea departe), a făcut ceva între timp.
-- **Stă pe loc unde n-are ce căuta.** O navă care se învârte încet deasupra unui cablu nu e la pescuit nevinovat.
-- **„Sare” dintr-un loc în altul.** Poziția s-a mutat 25 km într-un minut: semnalul e falsificat.
+## What counts as "suspicious"?
+- **It switches off its "public GPS" (AIS).** Every large ship broadcasts its position by radio. If it goes silent for more than 30 minutes near something important, that's suspicious.
+- **It reappears where it shouldn't.** If it said it was doing 12 knots, but 2 hours later it is far too close (or too far), it did something in between.
+- **It sits still where it has no business being.** A ship circling slowly above a cable is not innocently fishing.
+- **It "jumps" from one place to another.** Its position moved 25 km in one minute: the signal is spoofed.
 
-Pe lângă nave, mai „ascultăm”:
-- un **microfon subacvatic** (hidrofon), care aude zgomote joase de motor sau de ancoră târâtă;
-- **fibra din cablu**, care simte vibrațiile când cineva umblă la el.
+Besides ships, we also "listen" to:
+- an **underwater microphone** (hydrophone), which hears low engine noise or a dragged anchor;
+- the **fibre inside the cable**, which feels vibrations when someone tampers with it.
 
-## Ce primești la final?
-O **alertă** cu:
-- un **scor de risc de la 0 la 100**: fiecare semn suspect adaugă puncte, iar pe ecran vezi exact câte și de ce;
-- o **explicație în română**, de genul „AIS oprit 121 min, la 1 km de cablu, hidrofonul a auzit ceva”;
-- **ce navă de patrulare să trimiți** și în cât timp ajunge.
+## What do you get at the end?
+An **alert** with:
+- a **risk score from 0 to 100**: every suspicious sign adds points, and the screen shows exactly how many and why;
+- a **plain-English explanation**, such as "AIS off for 121 min, 1 km from the cable, the hydrophone heard something";
+- **which patrol vessel to send** and how long it takes to get there.
 
-## Povestea din demo
-1. Cargoul **MV SEA FALCON** merge spre Constanța.
-2. Lângă o platformă de gaz și un cablu, își oprește AIS-ul. Pe hartă devine gri și apare un cerc care tot crește: „e undeva aici”.
-3. După 30 de minute sare prima alertă.
-4. Aproape, pescadorul **FV NORTHERN DAWN** stă pe loc de mult. Cele două nave sunt legate între ele și scorul crește.
-5. Hidrofonul aude ceva, fibra din cablu vibrează. Scorul devine **critic** și sistemul recomandă o navă de patrulare.
-6. SEA FALCON reapare prea aproape pentru viteza pe care o declara: „prea lent”, deci s-a oprit undeva.
+## The demo story
+1. The cargo ship **MV SEA FALCON** is heading for Constanța.
+2. Near a gas platform and a cable, it switches its AIS off. On the map it turns grey and a growing circle appears: "it's somewhere in here".
+3. After 30 minutes the first alert goes off.
+4. Nearby, the fishing boat **FV NORTHERN DAWN** has been sitting still for a long time. The two ships are linked and the score rises.
+5. The hydrophone hears something, the cable fibre vibrates. The score becomes **critical** and the system recommends a patrol vessel.
+6. SEA FALCON reappears too close for the speed it was reporting: "too slow", so it stopped somewhere.
 
 ## Important
-- **Totul e simulat.** Navele, senzorii și unitățile de patrulare sunt inventate și marcate **SIMULAT**.
-- **Pozițiile platformelor și cablurilor sunt aproximative**, nu oficiale.
-- **Explicațiile nu sunt scrise de un AI.** Sunt propoziții fixe completate cu cifrele detectorului.
+- **Everything is simulated.** The ships, sensors and patrol units are made up and labelled **SIMULATED**.
+- **Platform and cable positions are approximate**, not official.
+- **The explanations are not written by an AI.** They are fixed sentences filled in with the detector's numbers.
 
-## Cum îl pornesc? (3 pași)
+## How do I start it? (3 steps)
 ```bash
-python -m devtools.bootstrap      # o singură dată: instalează tot
-python -m core.demo               # generează povestea
-python -m http.server 8000        # apoi deschide http://localhost:8000/web/ și apasă ▶
+python -m devtools.bootstrap      # once: installs everything
+python -m core.demo               # generates the story
+python -m http.server 8000        # then open http://localhost:8000/web/ and press ▶
 ```
 
-Mai multe detalii: [README-ul principal](../README.md) · reguli pentru echipă: [AGENTS.md](../AGENTS.md)
+More details: [the main README](../README.md) · team rules: [AGENTS.md](../AGENTS.md)

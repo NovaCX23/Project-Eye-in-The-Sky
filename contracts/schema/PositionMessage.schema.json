@@ -2,7 +2,7 @@
   "$id": "seagrid/PositionMessage.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Un mesaj AIS de poziție (un rând din out/ais.csv).",
+  "description": "One AIS position message (one row of out/ais.csv).",
   "properties": {
     "cog_deg": {
       "anyOf": [

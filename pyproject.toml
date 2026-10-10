@@ -1,7 +1,7 @@
 [project]
 name = "seagrid"
 version = "0.1.0"
-description = "SeaGrid: detecția activităților suspecte lângă infrastructura maritimă românească"
+description = "SeaGrid: detection of suspicious activity near Romanian maritime infrastructure"
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]

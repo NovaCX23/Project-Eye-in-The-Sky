@@ -13,19 +13,19 @@ setup:        ## pip install -r requirements.txt + core.hooksPath=.githooks
 test:
 	$(PY) -m pytest
 
-demo:         ## trafic (seed fix) + scenariu + acustic + pipeline -> out/timeline.json
+demo:         ## traffic (fixed seed) + scenario + acoustic + pipeline -> out/timeline.json
 	$(PY) -m core.demo
 
-eval:         ## metrici pe seed-ul de tuning
+eval:         ## metrics on the tuning seed
 	$(PY) -m eval.evaluate --seed-set tuning --run
 
-eval-report:  ## tuning + held-out; scrie pitch/metrics.md
+eval-report:  ## tuning + held-out; writes pitch/metrics.md
 	$(PY) -m eval.evaluate --seed-set both --run --write-md pitch/metrics.md
 
-watch:        ## micro-batch-uri cu ceas simulat (după make demo)
+watch:        ## micro-batches on a simulated clock (after make demo)
 	$(PY) -m core.pipeline --watch
 
-serve:        ## apoi deschideți http://localhost:8000/web/
+serve:        ## then open http://localhost:8000/web/
 	$(PY) -m http.server 8000
 
 schema:

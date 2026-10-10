@@ -12,10 +12,10 @@ from contracts.runtime import REPO_ROOT
 
 HOOKS = REPO_ROOT / ".githooks"
 
-pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git indisponibil")
+pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git unavailable")
 
 REJECTED = [
-    "feat: adaugă regula\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n",
+    "feat: add the rule\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n",
     "fix: prag\n\nco-authored-by: GitHub Copilot <copilot@github.com>\n",
     "docs: readme\n\n\U0001F916 Generated with [Claude Code](https://claude.com/claude-code)\n",
     "chore: x\n\nGenerated with ChatGPT\n",
@@ -25,10 +25,10 @@ REJECTED = [
 ]
 
 ACCEPTED = [
-    "feat(detect): regulă de loitering cu fereastră glisantă\n",
-    "chore: actualizează .claude/rules și skill-ul verify\n",
-    "fix: schema regenerată după contract-change\n\nCo-Authored-By: Ana Popescu <ana@example.com>\n",
-    "docs: explicații generate din șabloane, fără LLM extern\n",
+    "feat(detect): loitering rule with a sliding window\n",
+    "chore: update .claude/rules and the verify skill\n",
+    "fix: schema regenerated after contract-change\n\nCo-Authored-By: Ana Popescu <ana@example.com>\n",
+    "docs: explanations filled from templates, no external LLM\n",
 ]
 
 

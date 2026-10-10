@@ -60,7 +60,7 @@ def inject_dark_vessel(sc: dict, cfg: dict, t0: datetime, t_end: datetime) -> tu
     last = before[-1]
     gt = _gt("ais_gap", d["mmsi"], last.t, gap_end, last.lat, last.lon, "demo",
              ["ais_gap", "speed_inconsistency"],
-             "Cargo spre Constanța închide AIS 2 h lângă platformă și cablu; reapare prea aproape.")
+             "Cargo ship bound for Constanța turns AIS off for 2 h near a platform and a cable; reappears too close.")
     return rows, gt
 
 
@@ -79,7 +79,7 @@ def inject_loiter_vessel(sc: dict, cfg: dict, t0: datetime, t_end: datetime) -> 
     rows = tracks.to_rows(inbound + circle + outbound, v["mmsi"], v["name"], v["ship_type"], rng, cfg["generator"],
                           dropouts=False)
     gt = _gt("loitering", v["mmsi"], arrive, leave, center[0], center[1], "demo", ["loitering"],
-             "A doua navă staționează la viteză mică în aceeași zonă, cu AIS pornit.")
+             "A second vessel loiters at low speed in the same area, with AIS on.")
     return rows, gt
 
 
@@ -166,13 +166,13 @@ def inject_random(df: pd.DataFrame, cfg: dict, seed: int, t0: datetime, t_end: d
             mask = df["mmsi"] == mmsi
             if kind == "ais_gap":
                 df = df[~(mask & (df["timestamp"] > ts) & (df["timestamp"] <= ts + dur))]
-                gts.append(_gt(kind, mmsi, ts, ts + dur, lat, lon, "random", ["ais_gap"], "Gaură AIS injectată."))
+                gts.append(_gt(kind, mmsi, ts, ts + dur, lat, lon, "random", ["ais_gap"], "Injected AIS gap."))
             elif kind == "position_jump":
                 jlat, jlon = destination(lat, lon, float(rng.uniform(0, 360)), inj["random_jump_km"])
                 idx = df.index[mask & (df["timestamp"] == ts)]
                 df.loc[idx, ["lat", "lon"]] = [round(jlat, 6), round(jlon, 6)]
                 gts.append(_gt(kind, mmsi, ts, ts + dur, jlat, jlon, "random", ["position_jump"],
-                               "Salt de poziție (spoofing) injectat."))
+                               "Injected position jump (spoofing)."))
             elif kind == "loitering":
                 # Nava se oprește dur minute, apoi își reia drumul (restul traseului e decalat în timp).
                 circle = tracks.loiter((lat, lon), ts, ts + dur, dt, inj["random_loiter_sog_kn"], 0.3, rng)
@@ -184,7 +184,7 @@ def inject_random(df: pd.DataFrame, cfg: dict, seed: int, t0: datetime, t_end: d
                                                    cfg["generator"], dropouts=False))
                 loit["timestamp"] = pd.to_datetime(loit["timestamp"], utc=True)
                 df = pd.concat([df[~(mask & (df["timestamp"] >= ts))], loit, rest], ignore_index=True)
-                gts.append(_gt(kind, mmsi, ts, ts + dur, lat, lon, "random", ["loitering"], "Loitering injectat."))
+                gts.append(_gt(kind, mmsi, ts, ts + dur, lat, lon, "random", ["loitering"], "Injected loitering."))
     return df, gts
 
 
@@ -216,8 +216,8 @@ def main(argv: list[str] | None = None) -> int:
                     "normal_mmsis": sorted(set(df["mmsi"]) - {g["mmsi"] for g in [gt_dark, gt_loit] + gts})}
     write_json_atomic(args.out_dir / "ground_truth.json", ground_truth)
     write_json_atomic(args.out_dir / "fibre_events.json", fibre_events(sc, t0))
-    print(f"[data.inject] seed={args.seed}: {len(ground_truth['anomalies'])} anomalii "
-          f"({', '.join(g['type'] for g in ground_truth['anomalies'])}), {len(df)} mesaje -> {args.out_dir / 'ais.csv'}")
+    print(f"[data.inject] seed={args.seed}: {len(ground_truth['anomalies'])} anomalies "
+          f"({', '.join(g['type'] for g in ground_truth['anomalies'])}), {len(df)} messages -> {args.out_dir / 'ais.csv'}")
     return 0
 
 

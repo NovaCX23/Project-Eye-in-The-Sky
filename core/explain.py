@@ -2,47 +2,48 @@
 
 from __future__ import annotations
 
-LEVEL_RO = {"low": "scăzut", "medium": "mediu", "high": "ridicat", "critical": "critic"}
-DIRECTION_RO = {"prea_lent": "prea lent", "prea_rapid": "prea rapid"}
+LEVEL_TEXT = {"low": "low", "medium": "medium", "high": "high", "critical": "critical"}
+DIRECTION_TEXT = {"too_slow": "too slow", "too_fast": "too fast"}
 
 LABELS = {
-    "ais_gap": "Semnal AIS pierdut",
-    "speed_inconsistency": "Viteză inconsistentă la reapariție",
-    "loitering": "Staționare suspectă (loitering)",
-    "position_jump": "Salt de poziție",
-    "acoustic_lowfreq": "Semnătură acustică de joasă frecvență",
-    "fibre_vibration": "Vibrație pe fibra cablului",
-    "near_infrastructure": "Aproape de infrastructură critică",
-    "correlated_vessel": "Corelare cu altă navă suspectă",
+    "ais_gap": "AIS signal lost",
+    "speed_inconsistency": "Speed inconsistent on reappearance",
+    "loitering": "Suspicious loitering",
+    "position_jump": "Position jump",
+    "acoustic_lowfreq": "Low-frequency acoustic signature",
+    "fibre_vibration": "Vibration on cable fibre",
+    "near_infrastructure": "Near critical infrastructure",
+    "correlated_vessel": "Correlated with another suspicious vessel",
 }
 
 TEMPLATES = {
-    "ais_gap": "AIS oprit de {gap_min:.0f} min (prag {threshold_min} min); ultima viteză raportată {last_sog_kn:.1f} kn.",
+    "ais_gap": "AIS off for {gap_min:.0f} min (threshold {threshold_min} min); last reported speed {last_sog_kn:.1f} kn.",
     "speed_inconsistency": (
-        "La reapariție a parcurs {distance_km:.1f} km în {gap_min:.0f} min ({implied_kn:.1f} kn), deși raporta "
-        "{reported_kn:.1f} kn (așteptat ~{expected_km:.0f} km): {direction_ro}."
+        "On reappearance it had covered {distance_km:.1f} km in {gap_min:.0f} min ({implied_kn:.1f} kn), while reporting "
+        "{reported_kn:.1f} kn (expected ~{expected_km:.0f} km): {direction_text}."
     ),
     "loitering": (
-        "Staționează de {duration_min:.0f} min cu viteză medie {mean_sog_kn:.1f} kn (prag {max_mean_sog_kn} kn), "
-        "într-o zonă de {extent_km:.1f} km."
+        "Loitering for {duration_min:.0f} min at a mean speed of {mean_sog_kn:.1f} kn (threshold {max_mean_sog_kn} kn), "
+        "within an area of {extent_km:.1f} km."
     ),
     "position_jump": (
-        "Salt de poziție de {distance_km:.1f} km în {dt_min:.1f} min ({implied_kn:.0f} kn; "
-        "maxim plauzibil {max_implied_kn:.0f} kn)."
+        "Position jump of {distance_km:.1f} km in {dt_min:.1f} min ({implied_kn:.0f} kn; "
+        "maximum plausible {max_implied_kn:.0f} kn)."
     ),
     "acoustic_lowfreq": (
-        "Hidrofonul {sensor_id} a detectat energie de joasă frecvență ({band_low_hz:.0f}–{band_high_hz:.0f} Hz, "
-        "raport {lowfreq_ratio:.2f}, prag {ratio_threshold}) la {dist_km:.1f} km."
+        "Hydrophone {sensor_id} detected low-frequency energy ({band_low_hz:.0f}–{band_high_hz:.0f} Hz, "
+        "ratio {lowfreq_ratio:.2f}, threshold {ratio_threshold}) at {dist_km:.1f} km."
     ),
-    "fibre_vibration": "Senzorul de fibră a semnalat vibrații la km {cable_km:.1f} al cablului, la {dist_km:.1f} km.",
-    "near_infrastructure": "Poziția de referință e la {distance_km:.1f} km de {name}.",
-    "correlated_vessel": "Altă navă suspectă ({other_name}, MMSI {other_mmsi}) în aceeași zonă, la {dist_km:.1f} km.",
+    "fibre_vibration": "The fibre sensor reported vibration at km {cable_km:.1f} of the cable, {dist_km:.1f} km away.",
+    "near_infrastructure": "The reference position is {distance_km:.1f} km from {name}.",
+    "correlated_vessel": "Another suspicious vessel ({other_name}, MMSI {other_mmsi}) in the same area, {dist_km:.1f} km away.",
 }
 
-GENERIC = "Eveniment {code} (fără șablon dedicat)."
-SIMULATED_SUFFIX = " [SIMULAT]"
-HEADER = "{name} (MMSI {mmsi}): risc {score}/100, nivel {level_ro}."
-RECOMMENDATION = "Recomandare: {unit_name}, ETA {eta_min:.0f} min ({distance_km:.1f} km)."
+GENERIC = "Event {code} (no dedicated template)."
+SIMULATED_SUFFIX = " [SIMULATED]"
+HEADER = "{name} (MMSI {mmsi}): risk {score}/100, level {level_text}."
+RECOMMENDATION = "Recommendation: {unit_name}, ETA {eta_min:.0f} min ({distance_km:.1f} km)."
+UNKNOWN_VESSEL = "Unknown vessel"
 
 
 def label(code: str) -> str:
@@ -52,7 +53,7 @@ def label(code: str) -> str:
 def factor_detail(code: str, values: dict, simulated: bool = False) -> str:
     v = dict(values)
     if "direction" in v:
-        v["direction_ro"] = DIRECTION_RO.get(v["direction"], v["direction"])
+        v["direction_text"] = DIRECTION_TEXT.get(v["direction"], v["direction"])
     try:
         text = TEMPLATES[code].format(**v)
     except (KeyError, ValueError, TypeError):
@@ -61,7 +62,7 @@ def factor_detail(code: str, values: dict, simulated: bool = False) -> str:
 
 
 def alert_text(name: str | None, mmsi: str, score: int, level: str, details: list[str], rec: dict | None) -> str:
-    parts = [HEADER.format(name=name or "Navă necunoscută", mmsi=mmsi, score=score, level_ro=LEVEL_RO[level])]
+    parts = [HEADER.format(name=name or UNKNOWN_VESSEL, mmsi=mmsi, score=score, level_text=LEVEL_TEXT[level])]
     parts += [f"- {d}" for d in details]
     if rec:
         parts.append(RECOMMENDATION.format(**rec))

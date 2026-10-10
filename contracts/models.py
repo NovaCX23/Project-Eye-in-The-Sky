@@ -35,7 +35,7 @@ class _Model(BaseModel):
 
 
 class PositionMessage(_Model):
-    """Un mesaj AIS de poziție (un rând din out/ais.csv)."""
+    """One AIS position message (one row of out/ais.csv)."""
 
     mmsi: str = Field(pattern=r"^\d{9}$")
     timestamp: datetime
@@ -51,43 +51,43 @@ class PositionMessage(_Model):
 
 
 class SensorEvent(_Model):
-    """Un eveniment produs de un detector (AIS, acustic sau fibră)."""
+    """An event produced by a detector (AIS, acoustic or fibre)."""
 
-    event_id: str = Field(description="Id determinist: hash(sursă, tip, mmsi/senzor, start)")
+    event_id: str = Field(description="Deterministic id: hash(source, type, mmsi/sensor, start)")
     event_type: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     source: EventSource
     mmsi: str | None = Field(default=None, pattern=r"^\d{9}$")
     sensor_id: str | None = None
     start: datetime
-    end: datetime | None = Field(default=None, description="None = în desfășurare la momentul now")
+    end: datetime | None = Field(default=None, description="None = still ongoing at time now")
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
     confidence: float = Field(ge=0, le=1)
     metrics: dict[str, MetricValue] = Field(
-        default_factory=dict, description="Numerele detectorului, folosite în explicații"
+        default_factory=dict, description="The detector's numbers, used in explanations"
     )
     simulated: bool = False
 
 
 class ScoreFactor(_Model):
-    """O componentă a scorului aditiv."""
+    """One component of the additive score."""
 
     code: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     label: str
     points: int
-    detail: str = Field(description="Propoziție din șablon, cu numerele detectorului")
+    detail: str = Field(description="Template sentence filled with the detector's numbers")
     event_id: str | None = None
-    added_at: datetime = Field(description="Momentul (now) la care factorul a intrat în scor")
+    added_at: datetime = Field(description="The moment (now) at which the factor entered the score")
     simulated: bool = False
 
 
 class ScorePoint(_Model):
-    """Starea alertei la momentul t; interfața o afișează fără să recalculeze nimic."""
+    """Alert state at time t; the UI displays it without recomputing anything."""
 
     t: datetime
     score: int = Field(ge=0, le=100)
     level: AlertLevel
-    unit_id: str | None = Field(default=None, description="Unitatea recomandată la acest moment")
+    unit_id: str | None = Field(default=None, description="Recommended unit at this moment")
     eta_min: float | None = Field(default=None, ge=0)
 
 
@@ -107,14 +107,14 @@ class PatrolRecommendation(_Model):
 
 
 class Alert(_Model):
-    """O alertă fuzionată pentru un incident al unei nave."""
+    """A fused alert for one vessel incident."""
 
-    alert_id: str = Field(description="Id determinist: hash(mmsi, tip primar, start)")
+    alert_id: str = Field(description="Deterministic id: hash(mmsi, primary type, start)")
     mmsi: str = Field(pattern=r"^\d{9}$")
     vessel_name: str | None = None
-    alert_type: str = Field(description="Tipul evenimentului care a deschis incidentul")
+    alert_type: str = Field(description="Type of the event that opened the incident")
     start_time: datetime
-    created_at: datetime = Field(description="Primul now la care alerta a fost emisă")
+    created_at: datetime = Field(description="First now at which the alert was emitted")
     updated_at: datetime
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
@@ -147,13 +147,13 @@ class VesselTrack(_Model):
 
 
 class Timeline(_Model):
-    """Fișierul out/timeline.json, singura intrare a interfeței web."""
+    """The out/timeline.json file, the web UI's only input."""
 
     schema_version: str = SCHEMA_VERSION
     mode: Literal["single", "replay", "watch"]
     batch_index: int = Field(ge=0)
     scenario_start: datetime
-    now: datetime = Field(description="Nimic din fișier nu are timestamp > now")
+    now: datetime = Field(description="Nothing in the file has timestamp > now")
     simulated: bool
     reload_interval_s: float | None = None
     vessels: list[VesselTrack]
