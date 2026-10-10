@@ -1,0 +1,7 @@
+{
+  "description": "Hidrofoane SIMULATE. offset_min = minute de la scenario.start (config.yaml) la care începe clipul.",
+  "clips": [
+    {"file": "background_noise.wav", "sensor_id": "HYD-2", "lat": 44.450, "lon": 29.950, "offset_min": 60, "simulated": true},
+    {"file": "lowfreq_tone.wav", "sensor_id": "HYD-1", "lat": 44.265, "lon": 29.490, "offset_min": 140, "simulated": true}
+  ]
+}
