@@ -6,7 +6,7 @@ Naive but real AIS rules (they catch the demo scenario), in `ais_rules.py`:
 | Rule | Logic | Threshold (config.yaml) |
 |---|---|---|
 | `ais_gap` | `now - last_message > threshold`; ignores the coverage edge and the exclusion zones | `detect.gap.*` |
-| `speed_inconsistency` | on reappearance after a gap: haversine distance vs. reported speed, **too slow** and **too fast** | `detect.speed_consistency.*` |
+| `speed_inconsistency` | on reappearance after a gap: haversine distance vs. the median speed reported in the `history_min` before the gap, **too slow** and **too fast** | `detect.speed_consistency.*` |
 | `loitering` | sliding window: low mean speed and tightly clustered positions, outside the exclusion zones | `detect.loitering.*` |
 | `position_jump` | two messages close in time with an impossible implied speed | `detect.position_jump.*` |
 
@@ -32,6 +32,5 @@ From Python: `from detect.ais_rules import run_all`.
    Today no normal vessel ever triggers a rule, so a lone loitering (20 points = `score.alert_min`) is safe;
    with slow normal traffic it may not be.
 2. P1: loitering by radius around the centroid instead of the bbox diagonal; an episode that starts at the first slow position, not at the window edge.
-3. P1: expected speed from the history before the gap (not just the mean SOG).
-4. P1: a new rule with `/add-rule`, for example rendezvous (two slow vessels close together).
-5. P2: ignore service vessels (pilot, tug) by type.
+3. P1: a new rule with `/add-rule`, for example rendezvous (two slow vessels close together).
+4. P2: ignore service vessels (pilot, tug) by type.
