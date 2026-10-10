@@ -1,9 +1,15 @@
 {
-  "description": "FICTITIOUS patrol units; positions and speeds are simulated for the demo.",
+  "description": "FICTITIOUS patrol units; bases are real ports (approx.), routes, speeds and MMSIs are simulated for the demo. lat/lon = home base; speed_kn = response speed; patrol_speed_kn = speed while patrolling; route = closed loop at sea, [lat, lon] points, starting and ending at the harbour exit.",
   "simulated": true,
   "units": [
-    {"id": "UNIT-1", "name": "Patrol vessel Alfa (simulated)", "base": "Constanța", "lat": 44.16, "lon": 28.68, "speed_kn": 25.0, "simulated": true},
-    {"id": "UNIT-2", "name": "Patrol vessel Bravo (simulated)", "base": "Midia", "lat": 44.33, "lon": 28.70, "speed_kn": 22.0, "simulated": true},
-    {"id": "UNIT-3", "name": "Patrol vessel Charlie (simulated, offshore)", "base": "at sea", "lat": 44.05, "lon": 29.60, "speed_kn": 18.0, "simulated": true}
+    {"id": "UNIT-1", "name": "Patrol vessel Alfa (simulated)", "mmsi": "264999001", "base": "Constanța naval base",
+     "lat": 44.185, "lon": 28.645, "speed_kn": 25.0, "patrol_speed_kn": 12.0, "simulated": true,
+     "route": [[44.170, 28.700], [44.220, 29.050], [44.300, 29.450], [44.180, 29.700], [44.050, 29.350], [44.100, 28.850], [44.170, 28.700]]},
+    {"id": "UNIT-2", "name": "Patrol vessel Bravo (simulated)", "mmsi": "264999002", "base": "Port of Midia",
+     "lat": 44.340, "lon": 28.680, "speed_kn": 22.0, "patrol_speed_kn": 10.0, "simulated": true,
+     "route": [[44.340, 28.720], [44.450, 29.050], [44.500, 29.450], [44.420, 29.800], [44.320, 29.400], [44.300, 28.950], [44.340, 28.720]]},
+    {"id": "UNIT-3", "name": "Patrol vessel Charlie (simulated)", "mmsi": "264999003", "base": "Port of Mangalia",
+     "lat": 43.810, "lon": 28.590, "speed_kn": 22.0, "patrol_speed_kn": 12.0, "simulated": true,
+     "route": [[43.810, 28.630], [43.880, 29.000], [43.980, 29.450], [43.900, 29.850], [43.750, 29.450], [43.720, 28.950], [43.810, 28.630]]}
   ]
 }
