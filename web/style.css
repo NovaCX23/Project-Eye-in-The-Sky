@@ -73,3 +73,23 @@ footer button { width: 36px; height: 30px; font-size: 14px; cursor: pointer; }
 .legend { background: rgba(22,33,45,.92); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.6; }
 .legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 2px; }
 .leaflet-tooltip.sim-label { background: var(--sim); color: #1b1030; border: 0; font-weight: 600; }
+
+.alert-list li[data-score="90"], 
+.alert-list li[data-score="91"],
+.alert-list li[data-score="92"],
+.alert-list li[data-score="93"],
+.alert-list li[data-score="94"],
+.alert-list li[data-score="95"],
+.alert-list li[data-score="96"],
+.alert-list li[data-score="97"],
+.alert-list li[data-score="98"],
+.alert-list li[data-score="99"],
+.alert-list li[data-score="100"] {
+    animation: pulseAlert 1.5s infinite;
+}
+
+@keyframes pulseAlert {
+  0% { background-color: rgba(229, 72, 77, 0.1); }
+  50% { background-color: rgba(229, 72, 77, 0.3); }
+  100% { background-color: rgba(229, 72, 77, 0.1); }
+}
