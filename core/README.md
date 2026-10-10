@@ -40,7 +40,11 @@ Variant A (server + WebSocket): only `sources.py` and `sinks.py` are replaced; e
    recommendation threshold. Telling the two cases apart needs a field in the contract (`/contract-change`), then a UI change (Dev 5).
 4. P1: ETA that routes around land. **Needs:** a coastline / land polygon in `assets/` (team agreement, Dev 4 merges).
    In the current demo every straight line stays at sea, so this does not change the story.
-5. P2: mention the acoustic signature in the explanation (`metrics.signature`: propeller vs. anchor chain),
+5. P1: moving patrol units. Today every unit sits at a fixed point, which is not realistic. Units should follow a patrol
+   route or area, the ETA should start from where the unit is at `now`, and a dispatched unit should head to its alert.
+   **Needs:** routes or areas in `assets/` (team agreement), and unit positions over time in the timeline so `web/`
+   can draw them (`/contract-change`).
+6. P2: mention the acoustic signature in the explanation (`metrics.signature`: propeller vs. anchor chain),
    now that `acoustic/` produces it.
 
 ## Done

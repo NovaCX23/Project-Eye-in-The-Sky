@@ -27,5 +27,14 @@ because moving a feature moves the demo story.
 
 ## Tasks (prioritised)
 1. P0: no change without the team's agreement; Dev 4 does the merge.
-2. P1: align the coordinates with a public source, if the organisers allow it; keep the "approx." note.
-3. P2: a second cable and the fishing exclusion zone.
+2. P1: decide whether the scored layer (`infrastructure.geojson`) should move to real positions from
+   `reference_infrastructure.geojson` (e.g. the Ana platform, the Neptun Deep pipeline, KAFOS). This moves the demo story:
+   `data/scenarios/demo.yaml` and `/demo-check` must follow, so it is a team decision.
+3. P1: a coastline / land polygon, needed by `core/` for an ETA that routes around land.
+4. P1: realistic patrol units: real bases (Constanța naval base, Mangalia, Midia) and patrol routes or areas instead
+   of fixed points. `core/` needs this for moving units (see `core/README.md`).
+5. P2: a second cable and the fishing exclusion zone.
+
+## Done
+- ✔ `reference_infrastructure.geojson`: real Black Sea infrastructure from the documents in this folder and public
+  sources, each feature with a `source` link; display only, shown as a toggleable layer in `web/`.
