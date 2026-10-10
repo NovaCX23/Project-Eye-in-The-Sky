@@ -187,16 +187,19 @@ function render() {
   renderDetail(t);
 }
 
+// In web/app.js - Add this right after the renderAlertList function definition (around line 210):
 function renderAlertList(active) {
   $("alert-count").textContent = active.length;
   $("no-alerts").hidden = active.length > 0;
   $("alert-list").innerHTML = active.map(({ a, st }) => `
-    <li data-id="${a.alert_id}" class="${a.alert_id === S.selected ? "selected" : ""}">
+    <li data-id="${a.alert_id}" data-score="${Math.floor(st.score)}" class="${a.alert_id === S.selected ? "selected" : ""}">
       <span class="chip lvl-${st.level}"></span>
       <span>${esc(a.vessel_name || a.mmsi)}${a.simulated ? SIM_TAG : ""}</span>
       <span class="score">${st.score}</span>
       <span class="sub">${esc(a.alert_type)} · nivel ${LEVEL_RO[st.level]} · de la ${fmtTime(a.created)}</span>
     </li>`).join("");
+  
+  // Add event listeners
   for (const li of $("alert-list").querySelectorAll("li")) li.onclick = () => select(li.dataset.id);
 }
 
