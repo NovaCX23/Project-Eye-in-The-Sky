@@ -36,3 +36,8 @@ From Python: `from detect.ais_rules import run_all`.
 3. P2: loitering extent as a radius around the centroid instead of the bbox diagonal. A per-window haversine loop
    would slow the replay noticeably, and the bbox diagonal already catches every injected case on all seeds.
 4. P2: ignore service vessels (pilot, tug) by type (the synthetic traffic has none yet).
+
+## Done
+- ✔ A lone loitering far from infrastructure now raises an alert (`score.points.loitering` 15 -> 20): held-out detection 80% -> 100%, 0 false alarms.
+- ✔ Expected speed on reappearance = median SOG of the `history_min` before the gap (the speed after reappearance no longer counts).
+- ✔ A loitering episode starts at the first slow message (the demo start now matches the ground truth).
