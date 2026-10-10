@@ -101,6 +101,7 @@ score:
 
 patrol:
   recommend_min_level: high       # recomandăm o unitate de la acest nivel în sus
+  one_alert_per_unit: true        # o unitate trimisă la o alertă nu mai e recomandată pentru alta
 
 pipeline:
   replay_step_min: 5              # pasul ceasului simulat în modul replay (make demo)

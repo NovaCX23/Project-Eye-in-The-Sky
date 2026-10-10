@@ -43,6 +43,7 @@ Each `make` target is a thin wrapper around a `python -m` command. Without `make
 | `make pipeline` | `python -m core.pipeline` | pipeline only (replay) |
 
 Live mode: run `python -m core.pipeline --watch` in one terminal and `python -m http.server 8000` in another, then tick "Live" on the page.
+If `--watch` is restarted it resumes where it stopped; add `--fresh` to start the scenario over.
 
 ## Architecture (variant B, micro-batch)
 
