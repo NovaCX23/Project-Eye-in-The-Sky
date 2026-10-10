@@ -12,10 +12,11 @@ from pathlib import Path
 from contracts.models import ScorePoint, SensorEvent
 from contracts.runtime import iso, parse_time, read_json, write_json_atomic
 from core import sources
+from core.patrol import Leg
 from core.fusion import AlertMemory
 
 STATE_FILE = "pipeline_state.json"
-STATE_VERSION = 1
+STATE_VERSION = 2
 
 
 def _guard(inputs: sources.Inputs, now: datetime) -> dict:
@@ -40,6 +41,7 @@ def save(path: Path, state, now: datetime, inputs: sources.Inputs, cfg: dict) ->
             "history": {k: [p.model_dump(mode="json") for p in v] for k, v in m.history.items()},
             "primary_of_event": m.primary_of_event,
             "dispatched": m.dispatched,
+            "unit_legs": {u: [[iso(g.t), g.lat, g.lon, g.alert_id] for g in legs] for u, legs in m.unit_legs.items()},
         },
     })
 
@@ -62,6 +64,7 @@ def load(path: Path, inputs: sources.Inputs, cfg: dict, state_cls) -> tuple[obje
         history={k: [ScorePoint.model_validate(p) for p in v] for k, v in mem["history"].items()},
         primary_of_event=dict(mem["primary_of_event"]),
         dispatched=dict(mem["dispatched"]),
+        unit_legs={u: [Leg(parse_time(t), lat, lon, a) for t, lat, lon, a in legs] for u, legs in mem["unit_legs"].items()},
     )
     events = [SensorEvent.model_validate(e) for e in raw["events"]]
     state = state_cls(events={e.event_id: e for e in events}, memory=memory, batch_index=raw["batch_index"])

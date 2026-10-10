@@ -18,7 +18,7 @@ import pandas as pd
 
 from contracts.models import SensorEvent, Timeline, TrackPoint, VesselTrack
 from contracts.runtime import OUT_DIR, iso, load_config, parse_time, utf8_stdout
-from core import sources
+from core import patrol, sources
 from core import state as state_store
 from core.fusion import AlertMemory, build_alerts
 from core.sinks import write_timeline
@@ -83,7 +83,9 @@ def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineS
         now=now,
         simulated=bool(view.ais["simulated"].any()) or any(e.simulated for e in events),
         reload_interval_s=cfg["web"]["reload_interval_s"],
-        vessels=_tracks(view.ais, cfg["pipeline"]["coord_decimals"]),
+        # Unitățile de patrulare sunt tot piste de navă (ship_type="patrol"), calculate din trimiterile de până la now.
+        vessels=_tracks(view.ais, cfg["pipeline"]["coord_decimals"])
+        + patrol.tracks(state.memory.unit_legs, now, cfg, cfg["pipeline"]["coord_decimals"]),
         events=events,
         alerts=alerts,
     )
