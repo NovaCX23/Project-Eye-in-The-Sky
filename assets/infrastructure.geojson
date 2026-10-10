@@ -1,0 +1,37 @@
+{
+  "type": "FeatureCollection",
+  "name": "seagrid_infrastructure",
+  "description": "Coordonate APROXIMATIVE, ilustrative, pentru demo. Nu reprezintă poziții oficiale ale infrastructurii reale.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"id": "PLT-N", "name": "Platforma de gaz Nord (aprox.)", "kind": "platform", "protected": true, "exclusion": false, "approximate": true},
+      "geometry": {"type": "Point", "coordinates": [29.50, 44.30]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "PLT-E", "name": "Platforma de gaz Est (aprox.)", "kind": "platform", "protected": true, "exclusion": false, "approximate": true},
+      "geometry": {"type": "Point", "coordinates": [29.98, 44.52]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "PIPE-1", "name": "Conductă gaz platformă–țărm (aprox.)", "kind": "pipeline", "protected": true, "exclusion": false, "approximate": true},
+      "geometry": {"type": "LineString", "coordinates": [[29.50, 44.30], [29.15, 44.36], [28.78, 44.43]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "CABLE-1", "name": "Cablu submarin de date (aprox.)", "kind": "cable", "protected": true, "exclusion": false, "approximate": true},
+      "geometry": {"type": "LineString", "coordinates": [[28.70, 44.17], [29.10, 44.20], [29.46, 44.26], [30.20, 44.30], [30.90, 44.33]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "ANCH-1", "name": "Rada de ancoraj Constanța (aprox.)", "kind": "anchorage", "protected": false, "exclusion": true, "approximate": true},
+      "geometry": {"type": "Polygon", "coordinates": [[[28.72, 44.085], [28.86, 44.085], [28.86, 44.02], [28.72, 44.02], [28.72, 44.085]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "APPR-1", "name": "Coridor de apropiere port Constanța (aprox.)", "kind": "port_approach", "protected": true, "exclusion": true, "approximate": true},
+      "geometry": {"type": "Polygon", "coordinates": [[[28.60, 44.19], [28.70, 44.19], [28.96, 44.165], [28.96, 44.095], [28.70, 44.105], [28.60, 44.12], [28.60, 44.19]]]}
+    }
+  ]
+}
