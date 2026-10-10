@@ -2,7 +2,7 @@
 
 ## What it does
 A static page (Leaflet from a CDN, plain JavaScript, no build) that replays `out/timeline.json`:
-- the map with the infrastructure (approx.), the patrol units (simulated) and the moving vessels;
+- the map with the demo infrastructure (approx.), a toggleable reference layer of real infrastructure (approx., not scored), the patrol units (simulated) and the moving vessels;
 - a vessel with AIS off: grey marker and an uncertainty circle that grows over time (the rate comes from the pipeline, `metrics.uncertainty_km_per_h`);
 - the alert list at the cursor time, the score broken down by factor, the explanation lines, the recommended unit with ETA;
 - time slider, play/pause, replay speed, "Live" mode for `--watch`;
@@ -15,7 +15,7 @@ A static page (Leaflet from a CDN, plain JavaScript, no build) that replays `out
 to change for variant A with WebSocket), `style.css`.
 
 ## Consumes
-`../out/timeline.json` (or `?src=<path>`), `../assets/infrastructure.geojson`, `../assets/patrol_units.json`.
+`../out/timeline.json` (or `?src=<path>`), `../assets/infrastructure.geojson`, `../assets/reference_infrastructure.geojson`, `../assets/patrol_units.json`.
 
 ## Running it on its own
 ```bash

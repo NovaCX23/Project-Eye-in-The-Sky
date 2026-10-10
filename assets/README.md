@@ -7,6 +7,16 @@
   (polygon), the port approach corridor (polygon). Properties on each feature:
   `id`, `name`, `kind`, `protected` (counts towards the score), `exclusion` (area where low speed is normal), `approximate`.
 - `patrol_units.json`: three units with position, speed (kn) and `simulated: true`.
+- `reference_infrastructure.geojson`: DISPLAY ONLY. Real-world infrastructure from the documents in this folder
+  (`Rezumat.docx` and its subfolders): Neptun Deep (Domino, Pelican Sud) and its pipeline to Tuzla, the Port of
+  Constanța and its maritime security hub, the BSSC power cable, the KAFOS data cable (Mangalia landing) and the
+  Romanian EEZ boundary; plus public-source infrastructure within ~500 km of Constanța (Midia/Ana, Petrom Istria
+  fields, Galata/Kaliakra/Kamchia, Sakarya, TurkStream, Odesa/Golitsyn, Caucasus Cable System, Diamond Link, ITUR)
+  ports (Midia, Mangalia), naval sites (Constanța base, Capu Midia range), the onshore Tuzla–Podișor pipeline,
+  and approximate licence blocks (XIX Neptun Deep, XV Midia, XVIII Istria, XIII Pelican, EX-30 Trident) read from the
+  maps inside the .docx files.
+  Each feature has a `source` link. Approximate coordinates; `protected` and `exclusion` are false. Only `web/` reads it,
+  so it never changes detection, scoring or the demo story.
 
 ## Consumed by
 `contracts/assets.py` (loading), `detect/zones.py`, `core/fusion.py`, `core/patrol.py`, `data/generate.py`, `web/`.

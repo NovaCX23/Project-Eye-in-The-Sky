@@ -104,6 +104,14 @@ aside {
 .alert-list .chip { width: 8px; height: 100%; border-radius: 3px; grid-row: span 2; }
 .alert-list .score { font-weight: 700; font-variant-numeric: tabular-nums; }
 .alert-list .sub { grid-column: 2 / 4; color: var(--muted); font-size: 12px; }
+/* Alertele cu scor foarte mare: clipesc în roșu intens (clasa flash-on e comutată de app.js). */
+/* Peste pulsația lui Radu (data-score), altfel animația ei acoperă fundalul roșu. */
+.alert-list li[data-score].flash { animation: none; border: 2px solid #ff1f2d; transition: background-color .12s, box-shadow .12s; }
+.flash-on .alert-list li.flash {
+  background: #ff1f2d; color: #fff; border-color: #fff;
+  box-shadow: 0 0 18px 4px rgba(255, 31, 45, .9);
+}
+.flash-on .alert-list li.flash .sub { color: #fff; }
 .lvl-low { background: var(--low); } .lvl-medium { background: var(--medium); }
 .lvl-high { background: var(--high); } .lvl-critical { background: var(--critical); }
 
@@ -139,9 +147,16 @@ footer input[type=range] { flex: 1; min-width: 160px; }
 footer button { width: 36px; height: 30px; font-size: 14px; cursor: pointer; }
 .clock { font-variant-numeric: tabular-nums; min-width: 150px; }
 
-.legend { background: rgba(22,33,45,.92); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.6; }
-.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 2px; }
+.leaflet-bottom.leaflet-left .legend { margin-bottom: 48px; }
+.legend {
+  background: rgba(22, 33, 45, .3); border-radius: 8px; color: #fff; padding: 10px 14px; font-size: 15px; line-height: 1.75; font-weight: 500;
+  text-shadow: 0 0 3px #000, 0 0 6px #000, 0 1px 2px #000;
+}
+.legend i { display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: -3px; border-radius: 3px; box-shadow: 0 0 3px #000; }
+.legend i.dot { border-radius: 50%; border: 3px solid; background: #16212d; width: 14px; height: 14px; }
 .leaflet-tooltip.sim-label { background: var(--sim); color: #1b1030; border: 0; font-weight: 600; }
+.legend .legend-head { margin-top: 6px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: #cfd8e3; }
+.legend .legend-head:first-child { margin-top: 0; }
 
 /* Modal dialog */
 #sonar-modal {
