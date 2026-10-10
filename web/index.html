@@ -16,12 +16,12 @@
     <span class="badge approx">Approximate coordinates</span>
 
     <!-- Filtre afișare hartă -->
-    <div class="map-filters" title="Filtrează elementele afișate pe hartă">
-      <span class="filter-label">Filtre hartă:</span>
-      <label><input type="checkbox" id="filter-hydro" checked> Hidrofoane</label>
-      <label><input type="checkbox" id="filter-coverage" checked> Raze 15 km</label>
-      <label><input type="checkbox" id="filter-vessels" checked> Nave AIS</label>
-      <label><input type="checkbox" id="filter-infra" checked> Infrastructură</label>
+    <div class="map-filters" title="Filter what the map shows">
+      <span class="filter-label">Map filters:</span>
+      <label><input type="checkbox" id="filter-hydro" checked> Hydrophones</label>
+      <label><input type="checkbox" id="filter-coverage" checked> 15 km ranges</label>
+      <label><input type="checkbox" id="filter-vessels" checked> AIS vessels</label>
+      <label><input type="checkbox" id="filter-infra" checked> Infrastructure</label>
     </div>
 
     <span id="status" class="status">Loading…</span>
@@ -33,38 +33,38 @@
       <!-- Panou Acustic și Istoric -->
       <section class="sonar-panel">
         <div class="panel-header-row">
-          <h2>Supraveghere Acustică</h2>
-          <button type="button" id="btn-realtime-audio" class="btn-live-audio" title="Verifică ce semnal acustic se captează la momentul curent">
-            🎧 Ce se aude în timp real?
+          <h2>Acoustic Surveillance</h2>
+          <button type="button" id="btn-realtime-audio" class="btn-live-audio" title="Check which acoustic signal is being captured right now">
+            🎧 What can we hear right now?
           </button>
         </div>
 
         <div id="realtime-audio-banner" class="realtime-banner" hidden>
-          <div class="banner-title">Monitor Acustic Live (<span id="audio-time">--:--</span>)</div>
-          <div id="audio-status-text" class="banner-text">Se ascultă semnalul din Marea Neagră...</div>
+          <div class="banner-title">Live Acoustic Monitor (<span id="audio-time">--:--</span>)</div>
+          <div id="audio-status-text" class="banner-text">Listening to the Black Sea signal...</div>
           <button type="button" id="btn-close-audio-banner" class="btn-banner-close">✕</button>
         </div>
 
-        <h3 style="margin-top:10px;">Istoric Detecții Acustice</h3>
+        <h3 style="margin-top:10px;">Acoustic Detection History</h3>
         <div id="acoustic-history-list" class="acoustic-history"></div>
       </section>
 
       <!-- Panou Alerte -->
       <section>
-        <h2>Alerte Active <span id="alert-count" class="count">0</span></h2>
+        <h2>Active Alerts <span id="alert-count" class="count">0</span></h2>
         <ol id="alert-list" class="alert-list"></ol>
-        <p id="no-alerts" class="muted">Nicio alertă activă până în acest moment.</p>
+        <p id="no-alerts" class="muted">No active alerts up to this moment.</p>
       </section>
 
       <!-- Detalii Alertă -->
       <section id="detail" hidden>
         <h2 id="detail-title"></h2>
         <div id="detail-meta" class="muted"></div>
-        <h3>Scor pe factori de risc</h3>
+        <h3>Score by risk factor</h3>
         <div id="factors"></div>
-        <h3>Explicație tactică</h3>
+        <h3>Tactical explanation</h3>
         <ul id="detail-lines" class="lines"></ul>
-        <h3>Unitate recomandată</h3>
+        <h3>Recommended unit</h3>
         <div id="recommendation" class="muted"></div>
       </section>
     </aside>
@@ -89,7 +89,7 @@
   <dialog id="sonar-modal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 id="modal-title">Analiză Sonar Hidrofon</h3>
+        <h3 id="modal-title">Hydrophone Sonar Analysis</h3>
         <button id="modal-close" type="button">✕</button>
       </div>
       <div id="modal-body"></div>
