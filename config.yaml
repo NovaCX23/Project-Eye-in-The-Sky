@@ -34,6 +34,7 @@ injector:                         # data/inject.py
     ais_gap: 1
     position_jump: 1
     loitering: 1
+    rendezvous: 1
   random_gap_min: 90
   random_jump_km: 25.0
   random_loiter_min: 90
