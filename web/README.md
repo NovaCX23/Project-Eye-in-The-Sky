@@ -3,6 +3,8 @@
 ## What it does
 A static page (Leaflet from a CDN, plain JavaScript, no build) that replays `out/timeline.json`:
 - the map with the demo infrastructure (approx.), a toggleable reference layer of real infrastructure (approx., not scored), the patrol units (simulated) and the moving vessels;
+- patrol units: their bases, their moving tracks (`ship_type: "patrol"` in the timeline), and a dashed line with the ETA
+  from a dispatched unit to its target ("on scene" once it arrives); mission and ETA come from the alert history;
 - a vessel with AIS off: grey marker and an uncertainty circle that grows over time (the rate comes from the pipeline, `metrics.uncertainty_km_per_h`);
 - the alert list at the cursor time, the score broken down by factor, the explanation lines, the recommended unit with ETA;
 - time slider, play/pause, replay speed, "Live" mode for `--watch`;
@@ -36,3 +38,4 @@ The map tiles (OpenStreetMap) need internet. Without a network, the SeaGrid laye
 - ✔ Critical alerts pulse on the map.
 - ✔ Toggleable reference layer of real infrastructure (approx., not scored).
 - ✔ Acoustic panel: hydrophone and DAS fibre sensors shown separately, signatures, spectrograms and acoustic history.
+- ✔ Patrol units drawn on the map: bases, moving tracks, dispatch line with ETA, "on scene".

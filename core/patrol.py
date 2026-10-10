@@ -112,9 +112,10 @@ def state_at(plan: UnitPlan, t: datetime, legs: list[Leg], start: datetime) -> U
     return s
 
 
-def _recommendation(plan: UnitPlan, s: UnitState, lat: float, lon: float) -> PatrolRecommendation:
+def _recommendation(plan: UnitPlan, s: UnitState, lat: float, lon: float, on_scene_km: float) -> PatrolRecommendation:
     dist = haversine_km(s.lat, s.lon, lat, lon)
-    eta = dist / kn_to_kmh(plan.response_kn) * 60.0
+    # În raza "la fața locului" unitatea însoțește ținta: ETA 0, ca să nu oscileze când ținta se mișcă.
+    eta = 0.0 if dist <= on_scene_km else dist / kn_to_kmh(plan.response_kn) * 60.0
     return PatrolRecommendation(unit_id=plan.unit_id, unit_name=plan.name, distance_km=round(dist, 1),
                                 eta_min=round(eta, 1), simulated=plan.simulated)
 
@@ -131,7 +132,8 @@ def recommend(lat: float, lon: float, level: str, cfg: dict, now: datetime, legs
         if plan.unit_id in busy or (only is not None and plan.unit_id != only):
             continue
         # STUB: linie dreaptă, fără ocolirea uscatului.
-        rec = _recommendation(plan, state_at(plan, now, legs.get(plan.unit_id, []), start), lat, lon)
+        rec = _recommendation(plan, state_at(plan, now, legs.get(plan.unit_id, []), start), lat, lon,
+                              cfg["patrol"]["on_scene_km"])
         if best is None or rec.eta_min < best.eta_min:
             best = rec
     return best
@@ -156,7 +158,7 @@ def assign(candidates: list[tuple[str, float, float, str]], cfg: dict, dispatche
                 if rec:
                     out[alert_id] = rec
                     busy.add(prev)
-                    # Poziția alertei se poate muta (ex. centrul unui loitering care crește): unitatea își corectează
+                    # Ținta se poate muta (nava reapare în altă parte, își continuă drumul): unitatea își corectează
                     # direcția din poziția curentă.
                     last = legs.get(prev, [])[-1:]
                     if last and last[0].alert_id == alert_id and (last[0].lat, last[0].lon) != (lat, lon):
