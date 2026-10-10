@@ -72,6 +72,24 @@ acoustic:
   min_rms: 0.01
   min_event_s: 3.0
   confidence_scale: 1.0
+  # P1: Prag adaptiv față de zgomotul de fond
+  adaptive_threshold: true        # calcul prag adaptiv în funcție de zgomotul de fond
+  noise_floor_quantile: 0.25      # quantila pentru estimarea zgomotului ambiant (percentila 25)
+  adaptive_margin: 0.25           # marjă peste pragul de zgomot ambiant
+  max_adaptive_threshold: 0.85    # plafon maxim pentru pragul adaptiv
+  # P1: Încredere din durată și intensitate; filtrare tranzitorii scurți
+  transient_filter_s: 2.0         # ignorare tranzitorii mai scurți de atât
+  confidence_weights:             # ponderi pentru calculul încrederii (sumă = 1.0)
+    ratio: 0.5
+    duration: 0.3
+    rms: 0.2
+  target_duration_s: 15.0         # durată țintă în secunde pentru scor durată 1.0
+  target_rms: 0.15                # intensitate RMS țintă pentru scor RMS 1.0
+  # P2: Benzi caracteristice (elice vs lanț ancoră)
+  signatures:
+    propeller_band_hz: [20.0, 75.0]     # armonice ax și cavitație elice
+    anchor_chain_band_hz: [75.0, 180.0] # frecare și zgomot lanț ancoră
+  save_spectrograms: true         # salvare spectrograme PNG pentru pitch și analiză
 
 fusion:
   same_vessel_window_min: 240     # evenimentele aceleiași nave în N min => același incident
