@@ -183,8 +183,8 @@
           "min": 240,
           "score": 85,
           "level": "critical",
-          "unit_id": "UNIT-3",
-          "eta_min": 38,
+          "unit_id": "UNIT-2",
+          "eta_min": 42,
           "factors": [
             {
               "label": "Stopped over the cable: fibre disturbance",
@@ -194,10 +194,10 @@
             {
               "label": "Magnetic anomaly confirms steel hull",
               "points": 15,
-              "detail": "10:00 UTC: magnetometer buoy MAG-2 on the corridor registers a hull-sized anomaly; four independent sensors now agree (±1.2 km, confidence 90%). Charlie (UNIT-3), on scene at MV SEA FALCON 21 km away, is re-tasked. [SIMULATED]"
+              "detail": "10:00 UTC: magnetometer buoy MAG-2 on the corridor registers a hull-sized anomaly; four independent sensors now agree (±1.2 km, confidence 90%). Bravo (UNIT-2), on scene at FV NORTHERN DAWN 28 km away, is re-tasked; Alfa and Charlie are still en route. [SIMULATED]"
             }
           ],
-          "recommendation_note": "Charlie (UNIT-3) is the nearest asset: on scene at MV SEA FALCON, 21 km away; re-tasked to SC-1. Alfa and Bravo are already committed."
+          "recommendation_note": "Bravo (UNIT-2) is on scene at FV NORTHERN DAWN, 28 km away, and is re-tasked to SC-1; Alfa and Charlie are still en route to their own alerts."
         }
       ]
     },
