@@ -139,7 +139,13 @@ def inject_random(df: pd.DataFrame, cfg: dict, seed: int, t0: datetime, t_end: d
     bbox = cfg["scenario"]["coverage_bbox"]
     rng = np.random.default_rng(seed + 7919)
     dt = cfg["scenario"]["report_interval_s"]
-    durations = {"ais_gap": inj["random_gap_min"], "position_jump": 1, "loitering": inj["random_loiter_min"]}
+    durations = {
+        "ais_gap": inj["random_gap_min"],
+        "position_jump": 1,
+        "loitering": inj["random_loiter_min"],
+        "rendezvous": 30,
+        "identity_spoofing": 10,
+    }
     margin = timedelta(minutes=inj["random_margin_min"])
     gts: list[dict] = []
     candidates = sorted(set(df["mmsi"]) - exclude)
@@ -185,6 +191,66 @@ def inject_random(df: pd.DataFrame, cfg: dict, seed: int, t0: datetime, t_end: d
                 loit["timestamp"] = pd.to_datetime(loit["timestamp"], utc=True)
                 df = pd.concat([df[~(mask & (df["timestamp"] >= ts))], loit, rest], ignore_index=True)
                 gts.append(_gt(kind, mmsi, ts, ts + dur, lat, lon, "random", ["loitering"], "Injected loitering."))
+            elif kind == "rendezvous":
+                if not candidates:
+                    continue
+                partner_mmsi = candidates.pop(0)
+                dur = timedelta(minutes=durations.get("rendezvous", 30))
+                circle_a = tracks.loiter((lat, lon), ts, ts + dur, dt, 0.8, 0.15, rng)
+                b_center = destination(lat, lon, 45.0, 0.20)
+                circle_b = tracks.loiter(b_center, ts, ts + dur, dt, 0.8, 0.15, rng)
+
+                first_a = g.iloc[0]
+                loit_a = pd.DataFrame(tracks.to_rows(circle_a, mmsi, first_a["vessel_name"], first_a["ship_type"], rng,
+                                                     cfg["generator"], dropouts=False))
+                loit_a["timestamp"] = pd.to_datetime(loit_a["timestamp"], utc=True)
+                rest_a = df[mask & (df["timestamp"] > ts)].copy()
+                rest_a["timestamp"] = rest_a["timestamp"] + dur + timedelta(seconds=dt)
+                rest_a = rest_a[rest_a["timestamp"] <= pd.Timestamp(t_end)]
+
+                mask_b = df["mmsi"] == partner_mmsi
+                gb = df[mask_b].sort_values("timestamp")
+                first_b = gb.iloc[0]
+                loit_b = pd.DataFrame(tracks.to_rows(circle_b, partner_mmsi, first_b["vessel_name"], first_b["ship_type"], rng,
+                                                     cfg["generator"], dropouts=False))
+                loit_b["timestamp"] = pd.to_datetime(loit_b["timestamp"], utc=True)
+                rest_b = df[mask_b & (df["timestamp"] > ts)].copy()
+                rest_b["timestamp"] = rest_b["timestamp"] + dur + timedelta(seconds=dt)
+                rest_b = rest_b[rest_b["timestamp"] <= pd.Timestamp(t_end)]
+
+                df = pd.concat([
+                    df[~(mask & (df["timestamp"] >= ts)) & ~(mask_b & (df["timestamp"] >= ts))],
+                    loit_a, rest_a, loit_b, rest_b,
+                ], ignore_index=True)
+                gts.append(_gt(kind, mmsi, ts, ts + dur, lat, lon, "random", ["rendezvous"],
+                               f"Injected rendezvous with partner vessel {partner_mmsi}."))
+                gts.append(_gt(kind, partner_mmsi, ts, ts + dur, b_center[0], b_center[1], "random", ["rendezvous"],
+                               f"Injected rendezvous with partner vessel {mmsi}."))
+            elif kind == "identity_spoofing":
+                clone_lat, clone_lon = destination(lat, lon, 60.0, 35.0)
+                dur = timedelta(minutes=10)
+                first = g.iloc[0]
+                clone_pts = []
+                for step_idx in range(4):
+                    c_time = ts + timedelta(seconds=step_idx * 60 + 30)
+                    clone_pts.append({
+                        "mmsi": mmsi,
+                        "timestamp": c_time,
+                        "lat": round(clone_lat + step_idx * 0.001, 6),
+                        "lon": round(clone_lon + step_idx * 0.001, 6),
+                        "sog_kn": 14.0,
+                        "cog_deg": 45.0,
+                        "heading_deg": 45.0,
+                        "vessel_name": first["vessel_name"],
+                        "ship_type": first["ship_type"],
+                        "source": "ais",
+                        "simulated": True,
+                    })
+                clone_df = pd.DataFrame(clone_pts)
+                clone_df["timestamp"] = pd.to_datetime(clone_df["timestamp"], utc=True)
+                df = pd.concat([df, clone_df], ignore_index=True)
+                gts.append(_gt(kind, mmsi, ts, ts + dur, clone_lat, clone_lon, "random", ["identity_spoofing"],
+                               "Injected transponder identity spoofing (clone vessel)."))
     return df, gts
 
 

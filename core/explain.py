@@ -12,6 +12,8 @@ LABELS = {
     "speed_inconsistency": "Speed inconsistent on reappearance",
     "loitering": "Suspicious loitering",
     "position_jump": "Position jump",
+    "rendezvous": "Ship-to-ship rendezvous / transfer",
+    "identity_spoofing": "AIS identity spoofing",
     "acoustic_lowfreq": "Low-frequency acoustic signature",
     "fibre_vibration": "Vibration on cable fibre",
     "near_infrastructure": "Near critical infrastructure",
@@ -34,6 +36,14 @@ TEMPLATES = {
     "position_jump": (
         "Position jump of {distance_km:.1f} km in {dt_min:.1f} min ({implied_kn:.0f} kn; "
         "maximum plausible {max_implied_kn:.0f} kn)."
+    ),
+    "rendezvous": (
+        "Potential ship-to-ship rendezvous: within {distance_km:.2f} km of partner vessel {other_mmsi} "
+        "at low speed ({mean_sog_kn:.1f} kn, threshold {max_sog_kn} kn) for {duration_min:.0f} min."
+    ),
+    "identity_spoofing": (
+        "Suspected transponder spoofing/cloning: concurrent broadcast {distance_km:.1f} km away "
+        "within {dt_min:.1f} min (implied speed {implied_kn:.0f} kn, max plausible {min_implied_kn:.0f} kn)."
     ),
     "acoustic_lowfreq": (
         "Hydrophone {sensor_id} detected low-frequency energy ({band_low_hz:.0f}–{band_high_hz:.0f} Hz, "

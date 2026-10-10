@@ -62,9 +62,18 @@ detect:
   position_jump:
     max_dt_min: 10                # doar perechi consecutive apropiate în timp
     max_implied_kn: 50.0
+  rendezvous:
+    max_distance_km: 1.0          # distanța maximă dintre două nave pentru întâlnire suspectă (STS)
+    max_sog_kn: 3.5               # viteza maximă pentru manevră de întâlnire
+    min_duration_min: 15.0        # durata minimă a apropierii
+    time_window_min: 5.0          # toleranță temporală între rapoarte
+  identity_spoofing:
+    min_distance_km: 15.0         # distanță minimă între poziții simultane/aproape simultane
+    max_dt_min: 3.0               # ecart maxim de timp între două rapoarte
+    min_implied_kn: 120.0         # viteză fizic imposibilă între două rapoarte apropiate în timp
   exclusion:
     # Zonele din assets/infrastructure.geojson cu proprietatea "exclusion": true
-    applies_to: [loitering, ais_gap]
+    applies_to: [loitering, ais_gap, rendezvous]
 
 acoustic:
   band_hz: [10.0, 200.0]          # banda de joasă frecvență
@@ -106,6 +115,8 @@ score:
     speed_inconsistency: 20
     loitering: 20                 # = score.alert_min: un loitering singur, departe de infrastructură, dă o alertă low
     position_jump: 20
+    rendezvous: 25
+    identity_spoofing: 30
     acoustic_lowfreq: 15
     fibre_vibration: 20
     near_infrastructure: 15
