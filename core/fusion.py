@@ -34,6 +34,23 @@ class AlertMemory:
     # Odată ce un eveniment a deschis o alertă, incidentul își păstrează id-ul,
     # chiar dacă ulterior apare un eveniment cu același start (ex. inconsistența de viteză).
     primary_of_event: dict[str, str] = field(default_factory=dict)
+    dispatched: dict[str, str] = field(default_factory=dict)  # alert_id -> unitatea deja trimisă
+
+
+@dataclass
+class _Draft:
+    """O alertă cu scorul calculat, înainte de repartizarea unităților de patrulare."""
+
+    alert_id: str
+    ep: Episode
+    primary: SensorEvent
+    start: datetime
+    created: datetime
+    score: int
+    level: str
+    factors: list[ScoreFactor]
+    infra: list[InfraProximity]
+    related: list[str]
 
 
 def _type_rank(event_type: str) -> int:
@@ -81,6 +98,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
     episodes = _episodes(events, now, cfg)
     context = sorted((e for e in events if e.source in CONTEXT_SOURCES), key=lambda e: (e.start, e.event_id))
     alerts: list[Alert] = []
+    drafts: list[_Draft] = []
     for ep in episodes:
         known = sorted({memory.primary_of_event[e.event_id] for e in ep.events if e.event_id in memory.primary_of_event})
         ep.primary_id = known[0] if known else ep.events[0].event_id
@@ -147,31 +165,41 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
             detail, eid, sim = memory.factor_evidence.setdefault((alert_id, code), (detail, eid, sim))
             factors.append(ScoreFactor(code=code, label=explain.label(code), points=pts, detail=detail,
                                        event_id=eid, added_at=added, simulated=sim))
-        rec = patrol.recommend(p.lat, p.lon, level, cfg)
-        hist = memory.history.setdefault(alert_id, [])
+        drafts.append(_Draft(alert_id, ep, p, ep_start, created, score, level, factors, infra,
+                             sorted({o.mmsi for _, o in related})))
+
+    # Unitățile se repartizează după ce se cunosc toate alertele: prioritate după nivel, scor, vechime.
+    drafts.sort(key=lambda d: (-patrol.LEVEL_ORDER.index(d.level), -d.score, d.created, d.alert_id))
+    recs = patrol.assign([(d.alert_id, d.primary.lat, d.primary.lon, d.level) for d in drafts], cfg,
+                         memory.dispatched)
+    for d in drafts:
+        rec = recs.get(d.alert_id)
+        hist = memory.history.setdefault(d.alert_id, [])
         unit = rec.unit_id if rec else None
-        if not hist or hist[-1].score != score or hist[-1].unit_id != unit:
-            hist.append(ScorePoint(t=now, score=score, level=level, unit_id=unit, eta_min=rec.eta_min if rec else None))
+        if not hist or hist[-1].score != d.score or hist[-1].unit_id != unit:
+            hist.append(ScorePoint(t=now, score=d.score, level=d.level, unit_id=unit,
+                                   eta_min=rec.eta_min if rec else None))
+        name = names.get(d.ep.mmsi)
         alerts.append(Alert(
-            alert_id=alert_id,
-            mmsi=ep.mmsi,
-            vessel_name=names.get(ep.mmsi),
-            alert_type=p.event_type,
-            start_time=ep_start,
-            created_at=created,
+            alert_id=d.alert_id,
+            mmsi=d.ep.mmsi,
+            vessel_name=name,
+            alert_type=d.primary.event_type,
+            start_time=d.start,
+            created_at=d.created,
             updated_at=hist[-1].t,
-            lat=p.lat,
-            lon=p.lon,
-            risk_score=score,
-            level=level,
-            factors=factors,
+            lat=d.primary.lat,
+            lon=d.primary.lon,
+            risk_score=d.score,
+            level=d.level,
+            factors=d.factors,
             history=list(hist),
-            explanation=explain.alert_text(names.get(ep.mmsi), ep.mmsi, score, level, [f.detail for f in factors],
+            explanation=explain.alert_text(name, d.ep.mmsi, d.score, d.level, [f.detail for f in d.factors],
                                            rec.model_dump() if rec else None),
-            event_ids=sorted({e.event_id for e in ep.events} | {f.event_id for f in factors if f.event_id}),
-            related_mmsis=sorted({o.mmsi for _, o in related}),
-            nearest_infrastructure=infra,
+            event_ids=sorted({e.event_id for e in d.ep.events} | {f.event_id for f in d.factors if f.event_id}),
+            related_mmsis=d.related,
+            nearest_infrastructure=d.infra,
             recommendation=rec,
-            simulated=any(f.simulated for f in factors) or any(e.simulated for e in ep.events),
+            simulated=any(f.simulated for f in d.factors) or any(e.simulated for e in d.ep.events),
         ))
     return sorted(alerts, key=lambda a: (a.created_at, a.alert_id))
