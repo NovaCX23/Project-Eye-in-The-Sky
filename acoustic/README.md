@@ -2,8 +2,15 @@
 
 ## What it does
 Low-frequency energy detector: for each frame of `acoustic.frame_s` seconds it computes the ratio
-between the energy in the `acoustic.band_hz` band and the total energy (STFT with librosa). Consecutive frames above the threshold,
-lasting at least `min_event_s` seconds, become a `SensorEvent` of type `acoustic_lowfreq`.
+between the energy in the `acoustic.band_hz` band and the total energy (STFT with librosa).
+
+Key features:
+- **Adaptive noise-floor thresholding (P1):** dynamically evaluates the ambient noise floor (via quantile estimation) and adjusts the ratio threshold above background noise while protecting clear signals.
+- **Transient filtering & multi-factor confidence (P1):** suppresses brief transient bursts (`transient_filter_s`), while scaling confidence across energy ratio, sustained event duration, and RMS signal intensity.
+- **Signature classification (P2):** differentiates between propeller cavitation / shaft harmonics (`propeller_band_hz`: 20–75 Hz) vs. anchor chain friction (`anchor_chain_band_hz`: 75–180 Hz) and extracts dominant low-frequency peaks.
+- **Spectrogram rendering for pitch (P2):** saves high-contrast spectrogram PNGs into `<out-dir>/spectrograms/` (built with standard library zlib, requiring no external plotting libraries).
+
+Consecutive frames above the threshold lasting at least `min_event_s` seconds become a `SensorEvent` of type `acoustic_lowfreq`.
 Results are precomputed; the pipeline reads them filtered by `now`.
 
 ## Clips
@@ -18,7 +25,8 @@ Results are precomputed; the pipeline reads them filtered by `now`.
 The clips in the manifest, `config.yaml` (`acoustic`, `scenario.start`).
 
 ## Produces
-`out/acoustic_events.json`: a list of `SensorEvent` (`source="acoustic"`).
+- `out/acoustic_events.json`: a list of `SensorEvent` (`source="acoustic"`).
+- `out/spectrograms/<clip_stem>.png`: rendered acoustic spectrogram heatmaps for presentation / pitch review.
 
 ## Running it on its own
 ```bash
@@ -28,8 +36,9 @@ python -m pytest acoustic
 ```
 `librosa` is used only in this directory.
 
-## Tasks (prioritised)
-1. P0: find out which clips and which metadata (time, sensor position) the organisers provide.
-2. P1: adaptive threshold relative to each hydrophone's background noise.
-3. P1: confidence from duration and intensity; ignore short transients.
-4. P2: characteristic band for propeller vs. anchor chain; a saved spectrogram for the pitch.
+## Tasks status
+1. **P0 (Real clips structure):** Manifest and loader support real clips in `acoustic/clips/real/` (`simulated: false`).
+2. **P1 (Adaptive threshold):** Implemented in `compute_adaptive_threshold()`, with quantile noise estimation and margin cap in `config.yaml`.
+3. **P1 (Confidence & transients):** Implemented in `compute_confidence()` and transient rejection loop (`transient_filter_s`, `min_event_s`).
+4. **P2 (Propeller vs. anchor chain signatures):** Implemented in `classify_signature()` with dominant frequency extraction.
+5. **P2 (Spectrograms for pitch):** Implemented in `save_spectrogram_png()` outputting PNG images to `<out-dir>/spectrograms/`.
