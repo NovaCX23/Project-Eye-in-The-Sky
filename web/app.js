@@ -176,9 +176,19 @@ function render() {
   layers.sensors.clearLayers();
   for (const e of S.sensors) {
     if (e.s > t || t - e.s > SENSOR_SHOW_MIN * 60000) continue;
-    const label = e.source === "acoustic" ? `Acoustic ${esc(e.sensor_id)}` : `Fibre km ${e.metrics.cable_km}`;
-    L.circleMarker([e.lat, e.lon], { radius: 12, color: "#b48af0", weight: 2, fillOpacity: 0.15 })
-      .bindTooltip(`${label} · confidence ${e.confidence}${e.simulated ? " · SIMULATED" : ""}`,
+    let label = "";
+    if (e.source === "acoustic") {
+      const sig = e.metrics && e.metrics.signature ? ` [${esc(e.metrics.signature)} @ ${e.metrics.dominant_freq_hz || 50} Hz]` : "";
+      label = `<b>Acoustic ${esc(e.sensor_id)}</b>${sig} · conf ${e.confidence}`;
+      if (e.metrics && e.metrics.clip) {
+        const pngName = esc(e.metrics.clip.replace(".wav", ".png"));
+        label += `<br><img src="../out/spectrograms/${pngName}" style="width:180px;height:65px;margin-top:4px;border-radius:4px;display:block;border:1px solid #555;">`;
+      }
+    } else {
+      label = `Fibre km ${e.metrics.cable_km} · conf ${e.confidence}`;
+    }
+    L.circleMarker([e.lat, e.lon], { radius: 14, color: "#b48af0", weight: 2, fillOpacity: 0.25 })
+      .bindTooltip(`${label}${e.simulated ? " · SIMULATED" : ""}`,
                    { permanent: true, direction: "top", className: e.simulated ? "sim-label" : "" })
       .addTo(layers.sensors);
   }
@@ -214,7 +224,13 @@ function renderDetail(t) {
     <div class="bar"><span style="width:${f.points}%"></span></div></div>`).join("") +
     `<div class="factor total"><div class="row"><span>Total (capped)</span><b>${st.score}</b></div>
      <div class="bar"><span style="width:${st.score}%"></span></div></div>`;
-  $("detail-lines").innerHTML = factors.map((f) => `<li>${esc(f.detail)}</li>`).join("");
+  $("detail-lines").innerHTML = factors.map((f) => {
+    let extra = "";
+    if (f.code === "acoustic_lowfreq") {
+      extra = `<br><span style="color:#b48af0;font-size:11px;font-weight:bold;">[Signature: propeller @ 50 Hz]</span><br><a href="../out/spectrograms/lowfreq_tone.png" target="_blank" title="Click to view full spectrogram"><img src="../out/spectrograms/lowfreq_tone.png" style="width:220px;height:75px;margin-top:5px;border-radius:4px;display:block;border:1px solid #444;"></a>`;
+    }
+    return `<li>${esc(f.detail)}${extra}</li>`;
+  }).join("");
   const u = st.unit_id && S.units[st.unit_id];
   $("recommendation").innerHTML = st.unit_id
     ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ETA ${st.eta_min.toFixed(0)} min${u && u.simulated ? SIM_TAG : ""}`
