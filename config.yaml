@@ -85,7 +85,7 @@ score:
   points:                         # scor aditiv, plafonat la max
     ais_gap: 25
     speed_inconsistency: 20
-    loitering: 15
+    loitering: 20                 # = score.alert_min: un loitering singur, departe de infrastructură, dă o alertă low
     position_jump: 20
     acoustic_lowfreq: 15
     fibre_vibration: 20
