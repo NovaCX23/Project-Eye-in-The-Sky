@@ -84,6 +84,14 @@ def test_loitering_detected_in_open_sea(t0, cfg):
     assert "loitering" in _types(ais_rules.detect_loitering(to_df(rows), cfg))
 
 
+def test_loitering_starts_at_first_slow_position(t0, cfg):
+    # 30 min de tranzit cu 9 kn, apoi 90 min de staționare: episodul începe la primul mesaj lent, nu mai devreme.
+    transit = straight_track("111111111", t0, range(0, 30), *OPEN_SEA, sog=9.0)
+    slow = straight_track("111111111", t0, range(30, 120), transit[-1]["lat"], transit[-1]["lon"], sog=0.5)
+    ev = ais_rules.detect_loitering(to_df(transit + slow), cfg)
+    assert [e.start for e in ev] == [slow[0]["timestamp"]]
+
+
 def test_loitering_ignored_in_anchorage(t0, cfg):
     rows = straight_track("111111111", t0, range(0, 90), *ANCHORAGE, sog=0.3)
     assert ais_rules.detect_loitering(to_df(rows), cfg) == []

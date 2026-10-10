@@ -196,7 +196,12 @@ def detect_loitering(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
             j = i
             while j + 1 < len(ok) and ok[j + 1]:
                 j += 1
-            ep_start = times[i] - pd.Timedelta(minutes=c["window_min"])
+            # Episodul începe la primul mesaj lent din prima fereastră validă, nu la marginea ferestrei
+            # (care poate cuprinde încă minute de mers normal).
+            win_start = times[i] - pd.Timedelta(minutes=c["window_min"])
+            first_win = s[(s.index >= win_start) & (s.index <= times[i])]
+            slow = first_win.index[first_win["sog_kn"] <= c["max_mean_sog_kn"]]
+            ep_start = slow[0] if len(slow) else win_start
             seg = s[(s.index >= ep_start) & (s.index <= times[j])]
             clat, clon = float(seg["lat"].mean()), float(seg["lon"].mean())
             if not is_excluded("loitering", clat, clon, cfg):
