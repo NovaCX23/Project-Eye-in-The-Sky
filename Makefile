@@ -1,0 +1,45 @@
+# Fiecare țintă e un înveliș subțire peste o comandă `python -m ...`.
+# Fără make (Windows): rulați direct comanda din dreapta, listată și în README.md.
+PY ?= python
+
+.PHONY: help setup test demo eval eval-report watch serve schema validate data acoustic pipeline
+
+help:
+	@$(PY) -c "print('targets: setup test demo eval eval-report watch serve schema validate data acoustic pipeline')"
+
+setup:        ## pip install -r requirements.txt + core.hooksPath=.githooks
+	$(PY) -m devtools.bootstrap
+
+test:
+	$(PY) -m pytest
+
+demo:         ## trafic (seed fix) + scenariu + acustic + pipeline -> out/timeline.json
+	$(PY) -m core.demo
+
+eval:         ## metrici pe seed-ul de tuning
+	$(PY) -m eval.evaluate --seed-set tuning --run
+
+eval-report:  ## tuning + held-out; scrie pitch/metrics.md
+	$(PY) -m eval.evaluate --seed-set both --run --write-md pitch/metrics.md
+
+watch:        ## micro-batch-uri cu ceas simulat (după make demo)
+	$(PY) -m core.pipeline --watch
+
+serve:        ## apoi deschideți http://localhost:8000/web/
+	$(PY) -m http.server 8000
+
+schema:
+	$(PY) -m contracts.export_schema
+
+validate:
+	$(PY) -m contracts.validate out/timeline.json --model Timeline
+
+data:
+	$(PY) -m data.generate
+	$(PY) -m data.inject
+
+acoustic:
+	$(PY) -m acoustic.analyze
+
+pipeline:
+	$(PY) -m core.pipeline
