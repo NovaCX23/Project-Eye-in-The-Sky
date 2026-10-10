@@ -16,5 +16,5 @@ paths:
   false alarms do not rise on the tuning seed (`/eval-report`).
 - Hard rules: gap = `now - last_message > threshold`; speed check is separate, on reappearance, both directions;
   haversine only; thresholds only from config; no I/O, no state, no knowledge of how results are delivered.
-- Allowed shortcuts: naive loops, bbox-diagonal extent for loitering, mean SOG before/after the gap (`# STUB`).
+- Allowed shortcuts: naive loops, bbox-diagonal extent for loitering (`# STUB`).
 - New rule: use `/add-rule`.

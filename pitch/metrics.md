@@ -5,12 +5,10 @@ Thresholds were tuned ONLY on the tuning seed.
 
 | Set | Seed | Anomalies | Detected | Detection rate | Alerts | False alarms | FA / normal vessel | Mean TTA (min) |
 |---|---|---|---|---|---|---|---|---|
-| reporting | 1337 | 5 | 4 | 80% | 4 | 0 | 0.00 | 25.1 |
+| reporting | 1337 | 5 | 5 | 100% | 5 | 0 | 0.00 | 28.4 |
 
 | Set | Anomaly type | Detected / total |
 |---|---|---|
 | reporting | ais_gap | 2 / 2 |
-| reporting | loitering | 1 / 2 |
+| reporting | loitering | 2 / 2 |
 | reporting | position_jump | 1 / 1 |
-
-MISSED (reporting): loitering 264593341 @ 2026-03-15T07:53:18Z

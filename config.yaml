@@ -49,6 +49,7 @@ detect:
   speed_consistency:
     min_gap_min: 15               # se verifică doar la reapariție după o pauză > N min
     min_expected_kn: 3.0          # sub această viteză raportată nu putem judeca "prea lent"
+    history_min: 30               # viteza așteptată = mediana SOG din ultimele N min dinainte de pauză
     ratio_too_slow: 0.5           # implied / reported < 0.5 => prea lent
     ratio_too_fast: 1.5           # implied / reported > 1.5 => prea rapid
     stationary_max_implied_kn: 4.0  # navă oprită care "a sărit" mai repede de atât => prea rapid
@@ -103,7 +104,7 @@ score:
   points:                         # scor aditiv, plafonat la max
     ais_gap: 25
     speed_inconsistency: 20
-    loitering: 15
+    loitering: 20                 # = score.alert_min: un loitering singur, departe de infrastructură, dă o alertă low
     position_jump: 20
     acoustic_lowfreq: 15
     fibre_vibration: 20

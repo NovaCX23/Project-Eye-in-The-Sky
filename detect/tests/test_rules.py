@@ -57,6 +57,23 @@ def test_speed_inconsistency_both_directions(t0, cfg, km_moved, direction):
     assert [e.metrics["direction"] for e in ev] == [direction]
 
 
+def test_stopping_after_reappearance_is_not_an_inconsistency(t0, cfg):
+    # 12 kn înainte de pauză, 61 min de tăcere, ~22 km parcurși (consistent); la reapariție nava stă (0 kn).
+    before = straight_track("111111111", t0, range(0, 20), *OPEN_SEA, sog=12.0)
+    lat, lon = destination(before[-1]["lat"], before[-1]["lon"], 90.0, 22.6)
+    after = straight_track("111111111", t0, range(80, 90), lat, lon, sog=0.0)
+    assert ais_rules.detect_speed_inconsistency(to_df(before + after), cfg) == []
+
+
+def test_expected_speed_ignores_a_single_glitch_before_the_gap(t0, cfg):
+    # O singură valoare SOG eronată chiar înainte de pauză nu schimbă viteza așteptată (mediană pe istoric).
+    before = straight_track("111111111", t0, range(0, 20), *OPEN_SEA, sog=12.0)
+    before[-1]["sog_kn"] = 40.0
+    lat, lon = destination(before[-1]["lat"], before[-1]["lon"], 90.0, 22.6)
+    after = straight_track("111111111", t0, range(80, 90), lat, lon, sog=12.0)
+    assert ais_rules.detect_speed_inconsistency(to_df(before + after), cfg) == []
+
+
 def test_consistent_reappearance_is_normal(t0, cfg):
     rows = straight_track("111111111", t0, list(range(0, 20)) + list(range(60, 80)), *OPEN_SEA, sog=12.0)
     assert ais_rules.detect_speed_inconsistency(to_df(rows), cfg) == []
@@ -65,6 +82,14 @@ def test_consistent_reappearance_is_normal(t0, cfg):
 def test_loitering_detected_in_open_sea(t0, cfg):
     rows = straight_track("111111111", t0, range(0, 90), *OPEN_SEA, sog=0.5)
     assert "loitering" in _types(ais_rules.detect_loitering(to_df(rows), cfg))
+
+
+def test_loitering_starts_at_first_slow_position(t0, cfg):
+    # 30 min de tranzit cu 9 kn, apoi 90 min de staționare: episodul începe la primul mesaj lent, nu mai devreme.
+    transit = straight_track("111111111", t0, range(0, 30), *OPEN_SEA, sog=9.0)
+    slow = straight_track("111111111", t0, range(30, 120), transit[-1]["lat"], transit[-1]["lon"], sog=0.5)
+    ev = ais_rules.detect_loitering(to_df(transit + slow), cfg)
+    assert [e.start for e in ev] == [slow[0]["timestamp"]]
 
 
 def test_loitering_ignored_in_anchorage(t0, cfg):
