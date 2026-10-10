@@ -11,6 +11,8 @@
 - `explain.py`: English templates filled with the detector's numbers. No LLM.
 - `patrol.py`: assigns patrol units by alert priority, one unit per alert, lowest ETA (haversine, straight line, STUB).
 - `sinks.py`: output transport (atomic write of `out/timeline.json`).
+- `state.py`: `--watch` saves its state to `out/pipeline_state.json` after every batch and resumes from it after a restart,
+  but only if the input data up to that moment is unchanged; otherwise it starts from the scenario start.
 - `demo.py`: the full chain for `make demo`.
 
 ## Consumes
@@ -24,7 +26,7 @@
 ```bash
 python -m core.pipeline                              # replay to the end of the scenario
 python -m core.pipeline --now 2026-03-15T08:30:00Z   # a single batch
-python -m core.pipeline --watch --interval-s 3 --sim-step-min 5
+python -m core.pipeline --watch --interval-s 3 --sim-step-min 5   # resumes after a restart; --fresh starts over
 python -m pytest core
 ```
 
@@ -38,4 +40,3 @@ Variant A (server + WebSocket): only `sources.py` and `sinks.py` are replaced; e
    recommendation threshold. Telling the two cases apart needs a field in the contract (`/contract-change`), then a UI change (Dev 5).
 4. P1: ETA that routes around land. **Needs:** a coastline / land polygon in `assets/` (team agreement, Dev 4 merges).
    In the current demo every straight line stays at sea, so this does not change the story.
-5. P2: persist state across `--watch` restarts (today a restart replays from the scenario start).
