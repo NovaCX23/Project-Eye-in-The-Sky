@@ -4,62 +4,55 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SeaGrid — maritime infrastructure surveillance</title>
+  <script>
+    // Tema salvată se aplică înainte de randare, ca pagina să nu clipească.
+    try { document.documentElement.dataset.theme = localStorage.getItem("seagrid.theme") === "day" ? "day" : "night"; }
+    catch (e) { document.documentElement.dataset.theme = "night"; }
+  </script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <header>
-    <h1>SeaGrid</h1>
-    <span class="subtitle">Romanian maritime infrastructure — Black Sea</span>
+    <div class="brand">
+      <h1>SeaGrid</h1>
+      <span class="subtitle">Romanian maritime infrastructure · Black Sea</span>
+    </div>
     <span id="sim-badge" class="badge sim" hidden>SIMULATED DATA</span>
     <span class="badge approx">Approximate coordinates</span>
 
-    <!-- Filtre afișare hartă -->
-    <div class="map-filters" title="Filter what the map shows">
-      <span class="filter-label">Map filters:</span>
-      <label><input type="checkbox" id="filter-hydro" checked> Hydrophones</label>
-      <label><input type="checkbox" id="filter-coverage" checked> 15 km ranges</label>
-      <label><input type="checkbox" id="filter-vessels" checked> AIS vessels</label>
-      <label><input type="checkbox" id="filter-infra" checked> Infrastructure</label>
+    <!-- Filtre afișare hartă: singura sursă de adevăr pentru vizibilitatea straturilor -->
+    <div class="map-filters" role="group" aria-label="Map filters">
+      <label class="pill"><input type="checkbox" data-layers="vessels,trails,uncertainty" checked><span>AIS vessels</span></label>
+      <label class="pill"><input type="checkbox" data-layers="hydroStations,sensors" checked><span>Hydrophones</span></label>
+      <label class="pill"><input type="checkbox" data-layers="hydroCoverage" checked><span>15 km ranges</span></label>
+      <label class="pill"><input type="checkbox" data-layers="infra,reference" checked><span>Infrastructure</span></label>
+      <label class="pill"><input type="checkbox" data-layers="units,routes" checked><span>Patrol units</span></label>
+      <label class="pill"><input type="checkbox" data-layers="submarines" checked><span>Submerged contacts</span></label>
     </div>
 
     <span id="status" class="status">Loading…</span>
+    <button type="button" id="theme-toggle" class="theme-toggle">☀ Day</button>
   </header>
 
   <main>
     <div id="map"></div>
     <aside>
-      <!-- Panou Acustic și Istoric -->
-      <section class="sonar-panel">
-        <div class="panel-header-row">
-          <h2>Acoustic Surveillance</h2>
-          <button type="button" id="btn-realtime-audio" class="btn-live-audio" title="Check which acoustic signal is being captured right now">
-            🎧 What can we hear right now?
-          </button>
-        </div>
-
-        <div id="realtime-audio-banner" class="realtime-banner" hidden>
-          <div class="banner-title">Live Acoustic Monitor (<span id="audio-time">--:--</span>)</div>
-          <div id="audio-status-text" class="banner-text">Listening to the Black Sea signal...</div>
-          <button type="button" id="btn-close-audio-banner" class="btn-banner-close">✕</button>
-        </div>
-
-        <h3 style="margin-top:10px;">Acoustic Detection History</h3>
-        <div id="acoustic-history-list" class="acoustic-history"></div>
-      </section>
-
       <!-- Panou Alerte -->
-      <section>
+      <section class="card">
         <h2>Active Alerts <span id="alert-count" class="count">0</span></h2>
         <ol id="alert-list" class="alert-list"></ol>
         <p id="no-alerts" class="muted">No active alerts up to this moment.</p>
       </section>
 
       <!-- Detalii Alertă -->
-      <section id="detail" hidden>
+      <section id="detail" class="card" hidden>
         <h2 id="detail-title"></h2>
-        <div id="detail-meta" class="muted"></div>
+        <div id="detail-meta" class="muted small"></div>
         <h3>Score by risk factor</h3>
         <div id="factors"></div>
         <h3>Tactical explanation</h3>
@@ -67,14 +60,40 @@
         <h3>Recommended unit</h3>
         <div id="recommendation" class="muted"></div>
       </section>
+
+      <!-- Contacte submarine (scenariu simulat, doar afișare) -->
+      <section class="card">
+        <h2>Submerged Contacts <span id="sub-count" class="count">0</span></h2>
+        <div id="sub-list" class="acoustic-history"></div>
+        <p id="no-subs" class="muted">No submerged contact at this moment.</p>
+      </section>
+
+      <!-- Panou Acustic și Istoric -->
+      <section class="card sonar-panel">
+        <div class="panel-header-row">
+          <h2>Acoustic Surveillance</h2>
+          <button type="button" id="btn-realtime-audio" class="btn-live-audio" title="Check which acoustic signal is being captured right now">
+            🎧 Listen live
+          </button>
+        </div>
+
+        <div id="realtime-audio-banner" class="realtime-banner" hidden>
+          <div class="banner-title">Live Acoustic Monitor (<span id="audio-time">--:--</span>)</div>
+          <div id="audio-status-text" class="banner-text">Listening to the Black Sea signal...</div>
+          <button type="button" id="btn-close-audio-banner" class="btn-banner-close" aria-label="Close">✕</button>
+        </div>
+
+        <h3>Acoustic Detection History</h3>
+        <div id="acoustic-history-list" class="acoustic-history"></div>
+      </section>
     </aside>
   </main>
 
   <footer>
-    <button id="play" type="button" title="Play / pause">▶</button>
+    <button id="play" type="button" title="Play / pause" aria-label="Play">▶</button>
     <input id="slider" type="range" min="0" max="1" step="1" value="0" aria-label="Time">
     <span id="clock" class="clock">--:--</span>
-    <label>Speed
+    <label class="ctl">Speed
       <select id="speed">
         <option value="60">60×</option>
         <option value="300" selected>300×</option>
@@ -82,7 +101,7 @@
         <option value="1800">1800×</option>
       </select>
     </label>
-    <label title="Follow the latest batch (--watch mode)"><input id="live" type="checkbox"> Live</label>
+    <label class="ctl" title="Follow the latest batch (--watch mode)"><input id="live" type="checkbox"> Live</label>
   </footer>
 
   <!-- Modal Detalii Spectrogramă & Sonar -->
@@ -90,7 +109,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <h3 id="modal-title">Hydrophone Sonar Analysis</h3>
-        <button id="modal-close" type="button">✕</button>
+        <button id="modal-close" type="button" aria-label="Close">✕</button>
       </div>
       <div id="modal-body"></div>
     </div>
@@ -98,7 +117,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="loader.js"></script>
-  <script src="app.js"></script>
+  <script src="loader.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
