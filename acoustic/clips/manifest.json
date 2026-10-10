@@ -2,6 +2,8 @@
   "description": "SIMULATED hydrophones. offset_min = minutes from scenario.start (config.yaml) at which the clip begins.",
   "clips": [
     {"file": "background_noise.wav", "sensor_id": "HYD-2", "lat": 44.450, "lon": 29.950, "offset_min": 60, "simulated": true},
-    {"file": "lowfreq_tone.wav", "sensor_id": "HYD-1", "lat": 44.265, "lon": 29.490, "offset_min": 140, "simulated": true}
+    {"file": "engine_rumble.wav", "sensor_id": "HYD-4", "lat": 44.380, "lon": 29.620, "offset_min": 130, "simulated": true},
+    {"file": "lowfreq_tone.wav", "sensor_id": "HYD-1", "lat": 44.265, "lon": 29.490, "offset_min": 140, "simulated": true},
+    {"file": "anchor_drag.wav", "sensor_id": "HYD-3", "lat": 44.180, "lon": 29.400, "offset_min": 160, "simulated": true}
   ]
 }

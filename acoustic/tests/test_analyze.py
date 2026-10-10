@@ -34,7 +34,7 @@ def _write_custom_wav(path: Path, y: np.ndarray, sr: int = SAMPLE_RATE) -> Path:
 
 def test_tone_triggers_and_noise_does_not(tmp_path: Path, cfg: dict) -> None:
     """Verifică că tonul declanșează un eveniment acustic, iar zgomotul alb este ignorat."""
-    noise, tone = make_clips(tmp_path)
+    noise, tone, *_ = make_clips(tmp_path)
     assert analyze_clip(noise, _meta(noise.name), cfg) == []
     events = analyze_clip(tone, _meta(tone.name), cfg)
     assert events, "the 50 Hz tone should have produced an event"

@@ -17,9 +17,24 @@
     <span id="status" class="status">Loading…</span>
   </header>
 
+  <div class="scenario-jumps">
+    <span class="jump-title">Tactical Timeline:</span>
+    <button type="button" class="jump-btn" data-sec="0">06:00 Start</button>
+    <button type="button" class="jump-btn" data-sec="7200">08:00 AIS Dark</button>
+    <button type="button" class="jump-btn btn-sonar" data-sec="7800">08:10 Northern Dawn (HYD-4)</button>
+    <button type="button" class="jump-btn btn-sonar" data-sec="8400">08:20 Propeller Contact (HYD-1)</button>
+    <button type="button" class="jump-btn btn-sonar btn-danger" data-sec="9600">08:40 Cable Sabotage (HYD-3)</button>
+    <button type="button" class="jump-btn" data-sec="13800">09:50 Reappearance & Intercept</button>
+  </div>
+
   <main>
     <div id="map"></div>
     <aside>
+      <section class="sonar-panel">
+        <h2>Acoustic Intelligence <span class="badge badge-sonar">4 Hydrophones</span></h2>
+        <div id="hydrophone-grid" class="hydro-grid"></div>
+      </section>
+
       <section>
         <h2>Alerts <span id="alert-count" class="count">0</span></h2>
         <ol id="alert-list" class="alert-list"></ol>
@@ -52,6 +67,16 @@
     </label>
     <label title="Follow the latest batch (--watch mode)"><input id="live" type="checkbox"> Live</label>
   </footer>
+
+  <dialog id="sonar-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-title">Sonar Acoustic Intelligence</h3>
+        <button id="modal-close" type="button">✕</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </dialog>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
