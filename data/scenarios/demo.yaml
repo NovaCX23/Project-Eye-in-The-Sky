@@ -1,0 +1,52 @@
+# Scenariul demo SeaGrid (date SIMULATE). Coordonate [lat, lon], timpi în minute de la scenario.start.
+# Pragurile detectoarelor NU stau aici, ci în config.yaml.
+
+traffic:                       # geografia traficului normal (data/generate.py)
+  port_berth: [44.160, 28.660]
+  approach_entry: [44.130, 28.955]
+  inbound_start_box: {lat_min: 43.75, lat_max: 44.55, lon_min: 29.30, lon_max: 30.60}
+  outbound_exits:
+    - [43.70, 30.90]
+    - [44.30, 30.90]
+    - [44.80, 30.90]
+  through_lanes:               # culoar nord-sud, departe de port
+    south: {lat: 43.56, lon_min: 29.90, lon_max: 30.40}
+    north: {lat: 44.94, lon_min: 30.00, lon_max: 30.60}
+  anchorage_id: ANCH-1         # din assets/infrastructure.geojson
+
+dark_vessel:                   # nava cargo care închide AIS 2 ore lângă platformă și cablu
+  mmsi: "636012345"
+  name: "MV SEA FALCON"
+  ship_type: cargo
+  speed_kn: 12.0
+  start: [44.100, 29.880]
+  last_seen: [44.255, 29.530]  # ultima poziție înainte de gaură (lângă PLT-N și CABLE-1)
+  gap_start_min: 90
+  gap_duration_min: 120
+  reappear: [44.235, 29.330]   # prea aproape pentru 2 ore la 12 kn => "prea lent"
+
+loiter_vessel:                 # a doua navă, AIS pornit, viteză mică în aceeași zonă
+  mmsi: "667001234"
+  name: "FV NORTHERN DAWN"
+  ship_type: fishing
+  appear_min: 10
+  start: [44.360, 29.700]
+  transit_speed_kn: 9.0
+  center: [44.275, 29.440]
+  loiter_duration_min: 180
+  loiter_sog_kn: 0.8
+  loiter_radius_km: 0.4
+  exit: [44.550, 30.100]
+  exit_speed_kn: 10.0
+
+fibre_events:                  # senzor fibră (DAS) pe CABLE-1, SIMULAT de injector
+  - {offset_min: 30, near: [44.180, 28.800], amplitude: 0.2, confidence: 0.3, note: "zgomot de fond lângă țărm"}
+  - {offset_min: 150, near: [44.258, 29.470], amplitude: 0.9, confidence: 0.8, note: "vibrație puternică"}
+  - {offset_min: 170, near: [44.259, 29.480], amplitude: 0.8, confidence: 0.75, note: "vibrație repetată"}
+
+expected:                      # folosit de skill-ul demo-check (minute de la start, termen maxim)
+  dark_alert_by_min: 130
+  loiter_alert_by_min: 150
+  critical_by_min: 160
+  acoustic_event_min: 140
+  fibre_event_min: 150
