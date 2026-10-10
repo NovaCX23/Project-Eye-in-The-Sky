@@ -118,7 +118,7 @@ main  <──(/integrate, Dev 4)──  role/<role>  <──(merge after /verify
 - Do not change `contracts/` except through the `contract-change` skill, and only on explicit request.
 - `main` must always run the demo. Follow "Git workflow": feature branch, frequent commits, `/verify` before merging.
 - Prefer the simplest thing that honours the contract. Mark shortcuts with `# STUB` or `# HACK` and a one-line reason.
-- Identifiers and file names in English; READMEs, code comments, and UI text in Romanian.
+- Everything is in English (identifiers, UI text, alert explanations, data, CLI output, READMEs, docs, pitch), except code comments and docstrings, which stay in Romanian.
 - Python 3.11+, pandas, numpy, shapely, pyyaml, pydantic, pytest. `librosa` only inside `acoustic/`.
 - Modules are run with `python -m` from the repo root. No `sys.path` hacks.
 - Read and write files as UTF-8; call `contracts.runtime.utf8_stdout()` in CLI entry points (Windows consoles).

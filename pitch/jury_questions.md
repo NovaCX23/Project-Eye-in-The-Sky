@@ -1,20 +1,20 @@
-# Întrebări probabile ale juriului
+# Likely jury questions
 
-1. **Câte alarme false dați pe trafic normal?** Răspuns din `metrics.md` (held-out). Zonele de excludere (radă, port)
-   și marginea acoperirii elimină sursele tipice.
-2. **Cât de repede alertați?** Gaura AIS se detectează la `now - ultimul mesaj > prag` (30 min, configurabil);
-   timpul mediu e în `metrics.md`.
-3. **Ce se întâmplă dacă AIS-ul e falsificat, nu oprit?** Regula de salt de poziție și verificarea de viteză la
-   reapariție, în ambele direcții.
-4. **De unde vin explicațiile? Folosiți un LLM?** Nu. Șabloane fixe completate cu cifrele detectorului; reproductibile.
-5. **De ce să avem încredere în scor?** E aditiv și transparent: fiecare factor are punctele lui, vizibile în interfață,
-   toate într-un singur `config.yaml`.
-6. **Datele sunt reale?** Nu, sintetice, marcate SIMULAT. Coordonatele sunt aproximative. Arhitectura acceptă AIS real
-   printr-un adaptor în `data/loader.py`.
-7. **Cum ați evitat să „trișați” la evaluare?** Pragurile se reglează pe un seed, cifrele se raportează pe altul (held-out);
-   pipeline-ul nu citește niciodată date din viitor (test automat).
-8. **Cum scalează la toată coasta / timp real?** Micro-batch azi; varianta live schimbă doar transportul
-   (intrare, ieșire, încărcătorul paginii).
-9. **Ce faceți cu o vibrație pe cablu fără nicio navă vizibilă?** Azi doar crește scorul alertelor din zonă; următorul pas
-   e alerta pornită doar de senzori.
-10. **Pe ce criteriu alegeți unitatea de patrulare?** ETA minim pe distanță pe cerc mare (simplificat: fără ocolirea uscatului).
+1. **How many false alarms do you raise on normal traffic?** Answer from `metrics.md` (held-out). The exclusion zones (anchorage, port)
+   and the coverage edge remove the typical sources.
+2. **How fast do you alert?** An AIS gap is detected when `now - last message > threshold` (30 min, configurable);
+   the mean time is in `metrics.md`.
+3. **What if the AIS is spoofed rather than switched off?** The position-jump rule and the speed check on
+   reappearance, in both directions.
+4. **Where do the explanations come from? Do you use an LLM?** No. Fixed templates filled with the detector's numbers; reproducible.
+5. **Why should we trust the score?** It is additive and transparent: each factor has its own points, visible in the UI,
+   all in a single `config.yaml`.
+6. **Is the data real?** No, it is synthetic and labelled SIMULATED. The coordinates are approximate. The architecture accepts real AIS
+   through an adapter in `data/loader.py`.
+7. **How did you avoid "cheating" on the evaluation?** Thresholds are tuned on one seed and numbers are reported on another (held-out);
+   the pipeline never reads data from the future (automated test).
+8. **How does it scale to the whole coast / real time?** Micro-batch today; the live variant changes only the transport
+   (input, output, the page loader).
+9. **What do you do with a vibration on the cable and no visible vessel?** Today it only raises the score of alerts in the area; the next step
+   is an alert triggered by sensors alone.
+10. **How do you choose the patrol unit?** Lowest ETA over great-circle distance (simplified: no routing around land).

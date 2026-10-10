@@ -98,13 +98,13 @@ def detect_speed_inconsistency(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]
             if reported >= c["min_expected_kn"]:
                 ratio = implied_kn / reported
                 if ratio < c["ratio_too_slow"]:
-                    direction = "prea_lent"
+                    direction = "too_slow"
                 elif ratio > c["ratio_too_fast"]:
-                    direction = "prea_rapid"
+                    direction = "too_fast"
             else:
                 ratio = None
                 if implied_kn > c["stationary_max_implied_kn"]:
-                    direction = "prea_rapid"
+                    direction = "too_fast"
             if direction is None:
                 continue
             out.append(_event(
@@ -219,7 +219,7 @@ def detect_loitering(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
 def run_all(df: pd.DataFrame, now: datetime, cfg: dict) -> list[SensorEvent]:
     """Toate regulile AIS. `df` trebuie să conțină doar mesaje cu timestamp <= now."""
     if len(df) and df["timestamp"].max() > pd.Timestamp(now):
-        raise ValueError("detect: am primit mesaje din viitor (timestamp > now)")
+        raise ValueError("detect: received messages from the future (timestamp > now)")
     if df.empty:
         return []
     return (

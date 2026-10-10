@@ -129,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     df = generate(args.seed, cfg, load_scenario())
     path = args.out_dir / "ais_clean.csv"
     write_csv(df, path)
-    print(f"[data.generate] seed={args.seed}: {df['mmsi'].nunique()} nave, {len(df)} mesaje -> {path}")
+    print(f"[data.generate] seed={args.seed}: {df['mmsi'].nunique()} vessels, {len(df)} messages -> {path}")
     return 0
 
 

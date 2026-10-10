@@ -1,9 +1,9 @@
 {
-  "description": "Unități de patrulare FICTIVE, poziții și viteze simulate pentru demo.",
+  "description": "FICTITIOUS patrol units; positions and speeds are simulated for the demo.",
   "simulated": true,
   "units": [
-    {"id": "UNIT-1", "name": "Nava de patrulare Alfa (simulat)", "base": "Constanța", "lat": 44.16, "lon": 28.68, "speed_kn": 25.0, "simulated": true},
-    {"id": "UNIT-2", "name": "Nava de patrulare Bravo (simulat)", "base": "Midia", "lat": 44.33, "lon": 28.70, "speed_kn": 22.0, "simulated": true},
-    {"id": "UNIT-3", "name": "Nava de patrulare Charlie (simulat, în larg)", "base": "patrulare", "lat": 44.05, "lon": 29.60, "speed_kn": 18.0, "simulated": true}
+    {"id": "UNIT-1", "name": "Patrol vessel Alfa (simulated)", "base": "Constanța", "lat": 44.16, "lon": 28.68, "speed_kn": 25.0, "simulated": true},
+    {"id": "UNIT-2", "name": "Patrol vessel Bravo (simulated)", "base": "Midia", "lat": 44.33, "lon": 28.70, "speed_kn": 22.0, "simulated": true},
+    {"id": "UNIT-3", "name": "Patrol vessel Charlie (simulated, offshore)", "base": "at sea", "lat": 44.05, "lon": 29.60, "speed_kn": 18.0, "simulated": true}
   ]
 }

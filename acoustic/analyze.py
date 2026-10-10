@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     events = analyze_all(load_config())
     path = args.out_dir / "acoustic_events.json"
     write_json_atomic(path, [e.model_dump(mode="json") for e in events])
-    print(f"[acoustic.analyze] {len(events)} evenimente acustice -> {path}")
+    print(f"[acoustic.analyze] {len(events)} acoustic events -> {path}")
     return 0
 
 

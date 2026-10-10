@@ -22,7 +22,7 @@ def test_example_is_valid(name):
 @pytest.mark.parametrize("name", sorted(ALL_MODELS))
 def test_exported_schema_is_up_to_date(name):
     assert schema_path(name).read_text(encoding="utf-8") == schema_text(name), (
-        "Rulați python -m contracts.export_schema (prin skill-ul contract-change)")
+        "Run python -m contracts.export_schema (through the contract-change skill)")
 
 
 @pytest.mark.parametrize("name", sorted(ALL_MODELS))

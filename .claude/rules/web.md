@@ -9,7 +9,7 @@ paths:
   `style.css`. Plain JavaScript, Leaflet from CDN, no build step, no npm.
 - Consumes: `out/timeline.json` (Timeline contract), `assets/infrastructure.geojson`, `assets/patrol_units.json`.
 - Produces: the demo screen: map, alert list, score broken down by factor, explanation lines, recommended unit,
-  time slider with speed control, growing uncertainty circle for a dark vessel, visible SIMULAT labels.
+  time slider with speed control, growing uncertainty circle for a dark vessel, visible SIMULATED labels.
 - Commands: `python -m core.demo`, then `python -m http.server 8000` at the repo root and open
   http://localhost:8000/web/ (`?src=<path>` loads another timeline). Live mode: also run `python -m core.pipeline --watch`.
 - Done when: the dark-vessel alert appears at its `created_at` during replay, its score grows factor by factor,

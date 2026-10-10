@@ -28,7 +28,7 @@ def activate_hooks() -> None:
     if os.name != "nt":
         for hook in (REPO_ROOT / HOOKS_DIR).iterdir():
             hook.chmod(hook.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-    print(f"Hook-uri git active: core.hooksPath = {HOOKS_DIR}")
+    print(f"Git hooks active: core.hooksPath = {HOOKS_DIR}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--hooks-only", action="store_true")
     args = ap.parse_args(argv)
     if sys.prefix == sys.base_prefix:
-        print("Atenție: nu rulați într-un mediu virtual. Recomandat: python -m venv .venv și activare.")
+        print("Warning: you are not running in a virtual environment. Recommended: python -m venv .venv, then activate it.")
     if not args.hooks_only:
         install_requirements()
     activate_hooks()

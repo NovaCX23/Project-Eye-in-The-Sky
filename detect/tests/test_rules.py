@@ -47,7 +47,7 @@ def test_gap_at_coverage_edge_ignored(t0, cfg):
     assert ais_rules.detect_gaps(df, t0 + timedelta(minutes=120), cfg) == []
 
 
-@pytest.mark.parametrize(("km_moved", "direction"), [(3.0, "prea_lent"), (60.0, "prea_rapid")])
+@pytest.mark.parametrize(("km_moved", "direction"), [(3.0, "too_slow"), (60.0, "too_fast")])
 def test_speed_inconsistency_both_directions(t0, cfg, km_moved, direction):
     # Raportează 12 kn; după 61 min de tăcere ar trebui să fie la ~22 km, dar e la km_moved.
     before = straight_track("111111111", t0, range(0, 20), *OPEN_SEA, sog=12.0)

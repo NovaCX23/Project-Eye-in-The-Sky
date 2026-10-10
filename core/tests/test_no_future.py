@@ -32,7 +32,7 @@ def _all_timestamps(obj):
 def _assert_nothing_after(tl, now):
     data = tl.model_dump(mode="json")
     late = [t for t in _all_timestamps(data) if t > now]
-    assert not late, f"timestamp-uri din viitor în timeline: {late[:3]}"
+    assert not late, f"future timestamps in the timeline: {late[:3]}"
 
 
 @pytest.fixture

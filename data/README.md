@@ -1,35 +1,35 @@
 # data/ (Dev 1)
 
-## Ce face
-- `loader.py`: citește AIS din CSV într-un DataFrame cu coloanele `PositionMessage`; cu `until=now` nu întoarce nimic din viitor.
-  `COLUMN_ALIASES` mapează nume uzuale de coloane (STUB până aflăm formatul organizatorilor).
-- `generate.py`: trafic normal sintetic cu seed fix: intrări în port, plecări, tranzit nord–sud, nave la ancoră în radă,
-  zgomot GPS și pauze scurte normale de transmisie.
-- `inject.py`: adaugă scenariul demo (nava care se stinge, nava care staționează), anomalii aleatoare din seed
-  (gaură AIS, salt de poziție, loitering), evenimentele de fibră SIMULATE și `ground_truth.json`.
-- `tracks.py`: deplasare pe waypoints, staționare, loitering (geometrie sferică).
-- `scenarios/demo.yaml`: geografia traficului și povestea demo (poziții, minute, nume de nave fictive).
+## What it does
+- `loader.py`: reads AIS from CSV into a DataFrame with the `PositionMessage` columns; with `until=now` it returns nothing from the future.
+  `COLUMN_ALIASES` maps common column names (STUB until we know the organisers' format).
+- `generate.py`: synthetic normal traffic with a fixed seed: port arrivals, departures, north–south transit, vessels at anchor,
+  GPS noise and short normal transmission dropouts.
+- `inject.py`: adds the demo scenario (the vessel that goes dark, the vessel that loiters), random anomalies from the seed
+  (AIS gap, position jump, loitering), the SIMULATED fibre events and `ground_truth.json`.
+- `tracks.py`: movement along waypoints, standing still, loitering (spherical geometry).
+- `scenarios/demo.yaml`: traffic geography and the demo story (positions, minutes, fictitious vessel names).
 
-## Consumă
+## Consumes
 `config.yaml` (`scenario`, `generator`, `injector`), `assets/infrastructure.geojson`, `contracts`.
 
-## Produce
-- `out/ais_clean.csv`: trafic normal
-- `out/ais.csv`: trafic + anomalii (rânduri `PositionMessage`, `simulated=true`)
-- `out/ground_truth.json`: lista anomaliilor (tip, MMSI, start, end, poziție, `expected_event_types`) + MMSI-urile normale
-- `out/fibre_events.json`: listă de `SensorEvent` cu `source="fibre"`, `simulated=true`
+## Produces
+- `out/ais_clean.csv`: normal traffic
+- `out/ais.csv`: traffic + anomalies (`PositionMessage` rows, `simulated=true`)
+- `out/ground_truth.json`: list of anomalies (type, MMSI, start, end, position, `expected_event_types`) + the normal MMSIs
+- `out/fibre_events.json`: list of `SensorEvent` with `source="fibre"`, `simulated=true`
 
-## Rulare separată
+## Running it on its own
 ```bash
 python -m data.generate --seed 42 --out-dir out
 python -m data.inject --seed 42 --out-dir out
 python -m pytest data
 ```
 
-## Sarcini (prioritizate)
-1. P0: adaptor pentru formatul AIS real al organizatorilor în `loader.py` (după răspunsul lor).
-2. P0: păstrați scenariul demo stabil; verificați cu `/demo-check` după fiecare schimbare.
-3. P1: mai mult realism normal: pescadoare lente în afara zonelor de excludere, pilot la intrarea în port.
-   Acestea testează alarmele false.
-4. P1: tipuri noi de anomalii pentru evaluare (`/add-anomaly`): spoofing de identitate, rendezvous între două nave.
-5. P2: mai multe seed-uri de raportare, medie pe seed-uri în `eval/`.
+## Tasks (prioritised)
+1. P0: adapter for the organisers' real AIS format in `loader.py` (once they answer).
+2. P0: keep the demo scenario stable; check with `/demo-check` after every change.
+3. P1: more realistic normal traffic: slow fishing boats outside the exclusion zones, a pilot boat at the port entrance.
+   These test false alarms.
+4. P1: new anomaly types for evaluation (`/add-anomaly`): identity spoofing, rendezvous between two vessels.
+5. P2: more reporting seeds, average across seeds in `eval/`.

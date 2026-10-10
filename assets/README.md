@@ -1,21 +1,21 @@
-# assets/ (comun)
+# assets/ (shared)
 
-**Coordonatele sunt APROXIMATIVE și ilustrative. Unitățile de patrulare sunt FICTIVE (simulate).**
+**The coordinates are APPROXIMATE and illustrative. The patrol units are FICTITIOUS (simulated).**
 
-## Ce conține
-- `infrastructure.geojson`: două platforme de gaz, o conductă platformă–țărm, un cablu submarin, rada de ancoraj
-  Constanța (poligon), coridorul de apropiere al portului (poligon). Proprietăți pe fiecare element:
-  `id`, `name`, `kind`, `protected` (contează la scor), `exclusion` (zonă unde viteza mică e normală), `approximate`.
-- `patrol_units.json`: trei unități cu poziție, viteză (kn) și `simulated: true`.
+## What it contains
+- `infrastructure.geojson`: two gas platforms, a platform-to-shore pipeline, a subsea cable, the Constanța anchorage
+  (polygon), the port approach corridor (polygon). Properties on each feature:
+  `id`, `name`, `kind`, `protected` (counts towards the score), `exclusion` (area where low speed is normal), `approximate`.
+- `patrol_units.json`: three units with position, speed (kn) and `simulated: true`.
 
-## Consumat de
-`contracts/assets.py` (încărcare), `detect/zones.py`, `core/fusion.py`, `core/patrol.py`, `data/generate.py`, `web/`.
+## Consumed by
+`contracts/assets.py` (loading), `detect/zones.py`, `core/fusion.py`, `core/patrol.py`, `data/generate.py`, `web/`.
 
-## Rulare separată
-Nu se rulează. După orice modificare: `python -m pytest` și `python .claude/skills/demo-check/check_story.py`,
-pentru că mutarea unui element mută povestea demo.
+## Running it on its own
+Nothing to run. After any change: `python -m pytest` and `python .claude/skills/demo-check/check_story.py`,
+because moving a feature moves the demo story.
 
-## Sarcini (prioritizate)
-1. P0: nicio schimbare fără acordul echipei; Dev 4 face merge-ul.
-2. P1: aliniați coordonatele cu o sursă publică, dacă organizatorii o permit; păstrați mențiunea „aprox.”.
-3. P2: al doilea cablu și zona de excludere pentru pescuit.
+## Tasks (prioritised)
+1. P0: no change without the team's agreement; Dev 4 does the merge.
+2. P1: align the coordinates with a public source, if the organisers allow it; keep the "approx." note.
+3. P2: a second cable and the fishing exclusion zone.
