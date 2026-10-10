@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SeaGrid — supraveghere infrastructură maritimă</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>SeaGrid</h1>
+    <span class="subtitle">Infrastructură maritimă românească — Marea Neagră</span>
+    <span id="sim-badge" class="badge sim" hidden>DATE SIMULATE</span>
+    <span class="badge approx">Coordonate aproximative</span>
+    <span id="status" class="status">Se încarcă…</span>
+  </header>
+
+  <main>
+    <div id="map"></div>
+    <aside>
+      <section>
+        <h2>Alerte <span id="alert-count" class="count">0</span></h2>
+        <ol id="alert-list" class="alert-list"></ol>
+        <p id="no-alerts" class="muted">Nicio alertă până la acest moment.</p>
+      </section>
+      <section id="detail" hidden>
+        <h2 id="detail-title"></h2>
+        <div id="detail-meta" class="muted"></div>
+        <h3>Scor pe factori</h3>
+        <div id="factors"></div>
+        <h3>Explicație</h3>
+        <ul id="detail-lines" class="lines"></ul>
+        <h3>Unitate recomandată</h3>
+        <div id="recommendation" class="muted"></div>
+      </section>
+    </aside>
+  </main>
+
+  <footer>
+    <button id="play" type="button" title="Redare / pauză">▶</button>
+    <input id="slider" type="range" min="0" max="1" step="1" value="0" aria-label="Timp">
+    <span id="clock" class="clock">--:--</span>
+    <label>Viteză
+      <select id="speed">
+        <option value="60">60×</option>
+        <option value="300" selected>300×</option>
+        <option value="900">900×</option>
+        <option value="1800">1800×</option>
+      </select>
+    </label>
+    <label title="Urmărește ultimul batch (mod --watch)"><input id="live" type="checkbox"> Live</label>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="loader.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
