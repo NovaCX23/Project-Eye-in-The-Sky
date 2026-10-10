@@ -35,6 +35,7 @@ class AlertMemory:
     # chiar dacă ulterior apare un eveniment cu același start (ex. inconsistența de viteză).
     primary_of_event: dict[str, str] = field(default_factory=dict)
     dispatched: dict[str, str] = field(default_factory=dict)  # alert_id -> unitatea deja trimisă
+    unit_legs: dict[str, list[patrol.Leg]] = field(default_factory=dict)  # unit_id -> trimiterile, în ordine
 
 
 @dataclass
@@ -93,7 +94,9 @@ def _infra(lat: float, lon: float) -> list[InfraProximity]:
 
 
 def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dict[str, str],
-                 memory: AlertMemory) -> list[Alert]:
+                 memory: AlertMemory, last_seen: dict[str, tuple[float, float]] | None = None) -> list[Alert]:
+    """last_seen: ultima poziție AIS a fiecărei nave la `now`; unitatea trimisă merge acolo (altfel la poziția alertei)."""
+    last_seen = last_seen or {}
     fc = cfg["fusion"]
     episodes = _episodes(events, now, cfg)
     context = sorted((e for e in events if e.source in CONTEXT_SOURCES), key=lambda e: (e.start, e.event_id))
@@ -170,13 +173,17 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
 
     # Unitățile se repartizează după ce se cunosc toate alertele: prioritate după nivel, scor, vechime.
     drafts.sort(key=lambda d: (-patrol.LEVEL_ORDER.index(d.level), -d.score, d.created, d.alert_id))
-    recs = patrol.assign([(d.alert_id, d.primary.lat, d.primary.lon, d.level) for d in drafts], cfg,
-                         memory.dispatched)
+    recs = patrol.assign([(d.alert_id, *last_seen.get(d.ep.mmsi, (d.primary.lat, d.primary.lon)), d.level)
+                          for d in drafts], cfg, memory.dispatched, now, memory.unit_legs)
+    eta_step = cfg["patrol"]["eta_update_min"]
     for d in drafts:
         rec = recs.get(d.alert_id)
         hist = memory.history.setdefault(d.alert_id, [])
         unit = rec.unit_id if rec else None
-        if not hist or hist[-1].score != d.score or hist[-1].unit_id != unit:
+        eta = rec.eta_min if rec else None
+        eta_moved = eta is not None and hist and hist[-1].eta_min is not None and (
+            abs(hist[-1].eta_min - eta) >= eta_step or (eta == 0 and hist[-1].eta_min != 0))
+        if not hist or hist[-1].score != d.score or hist[-1].unit_id != unit or eta_moved:
             hist.append(ScorePoint(t=now, score=d.score, level=d.level, unit_id=unit,
                                    eta_min=rec.eta_min if rec else None))
         name = names.get(d.ep.mmsi)

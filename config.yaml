@@ -121,6 +121,9 @@ score:
 patrol:
   recommend_min_level: high       # recomandăm o unitate de la acest nivel în sus
   one_alert_per_unit: true        # o unitate trimisă la o alertă nu mai e recomandată pentru alta
+  track_step_min: 1               # rezoluția traseelor unităților de patrulare în timeline
+  eta_update_min: 5               # punct nou în istoricul alertei când ETA-ul se schimbă cu cel puțin N min
+  on_scene_km: 2.0                # unitatea la mai puțin de atât de țintă e "on scene" (ETA 0) și o însoțește
 
 pipeline:
   replay_step_min: 5              # pasul ceasului simulat în modul replay (make demo)

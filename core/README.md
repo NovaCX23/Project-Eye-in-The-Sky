@@ -9,7 +9,11 @@
   was added, and the score history.
 - `scoring.py`: additive score with the points from `config.yaml`, capped; levels low/medium/high/critical.
 - `explain.py`: English templates filled with the detector's numbers. No LLM.
-- `patrol.py`: assigns patrol units by alert priority, one unit per alert, lowest ETA (haversine, straight line, STUB).
+- `patrol.py`: moving patrol units. Each unit loops its patrol route from `assets/patrol_units.json`; when dispatched it
+  heads from where it is to the vessel's last known AIS position at response speed (redirected if the vessel
+  reappears elsewhere) and escorts it once within `patrol.on_scene_km`. Units are assigned by alert priority,
+  one unit per alert, lowest ETA from the unit's position at `now` (haversine, straight line, STUB). Their tracks go into
+  the timeline as vessels with `ship_type: "patrol"`, so no contract change was needed.
 - `sinks.py`: output transport (atomic write of `out/timeline.json`).
 - `state.py`: `--watch` saves its state to `out/pipeline_state.json` after every batch and resumes from it after a restart,
   but only if the input data up to that moment is unchanged; otherwise it starts from the scenario start.
@@ -40,11 +44,15 @@ Variant A (server + WebSocket): only `sources.py` and `sinks.py` are replaced; e
    recommendation threshold. Telling the two cases apart needs a field in the contract (`/contract-change`), then a UI change (Dev 5).
 4. P1: ETA that routes around land. **Needs:** a coastline / land polygon in `assets/` (team agreement, Dev 4 merges).
    In the current demo every straight line stays at sea, so this does not change the story.
-5. P2: mention the acoustic signature in the explanation (`metrics.signature`: propeller vs. anchor chain),
+5. P2: a unit whose alert drops below the recommendation level stays where it is; it should return to its patrol route.
+   (Alerts never de-escalate in the current scenarios, so this does not show in the demo.)
+6. P2: mention the acoustic signature in the explanation (`metrics.signature`: propeller vs. anchor chain),
    now that `acoustic/` produces it.
 
 ## Done
 - ✔ Factor texts are frozen when the factor enters the score: scrubbing back never shows numbers not yet known.
 - ✔ One patrol unit per alert, assigned by priority (level, score, age); a dispatched unit stays with its alert.
 - ✔ `--watch` resumes from its saved state after a restart (`--fresh` starts over).
+- ✔ Moving patrol units: patrol routes from real bases, dispatch towards the alert, ETA from the current position that
+  counts down in the alert history until "on scene"; unit tracks in the timeline (`ship_type: "patrol"`).
 - ✔ UI, explanations, data, CLI output and docs switched to English.

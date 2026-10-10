@@ -48,6 +48,7 @@ GENERIC = "Event {code} (no dedicated template)."
 SIMULATED_SUFFIX = " [SIMULATED]"
 HEADER = "{name} (MMSI {mmsi}): risk {score}/100, level {level_text}."
 RECOMMENDATION = "Recommendation: {unit_name}, ETA {eta_min:.0f} min ({distance_km:.1f} km)."
+RECOMMENDATION_ON_SCENE = "Recommendation: {unit_name} is on scene."
 UNKNOWN_VESSEL = "Unknown vessel"
 
 
@@ -74,5 +75,5 @@ def alert_text(name: str | None, mmsi: str, score: int, level: str, details: lis
     parts = [HEADER.format(name=name or UNKNOWN_VESSEL, mmsi=mmsi, score=score, level_text=LEVEL_TEXT[level])]
     parts += [f"- {d}" for d in details]
     if rec:
-        parts.append(RECOMMENDATION.format(**rec))
+        parts.append((RECOMMENDATION_ON_SCENE if rec["eta_min"] == 0 else RECOMMENDATION).format(**rec))
     return "\n".join(parts)

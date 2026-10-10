@@ -18,7 +18,7 @@ import pandas as pd
 
 from contracts.models import SensorEvent, Timeline, TrackPoint, VesselTrack
 from contracts.runtime import OUT_DIR, iso, load_config, parse_time, utf8_stdout
-from core import sources
+from core import patrol, sources
 from core import state as state_store
 from core.fusion import AlertMemory, build_alerts
 from core.sinks import write_timeline
@@ -71,7 +71,11 @@ def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineS
     events = sorted(state.events.values(), key=lambda e: (e.start, e.event_id))
     names = (view.ais.dropna(subset=["vessel_name"]).groupby("mmsi")["vessel_name"].first().to_dict()
              if not view.ais.empty else {})
-    alerts = build_alerts(events, now, cfg, names, state.memory)
+    # Ultima poziție AIS cunoscută a fiecărei nave (<= now): ținta unității trimise.
+    last_seen = ({m: (float(r.lat), float(r.lon)) for m, r in
+                  view.ais.sort_values("timestamp").groupby("mmsi")[["lat", "lon"]].last().iterrows()}
+                 if not view.ais.empty else {})
+    alerts = build_alerts(events, now, cfg, names, state.memory, last_seen)
     state.batch_index += 1
     state.last_alerts = alerts
     if not emit:
@@ -83,7 +87,9 @@ def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineS
         now=now,
         simulated=bool(view.ais["simulated"].any()) or any(e.simulated for e in events),
         reload_interval_s=cfg["web"]["reload_interval_s"],
-        vessels=_tracks(view.ais, cfg["pipeline"]["coord_decimals"]),
+        # Unitățile de patrulare sunt tot piste de navă (ship_type="patrol"), calculate din trimiterile de până la now.
+        vessels=_tracks(view.ais, cfg["pipeline"]["coord_decimals"])
+        + patrol.tracks(state.memory.unit_legs, now, cfg, cfg["pipeline"]["coord_decimals"]),
         events=events,
         alerts=alerts,
     )
