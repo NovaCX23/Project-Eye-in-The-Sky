@@ -267,27 +267,50 @@ function render() {
 
   // Randare pings acustici activi la momentul t (numai markere circulare curate, FĂRĂ imagini în tooltips)
   layers.sensors.clearLayers();
+  // Randare pings acustici și senzori de fibră activi la momentul t
+  layers.sensors.clearLayers();
   for (const e of S.sensors) {
     if (e.s > t || t - e.s > SENSOR_SHOW_MIN * 60000) continue;
     const isAcoustic = e.source === "acoustic";
     const isSabotage = isAcoustic && e.metrics && e.metrics.signature === "anchor_chain";
-    const col = isSabotage ? "#e5484d" : "#a855f7";
 
-    let labelText = "";
     if (isAcoustic) {
+      const col = isSabotage ? "#e5484d" : "#a855f7";
       const sig = e.metrics && e.metrics.signature ? ` [${esc(e.metrics.signature).toUpperCase()} @ ${e.metrics.dominant_freq_hz || 50} Hz]` : "";
-      labelText = `<b>CONTACT ACUSTIC: ${esc(e.sensor_id)}</b><br>${sig} · Încredere ${e.confidence}<br><i>Click pentru raport detaliat</i>`;
-    } else {
-      labelText = `<b>SENZOR FIBRĂ</b> · km ${e.metrics.cable_km} · Vibrație cablu submarin`;
-    }
+      const labelText = `<b>CONTACT SONAR (HIDROFON): ${esc(e.sensor_id)}</b><br>${sig} · Încredere ${(e.confidence * 100).toFixed(0)}%<br><i>Click pentru raport detaliat</i>`;
 
-    L.circleMarker([e.lat, e.lon], { radius: 16, color: col, weight: 3, fillOpacity: 0.35 })
-      .bindTooltip(labelText, { direction: "top", offset: [0, -12] })
-      .on("click", () => {
-        const hyd = HYDROPHONES.find((h) => h.id === e.sensor_id);
-        if (hyd) openSonarModal(hyd);
-      })
-      .addTo(layers.sensors);
+      L.circleMarker([e.lat, e.lon], { radius: 16, color: col, weight: 3, fillOpacity: 0.35 })
+        .bindTooltip(labelText, { direction: "top", offset: [0, -12] })
+        .on("click", () => {
+          const hyd = HYDROPHONES.find((h) => h.id === e.sensor_id);
+          if (hyd) openSonarModal(hyd);
+        })
+        .addTo(layers.sensors);
+    } else {
+      // SENZOR DE FIBRĂ OPTICĂ (DAS) - Culoare Cyan #38bdf8 distinctă
+      const km = e.metrics && e.metrics.cable_km ? Number(e.metrics.cable_km).toFixed(1) : "?";
+      const note = e.metrics && e.metrics.note ? e.metrics.note : "vibrație pe cablu";
+      const isNearShore = note.includes("shore") || Number(km) < 15;
+      const colFibre = isNearShore ? "#38bdf8" : "#f97316";
+
+      let descText = "";
+      if (isNearShore) {
+        descText = `<span style="color:#93c5fd;">ℹ️ <b>Zgomot mecanic de coastă</b> (valuri/trafic la km ${km} lângă țărm). Inofensiv, fără amenințare.</span>`;
+      } else {
+        descText = `<span style="color:#f87171;">⚠️ <b>Vibrație mecanică intensă pe cablu</b> (suspiciune sabotaj submarin!).</span>`;
+      }
+
+      const labelText =
+        `<b>SENZOR FIBRĂ OPTICĂ (DAS)</b> · ${esc(e.metrics.cable_id || "CABLE-1")}<br>` +
+        `Poziție: Kilometrul <b>${km}</b> de la țărm<br>` +
+        `${descText}<br>` +
+        `Amplitudine: ${e.metrics.amplitude ?? "?"} · Încredere: ${(e.confidence * 100).toFixed(0)}%`;
+
+      L.circleMarker([e.lat, e.lon], { radius: 14, color: colFibre, weight: 3, fillColor: colFibre, fillOpacity: 0.4 })
+        .bindTooltip(labelText, { direction: "top", offset: [0, -12] })
+        .on("click", () => openFibreModal(e))
+        .addTo(layers.sensors);
+    }
   }
 
   updateRealtimeAudioBanner(t);
@@ -452,6 +475,49 @@ function openSonarModal(hyd) {
     </div>
   `;
 
+  modal.showModal();
+}
+
+function openFibreModal(e) {
+  const modal = $("sonar-modal");
+  if (!modal) return;
+  const km = e.metrics && e.metrics.cable_km ? Number(e.metrics.cable_km).toFixed(1) : "?";
+  const note = e.metrics && e.metrics.note ? e.metrics.note : "vibrație pe cablu";
+  const isNearShore = note.includes("shore") || Number(km) < 15;
+
+  $("modal-title").textContent = `Senzor Fibră Optică (DAS): ${esc(e.sensor_id || "DAS-CABLE-1")}`;
+  $("modal-body").innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span class="badge" style="background:${isNearShore ? '#0284c7' : '#dc2626'}; color:#fff; font-size:12px; padding:3px 10px;">
+        ${isNearShore ? "ZGOMOT INOFENSIV DE COASTĂ" : "SUSPICIUNE SABOTAJ"}
+      </span>
+      <span style="color:var(--muted); font-size:12px;">Cablul Submarin ${esc(e.metrics.cable_id || "CABLE-1")} · Km ${km}</span>
+    </div>
+    <div style="font-size:13px; margin-bottom:12px; color:#e2e8f0; line-height:1.5;">
+      <b>Ce reprezintă acest semnal la 06:30?</b><br>
+      ${isNearShore 
+        ? "Acesta este un <b>eveniment de zgomot mecanic de țărm</b> la km 8 de la coasta Constanței. Cablul submarin folosește tehnologia DAS (Distributed Acoustic Sensing). La km 8, la ora 06:30, senzorul a înregistrat zgomot inofensiv generat de valurile de mal sau ambarcațiuni de pescuit costier. Amplitudinea este foarte mică (0.2), iar încrederea este de doar 30%, deci sistemul <b>NU ridică nicio alertă de securitate</b>." 
+        : "Vibrație intensă pe cablul submarin în larg. Amplitudine ridicată compatibilă cu contact fizic sau târâre de ancoră peste cablu."}
+    </div>
+    <div class="modal-grid">
+      <div class="modal-card">
+        <b>Tip Senzor</b>
+        <span>Fibră Optică Submarină (DAS)</span>
+      </div>
+      <div class="modal-card">
+        <b>Poziție pe Cablu</b>
+        <span>Kilometrul ${km} de la țărm</span>
+      </div>
+      <div class="modal-card">
+        <b>Amplitudine Vibrație</b>
+        <span>${e.metrics.amplitude ?? "?"} (Prag periculos: > 0.5)</span>
+      </div>
+      <div class="modal-card">
+        <b>Notă Detector</b>
+        <span>${esc(note)}</span>
+      </div>
+    </div>
+  `;
   modal.showModal();
 }
 
