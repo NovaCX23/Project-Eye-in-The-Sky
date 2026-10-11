@@ -6,7 +6,7 @@ Regulă: nimic cu timestamp > now nu iese de aici.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -14,6 +14,7 @@ import pandas as pd
 from contracts.models import SensorEvent
 from contracts.runtime import read_json
 from data.loader import load_ais
+from data.recorded import load_recorded
 
 SENSOR_FILES = ("acoustic_events.json", "fibre_events.json")
 
@@ -32,6 +33,16 @@ def load_all(in_dir: Path) -> Inputs:
         if p.exists():
             sensors += [SensorEvent.model_validate(e) for e in read_json(p)]
     return Inputs(ais=load_ais(in_dir / "ais.csv"), sensors=sensors)
+
+
+def load_live(ais_dir: Path, start: datetime, now: datetime, cfg: dict) -> Inputs:
+    """AIS real înregistrat între start și now (data/raw/ais/<zonă>/). Niciun mesaj de după now."""
+    return Inputs(ais=load_recorded(start, now, ais_dir, cfg["live"]["static_days_before"]), sensors=[])
+
+
+def history(ais_dir: Path, now: datetime, cfg: dict) -> Inputs:
+    """Istoricul lung (live.coverage_history_days) din care se învață acoperirea și ancorajele."""
+    return load_live(ais_dir, now - timedelta(days=cfg["live"]["coverage_history_days"]), now, cfg)
 
 
 def until(inputs: Inputs, now: datetime) -> Inputs:

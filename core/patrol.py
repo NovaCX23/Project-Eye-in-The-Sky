@@ -176,12 +176,15 @@ def assign(candidates: list[tuple[str, float, float, str]], cfg: dict, dispatche
     return out
 
 
-def tracks(legs: dict[str, list[Leg]], now: datetime, cfg: dict, decimals: int) -> list[VesselTrack]:
-    """Traseele unităților de la scenario.start până la `now` (inclusiv), ca piste de navă în timeline."""
+def tracks(legs: dict[str, list[Leg]], now: datetime, cfg: dict, decimals: int,
+           since: datetime | None = None) -> list[VesselTrack]:
+    """Traseele unităților de la scenario.start (sau `since`, în modul live) până la `now`, ca piste de navă."""
     start = parse_time(cfg["scenario"]["start"])
     step = timedelta(minutes=cfg["patrol"]["track_step_min"])
     times = []
     t = start
+    while since is not None and t + step <= since:
+        t += step
     while t < now:
         times.append(t)
         t += step

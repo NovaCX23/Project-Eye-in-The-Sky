@@ -39,6 +39,11 @@ live:                             # data/aisstream.py, data/recorded.py
   anchorage_cell_deg: 0.02        # ancoraje învățate: celule unde multe nave stau pe loc
   anchorage_max_sog_kn: 0.5
   anchorage_min_vessels: 3
+  # core/live.py: pipeline-ul pe ceasul real
+  tick_s: 60                      # secunde reale între două batch-uri
+  window_min: 180                 # cât istoric recent arată pagina
+  lookback_min: 120               # AIS încărcat înaintea ferestrei (reguli care privesc înapoi: gaură, loitering)
+  zones_refresh_min: 60           # cât de des se reînvață acoperirea și ancorajele
 
 generator:                        # data/generate.py
   n_transit_inbound: 5
@@ -190,6 +195,7 @@ pipeline:
   watch_interval_s: 3             # secunde reale între micro-batch-uri în --watch
   watch_sim_step_min: 5           # minute simulate avansate la fiecare micro-batch
   coord_decimals: 5
+  track_min_interval_s: 30        # pistele afișate păstrează cel mult un punct la N secunde (AIS real e foarte des)
 
 web:
   reload_interval_s: 3            # cât de des reîncarcă pagina timeline.json

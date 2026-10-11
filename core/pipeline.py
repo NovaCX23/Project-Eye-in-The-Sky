@@ -23,6 +23,7 @@ from core import state as state_store
 from core.fusion import AlertMemory, build_alerts
 from core.sinks import write_timeline
 from detect import ais_rules
+from detect.zones import LearnedZones
 
 
 @dataclass
@@ -46,10 +47,25 @@ def _close_finished_gaps(state: PipelineState, ais: pd.DataFrame) -> None:
             state.events[eid] = e.model_copy(update={"end": back, "metrics": {**e.metrics, "gap_min": gap_min}})
 
 
-def _tracks(ais: pd.DataFrame, decimals: int) -> list[VesselTrack]:
+def _thin(times: pd.Series, min_interval_s: float) -> list[bool]:
+    """Păstrează un punct la cel mult min_interval_s secunde (AIS real raportează și la 2 s); ultimul rămâne mereu."""
+    keep, last = [], None
+    for t in times:
+        ok = last is None or (t - last).total_seconds() >= min_interval_s
+        keep.append(ok)
+        if ok:
+            last = t
+    if keep:
+        keep[-1] = True
+    return keep
+
+
+def _tracks(ais: pd.DataFrame, decimals: int, min_interval_s: float = 0) -> list[VesselTrack]:
     out = []
     for mmsi, g in ais.groupby("mmsi", sort=True):
         first = g.iloc[0]
+        if min_interval_s:
+            g = g[_thin(g["timestamp"], min_interval_s)]
         pts = [
             TrackPoint(t=t.to_pydatetime(), lat=round(la, decimals), lon=round(lo, decimals),
                        sog=None if pd.isna(s) else round(float(s), 1), cog=None if pd.isna(c) else round(float(c), 0))
@@ -62,10 +78,15 @@ def _tracks(ais: pd.DataFrame, decimals: int) -> list[VesselTrack]:
 
 
 def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineState, mode: str,
-              emit: bool = True) -> Timeline | None:
-    """Un micro-batch. Cu emit=False actualizează doar starea (replay rapid, fără a construi pistele)."""
+              emit: bool = True, learned: LearnedZones | None = None, window_start: datetime | None = None,
+              area_name: str | None = None, coverage: list[list[float]] | None = None) -> Timeline | None:
+    """Un micro-batch. Cu emit=False actualizează doar starea (replay rapid, fără a construi pistele).
+
+    Pe date reale (modul live): `learned` = zonele învățate din înregistrare, `window_start` = de unde se văd pistele,
+    `area_name` și `coverage` ajung în timeline pentru afișare.
+    """
     view = sources.until(inputs, now)  # singurul loc prin care intră datele: nimic din viitor
-    for e in ais_rules.run_all(view.ais, now, cfg) + view.sensors:
+    for e in ais_rules.run_all(view.ais, now, cfg, learned) + view.sensors:
         state.events[e.event_id] = e
     _close_finished_gaps(state, view.ais)
     events = sorted(state.events.values(), key=lambda e: (e.start, e.event_id))
@@ -80,16 +101,20 @@ def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineS
     state.last_alerts = alerts
     if not emit:
         return None
+    shown = view.ais if window_start is None else view.ais[view.ais["timestamp"] >= pd.Timestamp(window_start)]
+    dec = cfg["pipeline"]["coord_decimals"]
     tl = Timeline(
         mode=mode,
         batch_index=state.batch_index,
-        scenario_start=parse_time(cfg["scenario"]["start"]),
+        scenario_start=window_start or parse_time(cfg["scenario"]["start"]),
         now=now,
         simulated=bool(view.ais["simulated"].any()) or any(e.simulated for e in events),
         reload_interval_s=cfg["web"]["reload_interval_s"],
+        area_name=area_name,
+        ais_coverage=coverage or [],
         # Unitățile de patrulare sunt tot piste de navă (ship_type="patrol"), calculate din trimiterile de până la now.
-        vessels=_tracks(view.ais, cfg["pipeline"]["coord_decimals"])
-        + patrol.tracks(state.memory.unit_legs, now, cfg, cfg["pipeline"]["coord_decimals"]),
+        vessels=_tracks(shown, dec, cfg["pipeline"]["track_min_interval_s"])
+        + patrol.tracks(state.memory.unit_legs, now, cfg, dec, since=window_start),
         events=events,
         alerts=alerts,
     )

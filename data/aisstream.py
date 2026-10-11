@@ -155,6 +155,7 @@ class DailyCsv:
         day = row["received_utc"][:10].replace("-", "")
         if day != self.day:
             self.close()
+            self.out_dir.mkdir(parents=True, exist_ok=True)
             path = self.out_dir / f"{self.prefix}-{day}.csv"
             new = not path.exists()
             self.fh = open(path, "a", newline="", encoding="utf-8")
