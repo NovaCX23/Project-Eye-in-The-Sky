@@ -132,6 +132,7 @@ const S = {
   tracks: [], alerts: [], gapsByMmsi: {}, sensors: [], units: {}, unitByMmsi: {},
   subs: [], subSensors: {}, tlAlerts: [], revealedAlerts: new Set(),
   infraGeo: null, infraById: {}, infraHighlight: null,
+  userSelected: false,   // până la primul clic, panoul urmărește alerta cu scorul cel mai mare
 };
 
 const $ = (id) => document.getElementById(id);
@@ -457,6 +458,8 @@ function render() {
   $("slider").value = Math.round((t - S.start) / 1000);
   $("clock").textContent = fmtTime(t);
   const active = activeAlerts(t);
+  // Urmărire automată: fără o alegere a prezentatorului, detaliile arată alerta cu scorul cel mai mare.
+  if (!S.userSelected) S.selected = active.length ? active[0].a.alert_id : null;
   const levelByMmsi = {};
   for (const { a, st } of active) {
     const cur = levelByMmsi[a.mmsi];
@@ -727,10 +730,17 @@ function renderAcousticHistory() {
 const isHydroLive = (h, t) => t >= hydroTime(h) && t - hydroTime(h) < SENSOR_SHOW_MIN * 60000;
 
 function highlightActiveHistoryItem(t) {
-  for (const item of document.querySelectorAll(".history-item")) {
+  let shown = 0;
+  for (const item of document.querySelectorAll("#acoustic-history-list .history-item")) {
     const h = findHydro(item.dataset.id);
-    if (h) item.classList.toggle("is-live", isHydroLive(h, t));
+    if (!h) continue;
+    // La derulare nu arătăm contacte pe care sistemul nu le avea încă la momentul t.
+    item.hidden = hydroTime(h) > t;
+    if (!item.hidden) shown++;
+    item.classList.toggle("is-live", isHydroLive(h, t));
   }
+  const none = $("no-acoustic");
+  if (none) none.hidden = shown > 0;
 }
 
 // Banner „Ce se aude în timp real”
@@ -822,6 +832,7 @@ function renderDetail(t) {
 
 function select(id) {
   S.selected = id;
+  S.userSelected = true;
   const a = S.alerts.find((x) => x.alert_id === id);
   const sub = a && a.scripted ? S.subs.find((c) => c.id === a.sub_id) : null;
   const pos = sub ? subStateAt(sub, S.t) : null;

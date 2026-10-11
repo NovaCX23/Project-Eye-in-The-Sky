@@ -33,6 +33,7 @@ The map tiles (OpenStreetMap) need internet. Without a network, the SeaGrid laye
 2. P2: an offline map background (an image of the coast) for a room without internet.
 
 ## Done
+- ✔ Readability at 300×: until the presenter clicks an alert, the detail panel follows the highest-scoring alert; the acoustic history only lists contacts already reported at the cursor time (no spoilers when scrubbing).
 - ✔ The infrastructure nearest to the selected alert is highlighted on the map, and the alert panel lists the three nearest protected features with distances (from `nearest_infrastructure`).
 - ✔ A timeline with markers for the alert moments under the slider.
 - ✔ Critical alerts pulse on the map.

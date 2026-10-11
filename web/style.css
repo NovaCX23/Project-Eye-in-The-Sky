@@ -423,3 +423,4 @@ input[type=checkbox] { accent-color: var(--accent); }
 .infra-list li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--line); }
 .infra-list li:last-child { border-bottom: 0; }
 .infra-list li.nearest span { color: #e0b800; font-weight: 600; }
+.history-item[hidden] { display: none; }
