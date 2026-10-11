@@ -295,7 +295,10 @@ def detect_rendezvous(df: pd.DataFrame, cfg: dict, learned: LearnedZones | None 
             end_t = close_pts["timestamp"].max()
             dur_min = (end_t - start_t).total_seconds() / 60.0
 
-            if dur_min >= min_dur:
+            # Două nave nemișcate una lângă alta sunt ancorate în apropiere, nu o întâlnire (fals frecvent pe AIS real).
+            both_moored = (close_pts["sog_kn_a"].mean() <= c["max_moored_sog_kn"]
+                           and close_pts["sog_kn_b"].mean() <= c["max_moored_sog_kn"])
+            if dur_min >= min_dur and not both_moored:
                 clat = float((close_pts["lat_a"].mean() + close_pts["lat_b"].mean()) / 2.0)
                 clon = float((close_pts["lon_a"].mean() + close_pts["lon_b"].mean()) / 2.0)
                 if is_excluded("rendezvous", clat, clon, cfg, learned):

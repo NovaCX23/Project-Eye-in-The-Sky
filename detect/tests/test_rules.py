@@ -192,6 +192,15 @@ def test_learned_anchorage_excludes_loitering(t0, cfg):
 
 
 def test_moored_vessel_is_not_loitering(t0, cfg):
-    still = cfg["detect"]["loitering"]["max_moored_sog_kn"]
+    still = cfg["detect"]["loitering"]["max_moored_sog_kn"] / 2
     rows = straight_track("111111111", t0, range(0, 90), *OPEN_SEA, sog=still)
     assert ais_rules.detect_loitering(to_df(rows), cfg) == []
+
+
+def test_two_moored_vessels_side_by_side_are_not_a_rendezvous(t0, cfg):
+    # Pe AIS real: două nave la ancoră, la 850 m, nemișcate ore întregi. Nu e o întâlnire.
+    still = cfg["detect"]["rendezvous"]["max_moored_sog_kn"] / 2
+    vessel_a = straight_track("111111111", t0, range(0, 60), *OPEN_SEA, sog=still)
+    lat_b, lon_b = destination(OPEN_SEA[0], OPEN_SEA[1], 45.0, 0.85)
+    vessel_b = straight_track("222222222", t0, range(0, 60), lat_b, lon_b, sog=0.0)
+    assert ais_rules.detect_rendezvous(to_df(vessel_a + vessel_b), cfg) == []

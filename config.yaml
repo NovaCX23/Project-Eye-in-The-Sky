@@ -115,6 +115,7 @@ detect:
     min_duration_min: 15.0        # durata minimă a apropierii
     time_window_min: 5.0          # toleranță temporală între rapoarte
     min_messages: 4               # rapoarte apropiate minime pentru fiecare navă din pereche
+    max_moored_sog_kn: 0.3        # ambele nave atât de nemișcate => ancorate alături, nu rendezvous
   identity_spoofing:
     min_distance_km: 15.0         # distanță minimă între poziții simultane/aproape simultane
     max_dt_min: 3.0               # ecart maxim de timp între două rapoarte
