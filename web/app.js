@@ -827,7 +827,8 @@ function renderDetail(t) {
   const u = st.unit_id && S.units[st.unit_id];
   $("recommendation").innerHTML = st.unit_id
     ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ${st.eta_min === 0 ? "on scene" : `ETA ${st.eta_min != null ? Number(st.eta_min).toFixed(0) + " min" : "?"}`}${u && u.simulated ? SIM_TAG : ""}`
-    : "No unit recommended yet (below the recommendation level).";
+    // Timeline-ul nu spune de ce lipsește unitatea (sub nivelul de recomandare sau toate unitățile trimise deja).
+    : "No unit recommended at this moment (below the recommendation level, or every unit is already dispatched).";
 }
 
 function select(id) {
