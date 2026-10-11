@@ -36,6 +36,7 @@ const REF_STYLE = {
   license_block: { color: "#9fe870", weight: 1, opacity: 0.6, fillColor: "#9fe870", fillOpacity: 0.06 },
 };
 // Infrastructura cea mai apropiată de alerta selectată (din nearest_infrastructure, calculat de core).
+const COVERAGE_STYLE = { stroke: false, fillColor: "#3fb6a8", fillOpacity: 0.07, interactive: false };  // canvas: stil direct
 const INFRA_HIGHLIGHT = { color: "#ffe066", weight: 6, opacity: 1, fillOpacity: 0.18 };
 const INFRA_HIGHLIGHT_RADIUS = 11;
 const REF_POINT = { platform: "#f0a050", port: "#5b9be6", security_hub: "#3fb6a8", naval_base: "#f472b6" };
@@ -133,7 +134,21 @@ const S = {
   subs: [], subSensors: {}, tlAlerts: [], revealedAlerts: new Set(),
   infraGeo: null, infraById: {}, infraHighlight: null,
   userSelected: false,   // până la primul clic, panoul urmărește alerta cu scorul cel mai mare
+  realData: false,       // timeline în modul live (AIS real): fără elementele scriptate ale scenariului demo
+  fitted: false,         // harta s-a centrat o dată pe datele reale
 };
+
+// Elementele scenariului demo (hidrofoane și contacte submarine scriptate în pagină) nu au sens pe date reale.
+const showsDemoExtras = () => !S.realData;
+function setRealData(on) {
+  if (S.realData === on) return;
+  S.realData = on;
+  for (const el of document.querySelectorAll("[data-demo-only]")) el.hidden = on;
+  for (const el of document.querySelectorAll("[data-live-only]")) el.hidden = !on;
+  for (const key of ["hydroStations", "hydroCoverage", "submarines"]) {
+    if (on) map.removeLayer(layers[key]); else layers[key].addTo(map);
+  }
+}
 
 const $ = (id) => document.getElementById(id);
 const ms = (iso) => Date.parse(iso);
@@ -161,7 +176,7 @@ const isNearShoreNote = (note) => /near shore|coastal/i.test(note || "");
 const map = L.map("map", { preferCanvas: true, zoomControl: true }).setView(MAP_CENTER, MAP_ZOOM);
 const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 13,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · SeaGrid: simulated data, approximate coordinates',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · SeaGrid: approximate infrastructure coordinates',
 }).addTo(map);
 
 // Fără internet (sală fără rețea): după câteva dale eșuate desenăm un contur de uscat aproximativ, ca harta să nu fie goală.
@@ -184,6 +199,7 @@ map.createPane("glowHigh").style.zIndex = 450;
 const glowIcon = (cls, size) => L.divIcon({ className: "", html: `<div class="${cls}"></div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 
 const layers = {
+  coverage: L.layerGroup(),
   reference: L.layerGroup(),
   infra: L.layerGroup(),
   units: L.layerGroup(),
@@ -340,7 +356,7 @@ async function loadAssets() {
   ]);
   if (subs.status === "fulfilled") {
     S.subs = subs.value.contacts || [];
-    if (S.tl) S.alerts = S.tlAlerts.concat(scriptedAlerts());
+    if (S.tl && showsDemoExtras()) S.alerts = S.tlAlerts.concat(scriptedAlerts());
     for (const m of subs.value.low_cost_sensors || []) {
       S.subSensors[m.id] = m;
       L.circleMarker([m.lat, m.lon], { radius: 5, color: "#2dd4bf", weight: 2, fillColor: "#2dd4bf", fillOpacity: 0.25 })
@@ -405,7 +421,8 @@ function ingest(tl) {
     created: ms(a.created_at),
     hist: a.history.map((h) => ({ ...h, tm: ms(h.t) })),
   }));
-  S.alerts = S.tlAlerts.concat(scriptedAlerts());
+  setRealData(tl.mode === "live");
+  S.alerts = showsDemoExtras() ? S.tlAlerts.concat(scriptedAlerts()) : S.tlAlerts;
   S.gapsByMmsi = {};
   for (const e of tl.events.filter((e) => e.event_type === "ais_gap")) {
     (S.gapsByMmsi[e.mmsi] ||= []).push({ ...e, s: ms(e.start), e: e.end ? ms(e.end) : S.end });
@@ -413,13 +430,43 @@ function ingest(tl) {
   S.sensors = tl.events.filter((e) => e.source !== "ais").map((e) => ({ ...e, s: ms(e.start) }))
     .sort((a, b) => a.s - b.s);
   $("sim-badge").hidden = !tl.simulated;
+  $("live-badge").hidden = !S.realData;
+  $("live-badge").textContent = `LIVE · REAL AIS${tl.area_name ? " · " + tl.area_name : ""}`;
+  drawCoverage(tl.ais_coverage || []);
+  if (S.realData && !S.fitted) {
+    // Prima dată pe date reale: urmărim ultimul batch și centrăm harta pe zona unde se aude AIS.
+    S.fitted = true;
+    S.live = true;
+    $("live").checked = true;
+    const box = coverageBounds(tl.ais_coverage || []);
+    if (box) map.fitBounds(box, { padding: [20, 20] });
+  }
   $("slider").max = Math.max(1, Math.round((S.end - S.start) / 1000));
   if (S.live || S.t === 0 || S.t > S.end) S.t = S.live ? S.end : Math.min(Math.max(S.t, S.start), S.end);
   $("status").textContent = `mode ${tl.mode} · batch ${tl.batch_index} · now ${fmtTime(S.end)}`;
 
-  buildHydrophoneLayers();
-  renderAcousticHistory();
+  if (showsDemoExtras()) {
+    buildHydrophoneLayers();
+    renderAcousticHistory();
+  }
   render();
+}
+
+// Acoperirea AIS vine din timeline (celule învățate de core din înregistrare); pagina doar le desenează.
+let coverageKey = "";
+function drawCoverage(cells) {
+  const key = cells.length + ":" + (cells[0] || []).join(",") + ":" + (cells[cells.length - 1] || []).join(",");
+  if (key === coverageKey) return;
+  coverageKey = key;
+  layers.coverage.clearLayers();
+  for (const [s, w, n, e] of cells) {
+    L.rectangle([[s, w], [n, e]], COVERAGE_STYLE).addTo(layers.coverage);
+  }
+}
+
+function coverageBounds(cells) {
+  if (!cells.length) return null;
+  return L.latLngBounds(cells.flatMap(([s, w, n, e]) => [[s, w], [n, e]]));
 }
 
 // Stațiile de hidrofoane sunt fixe: se construiesc o singură dată (fără flicker la fiecare tick).
@@ -549,10 +596,12 @@ function render() {
   }
 
   highlightNearestInfra(sel && sel.created <= t ? sel : null);
-  renderSubmarines(t);
+  if (showsDemoExtras()) {
+    renderSubmarines(t);
+    updateRealtimeAudioBanner(t);
+    highlightActiveHistoryItem(t);
+  }
   renderPatrols(t, active);
-  updateRealtimeAudioBanner(t);
-  highlightActiveHistoryItem(t);
   renderAlertList(active);
   renderDetail(t);
   renderTimelineMarkers(t);

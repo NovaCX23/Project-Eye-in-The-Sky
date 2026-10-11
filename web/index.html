@@ -23,16 +23,18 @@
       <span class="subtitle">Romanian maritime infrastructure · Black Sea</span>
     </div>
     <span id="sim-badge" class="badge sim" hidden>SIMULATED DATA</span>
+    <span id="live-badge" class="badge live" hidden>LIVE · REAL AIS</span>
     <span class="badge approx">Approximate coordinates</span>
 
     <!-- Filtre afișare hartă: singura sursă de adevăr pentru vizibilitatea straturilor -->
     <div class="map-filters" role="group" aria-label="Map filters">
       <label class="pill"><input type="checkbox" data-layers="vessels,trails,uncertainty" checked><span>AIS vessels</span></label>
-      <label class="pill"><input type="checkbox" data-layers="hydroStations,sensors" checked><span>Hydrophones</span></label>
-      <label class="pill"><input type="checkbox" data-layers="hydroCoverage" checked><span>15 km ranges</span></label>
+      <label class="pill" data-live-only hidden><input type="checkbox" data-layers="coverage" checked><span>AIS coverage</span></label>
+      <label class="pill" data-demo-only><input type="checkbox" data-layers="hydroStations,sensors" checked><span>Hydrophones</span></label>
+      <label class="pill" data-demo-only><input type="checkbox" data-layers="hydroCoverage" checked><span>15 km ranges</span></label>
       <label class="pill"><input type="checkbox" data-layers="infra,reference" checked><span>Infrastructure</span></label>
       <label class="pill"><input type="checkbox" data-layers="units,routes" checked><span>Patrol units</span></label>
-      <label class="pill"><input type="checkbox" data-layers="submarines" checked><span>Submerged contacts</span></label>
+      <label class="pill" data-demo-only><input type="checkbox" data-layers="submarines" checked><span>Submerged contacts</span></label>
     </div>
 
     <span id="status" class="status">Loading…</span>
@@ -65,15 +67,15 @@
         <div id="recommendation" class="muted"></div>
       </section>
 
-      <!-- Contacte submarine (scenariu simulat, doar afișare) -->
-      <section class="card">
+      <!-- Contacte submarine (scenariu simulat, doar afișare; ascunse în modul live) -->
+      <section class="card" data-demo-only>
         <h2>Submerged Contacts <span id="sub-count" class="count">0</span></h2>
         <div id="sub-list" class="acoustic-history"></div>
         <p id="no-subs" class="muted">No submerged contact at this moment.</p>
       </section>
 
       <!-- Panou Acustic și Istoric -->
-      <section class="card sonar-panel">
+      <section class="card sonar-panel" data-demo-only>
         <div class="panel-header-row">
           <h2>Acoustic Surveillance</h2>
           <button type="button" id="btn-realtime-audio" class="btn-live-audio" title="Check which acoustic signal is being captured right now">

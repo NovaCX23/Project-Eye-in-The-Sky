@@ -111,6 +111,7 @@ h3 { font-size: 11px; margin: 14px 0 8px; color: var(--muted); text-transform: u
 .badge { padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; letter-spacing: .5px; }
 .badge.sim { background: rgba(184, 161, 240, .16); color: var(--sim); border: 1px solid rgba(184, 161, 240, .4); }
 .badge.approx { border: 1px solid var(--line); color: var(--muted); }
+.badge.live { background: rgba(63, 182, 168, .16); color: var(--ok, #3fb6a8); border: 1px solid rgba(63, 182, 168, .5); }
 .tag-sim { color: var(--sim); font-size: 10.5px; font-weight: 600; margin-left: 6px; letter-spacing: .4px; }
 
 /* Filtre hartă ca butoane-pastilă */
