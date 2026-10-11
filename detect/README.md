@@ -12,6 +12,15 @@ Naive but real AIS rules (they catch the demo scenario), in `ais_rules.py`:
 
 `zones.py` decides which rules take the exclusion zones into account (the anchorage, the port corridor).
 
+**On real AIS** (live mode), `core` passes `LearnedZones` learned from the recording (`data/recorded.py`):
+- `ais_gap` fires only where AIS is actually received (receiver coverage) and only for a vessel that was reporting
+  regularly (`detect.gap.min_messages_last_hour`): leaving radio range is not "going dark";
+- learned anchorages count as exclusion zones, like the drawn ones;
+- a vessel sitting still (mean speed <= `detect.loitering.max_moored_sog_kn`) is moored, not loitering.
+
+Without learned zones (synthetic data) the whole coverage box counts as covered. The tuning and held-out metrics
+did not change with these rules (100% detection, 0 false alarms on both seeds).
+
 ## Consumes
 A DataFrame of `PositionMessage` rows with timestamp `<= now` (guaranteed by `core/sources.py`; `run_all` raises otherwise),
 `now`, `config.yaml`.

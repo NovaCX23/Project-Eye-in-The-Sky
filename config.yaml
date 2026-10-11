@@ -91,6 +91,7 @@ detect:
     threshold_min: 30             # now - ultimul_mesaj > prag => ais_gap
     edge_margin_km: 15.0          # ignoră navele dispărute lângă marginea acoperirii
     min_uncertainty_speed_kn: 5.0 # viteza minimă folosită pentru zona de incertitudine
+    min_messages_last_hour: 6     # doar o navă care transmitea regulat poate "dispărea"
   speed_consistency:
     min_gap_min: 15               # se verifică doar la reapariție după o pauză > N min
     min_expected_kn: 3.0          # sub această viteză raportată nu putem judeca "prea lent"
@@ -104,6 +105,7 @@ detect:
     min_messages: 20
     max_mean_sog_kn: 3.0
     max_extent_km: 3.0            # diagonala bbox-ului pozițiilor din fereastră
+    max_moored_sog_kn: 0.3        # o navă atât de nemișcată e ancorată/acostată, nu în loitering
   position_jump:
     max_dt_min: 10                # doar perechi consecutive apropiate în timp
     max_implied_kn: 50.0
@@ -112,6 +114,7 @@ detect:
     max_sog_kn: 3.5               # viteza maximă pentru manevră de întâlnire
     min_duration_min: 15.0        # durata minimă a apropierii
     time_window_min: 5.0          # toleranță temporală între rapoarte
+    min_messages: 4               # rapoarte apropiate minime pentru fiecare navă din pereche
   identity_spoofing:
     min_distance_km: 15.0         # distanță minimă între poziții simultane/aproape simultane
     max_dt_min: 3.0               # ecart maxim de timp între două rapoarte

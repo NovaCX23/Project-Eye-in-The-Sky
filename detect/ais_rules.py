@@ -1,7 +1,8 @@
 """Reguli AIS: gaură de semnal, inconsistență de viteză la reapariție, loitering, salt de poziție.
 
-Intrare: DataFrame cu mesaje PositionMessage cu timestamp <= now (garantat de core), `now`, config.
-Ieșire: listă de SensorEvent. Fără stare, fără I/O: nu știe cum sunt livrate rezultatele.
+Intrare: DataFrame cu mesaje PositionMessage cu timestamp <= now (garantat de core), `now`, config și, pe date
+reale, zonele învățate din înregistrare (acoperire de recepție, ancoraje). Ieșire: listă de SensorEvent.
+Fără stare, fără I/O: nu știe cum sunt livrate rezultatele.
 
 # STUB: reguli naive, dar reale: prinde scenariul demo. Vezi detect/README.md pentru îmbunătățiri.
 """
@@ -16,7 +17,7 @@ import pandas as pd
 from contracts.geo import haversine_km, haversine_km_np, kmh_to_kn, kn_to_kmh
 from contracts.models import SensorEvent
 from contracts.runtime import stable_id
-from detect.zones import is_excluded
+from detect.zones import LearnedZones, coverage_bbox, is_covered, is_excluded
 
 
 def _event(event_type: str, mmsi: str, start, end, lat: float, lon: float, confidence: float,
@@ -43,10 +44,13 @@ def _edge_km(lat: float, lon: float, bbox: dict) -> float:
     )
 
 
-def detect_gaps(df: pd.DataFrame, now: datetime, cfg: dict) -> list[SensorEvent]:
-    """Gaură AIS = now - ultimul_mesaj > prag. NU diferența dintre două mesaje consecutive."""
+def detect_gaps(df: pd.DataFrame, now: datetime, cfg: dict, learned: LearnedZones | None = None) -> list[SensorEvent]:
+    """Gaură AIS = now - ultimul_mesaj > prag. NU diferența dintre două mesaje consecutive.
+
+    Nava trebuie să fi transmis regulat înainte, iar ultima poziție să fie unde AIS chiar se recepționează.
+    """
     c = cfg["detect"]["gap"]
-    bbox = cfg["scenario"]["coverage_bbox"]
+    bbox = coverage_bbox(cfg, learned)
     now_ts = pd.Timestamp(now)
     out = []
     last = df.loc[df.groupby("mmsi")["timestamp"].idxmax()]
@@ -56,8 +60,13 @@ def detect_gaps(df: pd.DataFrame, now: datetime, cfg: dict) -> list[SensorEvent]
             continue
         if _edge_km(r.lat, r.lon, bbox) < c["edge_margin_km"]:
             continue  # a ieșit din acoperire, nu e "dark"
-        if is_excluded("ais_gap", r.lat, r.lon, cfg):
+        if is_excluded("ais_gap", r.lat, r.lon, cfg, learned):
             continue
+        if not is_covered(r.lat, r.lon, learned):
+            continue  # acolo nu o aude niciun receptor: tăcerea nu dovedește nimic
+        recent = df[(df["mmsi"] == r.mmsi) & (df["timestamp"] > r.timestamp - pd.Timedelta(hours=1))]
+        if len(recent) < c["min_messages_last_hour"]:
+            continue  # nu transmitea regulat nici înainte
         sog = 0.0 if pd.isna(r.sog_kn) else float(r.sog_kn)
         rate_kmh = kn_to_kmh(max(sog, c["min_uncertainty_speed_kn"]))
         out.append(_event(
@@ -157,8 +166,10 @@ def detect_position_jumps(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
     return out
 
 
-def detect_loitering(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
+def detect_loitering(df: pd.DataFrame, cfg: dict, learned: LearnedZones | None = None) -> list[SensorEvent]:
     """Fereastră glisantă pe timp: viteză medie mică ȘI poziții strânse, în afara zonelor de excludere.
+
+    O navă practic nemișcată (viteză medie <= max_moored_sog_kn) e ancorată/acostată, nu în loitering.
 
     Episodul pornește la începutul primei ferestre valide, deci id-ul rămâne stabil când `now` avansează.
     """
@@ -204,7 +215,8 @@ def detect_loitering(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
             ep_start = slow[0] if len(slow) else win_start
             seg = s[(s.index >= ep_start) & (s.index <= times[j])]
             clat, clon = float(seg["lat"].mean()), float(seg["lon"].mean())
-            if not is_excluded("loitering", clat, clon, cfg):
+            moored = float(seg["sog_kn"].mean()) <= c["max_moored_sog_kn"]
+            if not moored and not is_excluded("loitering", clat, clon, cfg, learned):
                 ongoing = j == len(ok) - 1
                 dur = (times[j] - ep_start).total_seconds() / 60.0
                 out.append(_event(
@@ -223,7 +235,7 @@ def detect_loitering(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
     return out
 
 
-def detect_rendezvous(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
+def detect_rendezvous(df: pd.DataFrame, cfg: dict, learned: LearnedZones | None = None) -> list[SensorEvent]:
     """Detectează întâlniri suspecte între două nave (STS transfer / rendezvous).
 
     Identifică perechi de nave diferite care stau la distanță mică (<= max_distance_km),
@@ -236,8 +248,8 @@ def detect_rendezvous(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
     max_dist = float(c["max_distance_km"])
     max_sog = float(c["max_sog_kn"])
     min_dur = float(c["min_duration_min"])
-    min_msgs = int(c.get("min_messages", 4))
-    time_win_s = float(c.get("time_window_min", 5.0)) * 60.0
+    min_msgs = int(c["min_messages"])
+    time_win_s = float(c["time_window_min"]) * 60.0
 
     slow = df[df["sog_kn"].fillna(0) <= max_sog].copy()
     if slow["mmsi"].nunique() < 2:
@@ -286,7 +298,7 @@ def detect_rendezvous(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
             if dur_min >= min_dur:
                 clat = float((close_pts["lat_a"].mean() + close_pts["lat_b"].mean()) / 2.0)
                 clon = float((close_pts["lon_a"].mean() + close_pts["lon_b"].mean()) / 2.0)
-                if is_excluded("rendezvous", clat, clon, cfg):
+                if is_excluded("rendezvous", clat, clon, cfg, learned):
                     continue
 
                 mean_d = float(dist_km[close_mask].mean())
@@ -363,17 +375,20 @@ def detect_identity_spoofing(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
     return out
 
 
-def run_all(df: pd.DataFrame, now: datetime, cfg: dict) -> list[SensorEvent]:
-    """Toate regulile AIS. `df` trebuie să conțină doar mesaje cu timestamp <= now."""
+def run_all(df: pd.DataFrame, now: datetime, cfg: dict, learned: LearnedZones | None = None) -> list[SensorEvent]:
+    """Toate regulile AIS. `df` trebuie să conțină doar mesaje cu timestamp <= now.
+
+    `learned`: zonele învățate din AIS real (None pentru datele sintetice).
+    """
     if len(df) and df["timestamp"].max() > pd.Timestamp(now):
         raise ValueError("detect: received messages from the future (timestamp > now)")
     if df.empty:
         return []
     return (
-        detect_gaps(df, now, cfg)
+        detect_gaps(df, now, cfg, learned)
         + detect_speed_inconsistency(df, cfg)
-        + detect_loitering(df, cfg)
+        + detect_loitering(df, cfg, learned)
         + detect_position_jumps(df, cfg)
-        + detect_rendezvous(df, cfg)
+        + detect_rendezvous(df, cfg, learned)
         + detect_identity_spoofing(df, cfg)
     )
