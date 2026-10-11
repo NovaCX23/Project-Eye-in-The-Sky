@@ -1,0 +1,3 @@
+A ship can switch off its transponder. It can't switch off the radar.
+
+Eye in The Sky checks every ship-sized return in real Sentinel-1 radar against the AIS positions ships report, then flags the ones that went quiet and sends the nearest patrol boat. Pitch demo: real radar off Constanța, simulated AIS.
