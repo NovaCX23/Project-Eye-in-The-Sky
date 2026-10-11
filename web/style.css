@@ -25,6 +25,8 @@
   --info-text: #93c5fd;
   --time-text: #a9b8fb;
   --map-bg: #0a1119;
+  --land: #1c2733;
+  --land-edge: #3a4d63;
   --tile-filter: invert(1) hue-rotate(195deg) brightness(.82) contrast(.88) saturate(.45);
   --legend-bg: rgba(16, 26, 38, .3);
   --legend-text: #fff;
@@ -61,6 +63,8 @@
   --info-text: #1d6fb8;
   --time-text: #3b4fc4;
   --map-bg: #dfe8ef;
+  --land: #f1ede4;
+  --land-edge: #9fb0c0;
   --tile-filter: saturate(.75) brightness(1.02);
   --legend-bg: rgba(255, 255, 255, .62);
   --legend-text: #1b2a3a;
@@ -415,3 +419,13 @@ input[type=checkbox] { accent-color: var(--accent); }
   background: rgba(var(--glow-rgb), .15); filter: blur(.4px);
 }
 .legend i.base-swatch { border-radius: 4px; border: 2px solid rgba(var(--glow-rgb), .8); background: rgba(var(--glow-rgb), .15); box-shadow: none; }
+
+/* Infrastructura cea mai apropiată de alerta selectată */
+.leaflet-tooltip.infra-hl-label { background: #ffe066; color: #1b1500; border: 0; font-weight: 600; }
+.leaflet-tooltip-top.infra-hl-label:before { border-top-color: #ffe066; }
+.infra-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.infra-list li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+.infra-list li:last-child { border-bottom: 0; }
+.infra-list li.nearest span { color: #e0b800; font-weight: 600; }
+.history-item[hidden] { display: none; }
+.offline-land { fill: var(--land); fill-opacity: 1; stroke: var(--land-edge); }

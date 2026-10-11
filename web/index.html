@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
   <header>
@@ -57,6 +57,10 @@
         <div id="factors"></div>
         <h3>Tactical explanation</h3>
         <ul id="detail-lines" class="lines"></ul>
+        <div id="detail-infra-block" hidden>
+          <h3>Nearest critical infrastructure</h3>
+          <ol id="detail-infra" class="infra-list"></ol>
+        </div>
         <h3>Recommended unit</h3>
         <div id="recommendation" class="muted"></div>
       </section>
@@ -85,6 +89,7 @@
 
         <h3>Acoustic Detection History</h3>
         <div id="acoustic-history-list" class="acoustic-history"></div>
+        <p id="no-acoustic" class="muted">No acoustic contact up to this moment.</p>
       </section>
     </aside>
   </main>
@@ -121,6 +126,6 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="loader.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

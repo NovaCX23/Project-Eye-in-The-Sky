@@ -6,6 +6,11 @@ from datetime import datetime
 
 LEVEL_TEXT = {"low": "low", "medium": "medium", "high": "high", "critical": "critical"}
 DIRECTION_TEXT = {"too_slow": "too slow", "too_fast": "too fast"}
+SIGNATURE_TEXT = {
+    "propeller": "propeller cavitation / shaft harmonics",
+    "anchor_chain": "anchor chain friction",
+    "lowfreq_mixed": "mixed low-frequency noise",
+}
 
 LABELS = {
     "ais_gap": "AIS signal lost",
@@ -54,6 +59,11 @@ TEMPLATES = {
     "correlated_vessel": "Another suspicious vessel ({other_name}, MMSI {other_mmsi}) in the same area, {dist_km:.1f} km away.",
 }
 
+# Propoziții opționale: se adaugă doar dacă detectorul a furnizat cheia respectivă în metrics.
+OPTIONAL_TEMPLATES = {
+    "acoustic_lowfreq": [("signature", " Signature: {signature_text}, dominant frequency {dominant_freq_hz:.0f} Hz.")],
+}
+
 GENERIC = "Event {code} (no dedicated template)."
 SIMULATED_SUFFIX = " [SIMULATED]"
 HEADER = "{name} (MMSI {mmsi}): risk {score}/100, level {level_text}."
@@ -74,10 +84,18 @@ def factor_detail(code: str, values: dict, simulated: bool = False) -> str:
     v = dict(values)
     if "direction" in v:
         v["direction_text"] = DIRECTION_TEXT.get(v["direction"], v["direction"])
+    if "signature" in v:
+        v["signature_text"] = SIGNATURE_TEXT.get(v["signature"], v["signature"])
     try:
         text = TEMPLATES[code].format(**v)
     except (KeyError, ValueError, TypeError):
         text = GENERIC.format(code=code)
+    for key, extra in OPTIONAL_TEMPLATES.get(code, []):
+        if v.get(key) is not None:
+            try:
+                text += extra.format(**v)
+            except (KeyError, ValueError, TypeError):
+                pass
     return text + (SIMULATED_SUFFIX if simulated else "")
 
 

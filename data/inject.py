@@ -148,7 +148,8 @@ def inject_random(df: pd.DataFrame, cfg: dict, seed: int, t0: datetime, t_end: d
     }
     margin = timedelta(minutes=inj["random_margin_min"])
     gts: list[dict] = []
-    candidates = sorted(set(df["mmsi"]) - exclude)
+    eligible = set(df.loc[df["ship_type"].isin(inj["random_ship_types"]), "mmsi"])
+    candidates = sorted(eligible - exclude)
     rng.shuffle(candidates)
     for kind, count in inj["random_anomalies"].items():
         placed = 0
