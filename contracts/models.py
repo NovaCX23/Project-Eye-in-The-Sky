@@ -150,12 +150,17 @@ class Timeline(_Model):
     """The out/timeline.json file, the web UI's only input."""
 
     schema_version: str = SCHEMA_VERSION
-    mode: Literal["single", "replay", "watch"]
+    mode: Literal["single", "replay", "watch", "live"] = Field(
+        description="live = real AIS recorded right now, wall-clock time")
     batch_index: int = Field(ge=0)
     scenario_start: datetime
     now: datetime = Field(description="Nothing in the file has timestamp > now")
     simulated: bool
     reload_interval_s: float | None = None
+    area_name: str | None = Field(default=None, description="Real-data area (live mode); None for the demo scenario")
+    ais_coverage: list[list[float]] = Field(
+        default_factory=list,
+        description="Cells where AIS is actually received, [lat_s, lon_w, lat_n, lon_e]; empty = not measured")
     vessels: list[VesselTrack]
     events: list[SensorEvent]
     alerts: list[Alert]

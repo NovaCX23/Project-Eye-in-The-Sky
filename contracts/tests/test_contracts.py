@@ -45,3 +45,13 @@ def test_unknown_field_rejected():
     data = json.loads((EXAMPLES_DIR / "SensorEvent.json").read_text(encoding="utf-8"))
     data["surpriza"] = 1
     assert validate_data(data, "SensorEvent")
+
+
+def test_live_timeline_with_area_and_coverage():
+    # Câmpuri aditive pentru datele reale: fișierele vechi (fără ele) rămân valide, vezi exemplele.
+    data = json.loads((EXAMPLES_DIR / "Timeline.json").read_text(encoding="utf-8"))
+    data.update(mode="live", simulated=False, area_name="Varna sector, Bulgarian Black Sea",
+                ais_coverage=[[43.15, 28.0, 43.2, 28.05]])
+    assert validate_data(data, "Timeline") == []
+    data["mode"] = "realtime"
+    assert validate_data(data, "Timeline")

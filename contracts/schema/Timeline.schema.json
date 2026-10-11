@@ -566,12 +566,36 @@
   "additionalProperties": false,
   "description": "The out/timeline.json file, the web UI's only input.",
   "properties": {
+    "ais_coverage": {
+      "description": "Cells where AIS is actually received, [lat_s, lon_w, lat_n, lon_e]; empty = not measured",
+      "items": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "title": "Ais Coverage",
+      "type": "array"
+    },
     "alerts": {
       "items": {
         "$ref": "#/$defs/Alert"
       },
       "title": "Alerts",
       "type": "array"
+    },
+    "area_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Real-data area (live mode); None for the demo scenario",
+      "title": "Area Name"
     },
     "batch_index": {
       "minimum": 0,
@@ -586,10 +610,12 @@
       "type": "array"
     },
     "mode": {
+      "description": "live = real AIS recorded right now, wall-clock time",
       "enum": [
         "single",
         "replay",
-        "watch"
+        "watch",
+        "live"
       ],
       "title": "Mode",
       "type": "string"
