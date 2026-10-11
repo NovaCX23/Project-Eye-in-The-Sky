@@ -487,7 +487,7 @@ function render() {
       dashArray: gap ? "2 2" : null, fillColor: color, fillOpacity: gap ? 0.2 : 0.95,
     })
       .bindTooltip(
-        `<b>${esc(v.name || "Unknown vessel")}</b> · MMSI ${esc(v.mmsi)}<br>${p.sog ?? "?"} kn · ${p.cog ?? "?"}°` +
+        `<b>${esc(v.name || "Unknown vessel")}</b> · MMSI ${esc(v.mmsi)}${v.ship_type ? ` · ${esc(v.ship_type)}` : ""}<br>${p.sog ?? "?"} kn · ${p.cog ?? "?"}°` +
         `${gap ? "<br>AIS off since " + fmtTime(gap.s) : ""}${v.simulated ? "<br>SIMULATED" : ""}`)
       .on("click", () => { const a = active.find((x) => x.a.mmsi === v.mmsi); if (a) select(a.a.alert_id); })
       .addTo(layers.vessels);
