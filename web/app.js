@@ -35,6 +35,9 @@ const REF_STYLE = {
   eez_boundary: { color: "#f0525b", weight: 2, opacity: 0.7, dashArray: "12 6 2 6" },
   license_block: { color: "#9fe870", weight: 1, opacity: 0.6, fillColor: "#9fe870", fillOpacity: 0.06 },
 };
+// Infrastructura cea mai apropiată de alerta selectată (din nearest_infrastructure, calculat de core).
+const INFRA_HIGHLIGHT = { color: "#ffe066", weight: 6, opacity: 1, fillOpacity: 0.18 };
+const INFRA_HIGHLIGHT_RADIUS = 11;
 const REF_POINT = { platform: "#f0a050", port: "#5b9be6", security_hub: "#3fb6a8", naval_base: "#f472b6" };
 
 // Rețeaua națională extinsă de 18 hidrofoane submarine (acoperire completă ZEE Marea Neagră)
@@ -44,7 +47,7 @@ const ALL_HYDROPHONES = [
     id: "HYD-1",
     name: "Ana Gas Platform (Dark Transit)",
     lat: 44.265, lon: 29.490,
-    offsetSec: 8700, // 08:25 UTC
+    offsetSec: 8400, // 08:20 UTC
     clip: "lowfreq_tone.png",
     sig: "propeller",
     freq: 50,
@@ -128,6 +131,7 @@ const S = {
   tl: null, start: 0, end: 0, t: 0, playing: false, live: false, selected: null,
   tracks: [], alerts: [], gapsByMmsi: {}, sensors: [], units: {}, unitByMmsi: {},
   subs: [], subSensors: {}, tlAlerts: [], revealedAlerts: new Set(),
+  infraGeo: null, infraById: {}, infraHighlight: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -344,11 +348,15 @@ async function loadAssets() {
     }).addTo(layers.reference);
   } else console.warn(ref.reason);
   if (gj.status === "fulfilled") {
-    L.geoJSON(gj.value, {
+    S.infraGeo = L.geoJSON(gj.value, {
       style: (f) => INFRA_STYLE[f.properties.kind] || { color: "#ccc" },
       pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 7, color: "#fff", weight: 2, fillColor: "#f0a050", fillOpacity: 1 }),
-      onEachFeature: (f, l) => l.bindTooltip(esc(f.properties.name)),
+      onEachFeature: (f, l) => {
+        l.bindTooltip(esc(f.properties.name));
+        if (f.properties.id) S.infraById[f.properties.id] = l;
+      },
     }).addTo(layers.infra);
+    if (S.tl) render();
   } else console.warn(gj.reason);
   if (pu.status === "fulfilled") {
     // Bazele sunt fixe; unitățile în mișcare se desenează din pistele din timeline (renderPatrols).
@@ -523,6 +531,7 @@ function render() {
     }
   }
 
+  highlightNearestInfra(sel && sel.created <= t ? sel : null);
   renderSubmarines(t);
   renderPatrols(t, active);
   updateRealtimeAudioBanner(t);
@@ -530,6 +539,30 @@ function render() {
   renderAlertList(active);
   renderDetail(t);
   renderTimelineMarkers(t);
+}
+
+// Evidențiază infrastructura cea mai apropiată de alerta selectată. Distanța vine din timeline (core),
+// pagina doar schimbă stilul stratului deja desenat. Se reface doar când se schimbă selecția.
+function highlightNearestInfra(a) {
+  const near = a && a.nearest_infrastructure && a.nearest_infrastructure[0];
+  const key = near ? `${a.alert_id}:${near.infra_id}` : null;
+  if (key === (S.infraHighlight && S.infraHighlight.key)) return;
+  if (S.infraHighlight) {
+    const { layer, name } = S.infraHighlight;
+    S.infraGeo.resetStyle(layer);
+    if (layer.setRadius) layer.setRadius(7);
+    layer.unbindTooltip().bindTooltip(esc(name));
+    S.infraHighlight = null;
+  }
+  const layer = near && S.infraById[near.infra_id];
+  if (!layer) return;
+  layer.setStyle(INFRA_HIGHLIGHT);
+  if (layer.setRadius) layer.setRadius(INFRA_HIGHLIGHT_RADIUS);
+  if (layer.bringToFront) layer.bringToFront();
+  layer.unbindTooltip().bindTooltip(
+    `Nearest: <b>${esc(near.name)}</b> · ${num(near.distance_km, 1)} km`,
+    { permanent: true, direction: "top", className: "infra-hl-label" });
+  S.infraHighlight = { key, layer, name: near.name };
 }
 
 // ---------- contacte submarine (scenariu SIMULAT, doar afișare) ----------
@@ -775,6 +808,11 @@ function renderDetail(t) {
     return `<li>${esc(f.detail)}${extra}</li>`;
   }).join("");
   for (const b of $("detail-lines").querySelectorAll("button[data-hyd]")) b.onclick = () => openSonarModal(findHydro(b.dataset.hyd));
+
+  const near = a.nearest_infrastructure || [];
+  $("detail-infra-block").hidden = !near.length;
+  $("detail-infra").innerHTML = near.map((n, i) => `
+    <li class="${i === 0 ? "nearest" : ""}"><span>${esc(n.name)}</span><b>${num(n.distance_km, 1)} km</b></li>`).join("");
 
   const u = st.unit_id && S.units[st.unit_id];
   $("recommendation").innerHTML = st.unit_id
