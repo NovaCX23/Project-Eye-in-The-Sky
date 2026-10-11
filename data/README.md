@@ -32,8 +32,8 @@ python -m pytest data
 ## Tasks (prioritised)
 1. P0: adapter for the organisers' real AIS format in `loader.py` (once they answer).
 2. P0: keep the demo scenario stable; check with `/demo-check` after every change.
-3. P1: new anomaly types for evaluation (`/add-anomaly`): identity spoofing, rendezvous between two vessels.
-4. P2: more reporting seeds, average across seeds in `eval/`.
+3. P2: more reporting seeds, average across seeds in `eval/`.
 
 ## Done
+- ✔ Random anomalies now include rendezvous (two vessels) and identity spoofing (cloned transponder), each with ground truth; both detected on the tuning and reporting seeds, 0 false alarms.
 - ✔ Slow normal traffic: 3 trawlers outside the exclusion zones and a pilot boat in the port area. No events on them (tuning and reporting seeds, plus 8 extra seeds checked); 0 false alarms.

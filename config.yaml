@@ -49,6 +49,7 @@ injector:                         # data/inject.py
     position_jump: 1
     loitering: 1
     rendezvous: 1
+    identity_spoofing: 1            # clonă a transponderului, emisie simultană la distanță
   random_gap_min: 90
   random_jump_km: 25.0
   random_loiter_min: 90

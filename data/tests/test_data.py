@@ -62,3 +62,17 @@ def test_random_anomalies_only_on_allowed_ship_types(demo_out, cfg):
     for a in gt["anomalies"]:
         if a["origin"] == "random":
             assert types[a["mmsi"]] in cfg["injector"]["random_ship_types"]
+
+
+def test_identity_spoofing_is_injected(demo_out):
+    """Clona transponderului: ground truth + mesaje cu același MMSI, departe, intercalate cu cele reale."""
+    from contracts.geo import haversine_km
+
+    gt = read_json(demo_out / "ground_truth.json")
+    spoof = [a for a in gt["anomalies"] if a["type"] == "identity_spoofing"]
+    assert len(spoof) == 1 and spoof[0]["expected_event_types"] == ["identity_spoofing"]
+    a = spoof[0]
+    df = load_ais(demo_out / "ais.csv")
+    g = df[df["mmsi"] == a["mmsi"]]
+    clones = [r for r in g.itertuples() if haversine_km(r.lat, r.lon, a["lat"], a["lon"]) < 1.0]
+    assert len(clones) >= 2
