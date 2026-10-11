@@ -12,6 +12,34 @@ scenario:
   # Zona de acoperire AIS (bbox). Navele care ies din ea nu sunt "dark".
   coverage_bbox: {lat_min: 43.55, lat_max: 44.95, lon_min: 28.55, lon_max: 30.90}
 
+# Zone geografice pentru datele REALE (modul live). Scenariul demo sintetic rămâne pe scenario.coverage_bbox.
+# aisstream.io nu are receptor lângă Constanța (acoperirea vestică a Mării Negre se oprește la ~43.4°N, Balchik),
+# deci AIS real se înregistrează efectiv doar în zona varna.
+areas:
+  constanta:
+    name: "Constanța sector, Romanian Black Sea"
+    bbox: {lat_min: 43.55, lat_max: 44.95, lon_min: 28.30, lon_max: 30.90}
+  varna:
+    name: "Varna sector, Bulgarian Black Sea"
+    bbox: {lat_min: 42.65, lat_max: 43.55, lon_min: 27.85, lon_max: 29.30}
+
+live:                             # data/aisstream.py, data/recorded.py
+  area: varna                     # zona activă; variabila de mediu SEAGRID_AREA o suprascrie
+  stream_url: "wss://stream.aisstream.io/v0/stream"
+  flush_every_s: 30               # cât de des se scriu pe disc mesajele primite
+  idle_timeout_s: 120             # niciun mesaj atâta timp => reconectare
+  reconnect_min_s: 5
+  reconnect_max_s: 300
+  static_days_before: 7           # rapoartele statice (nume, tip, lungime) se caută cu N zile în urmă
+  # Hărți învățate din înregistrare (data/recorded.py): unde se recepționează AIS și unde stau navele ancorate.
+  coverage_history_days: 14
+  coverage_cell_deg: 0.05         # grila acoperirii de recepție
+  coverage_min_messages: 20       # o celulă e "acoperită" cu cel puțin N mesaje ...
+  coverage_min_vessels: 2         # ... de la cel puțin M nave, pe toată înregistrarea
+  anchorage_cell_deg: 0.02        # ancoraje învățate: celule unde multe nave stau pe loc
+  anchorage_max_sog_kn: 0.5
+  anchorage_min_vessels: 3
+
 generator:                        # data/generate.py
   n_transit_inbound: 5
   n_transit_outbound: 3
