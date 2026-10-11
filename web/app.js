@@ -159,10 +159,24 @@ const isNearShoreNote = (note) => /near shore|coastal/i.test(note || "");
 // STUB: dalele OpenStreetMap cer internet; fără rețea harta rămâne goală, dar straturile SeaGrid se văd.
 // Dalele sunt întunecate din CSS (.leaflet-tile-pane), ca harta să nu orbească lângă panourile închise.
 const map = L.map("map", { preferCanvas: true, zoomControl: true }).setView(MAP_CENTER, MAP_ZOOM);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 13,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · SeaGrid: simulated data, approximate coordinates',
 }).addTo(map);
+
+// Fără internet (sală fără rețea): după câteva dale eșuate desenăm un contur de uscat aproximativ, ca harta să nu fie goală.
+const OFFLINE_TILE_ERRORS = 4;
+let tileErrors = 0;
+let offlineShown = false;
+tiles.on("tileerror", () => {
+  if (++tileErrors < OFFLINE_TILE_ERRORS || offlineShown) return;
+  offlineShown = true;
+  map.createPane("land").style.zIndex = 250;   // peste dale (200), sub straturile SeaGrid (400+)
+  SeaGridLoader.fetchJSON("coastline_approx.geojson").then((gj) => {
+    L.geoJSON(gj, { renderer: L.svg({ pane: "land" }), interactive: false, style: { className: "offline-land", weight: 1 } }).addTo(map);
+    map.attributionControl.addAttribution("Offline: approximate coastline");
+  }).catch((err) => console.warn(err));
+});
 
 // Marcajele difuze (div-uri cu blur) stau în panouri proprii: hidrofoanele sub linii, unitățile peste ele.
 map.createPane("glowLow").style.zIndex = 350;
