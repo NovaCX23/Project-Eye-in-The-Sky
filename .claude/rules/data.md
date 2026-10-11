@@ -5,11 +5,13 @@ paths:
 
 # data/ (owner: Dev 1)
 
-- Owns: `loader.py` (CSV -> DataFrame with PositionMessage columns, `until=now` filter), `generate.py`
+- Owns: `aisstream.py` (real AIS recorder, aisstream.io -> `data/raw/ais/<area>/`), `recorded.py` (recording ->
+  PositionMessage rows, learned receiver coverage and anchorages),
+  `loader.py` (CSV -> DataFrame with PositionMessage columns, `until=now` filter), `generate.py`
   (synthetic normal traffic, fixed seed), `inject.py` (demo scenario + random anomalies + simulated fibre events +
   ground truth), `tracks.py` (motion helpers), `scenarios/demo.yaml` (story geometry and timing).
 - Consumes: `contracts` (PositionMessage, SensorEvent, geo, assets), `config.yaml` sections `scenario`,
-  `generator`, `injector`.
+  `generator`, `injector`, `areas`, `live`; `AISSTREAM_API_KEY` from `.env` (never printed or committed).
 - Produces: `out/ais_clean.csv`, `out/ais.csv` (PositionMessage rows), `out/ground_truth.json`,
   `out/fibre_events.json` (SensorEvent list, `simulated: true`).
 - Commands: `python -m data.generate --seed 42`, `python -m data.inject --seed 42`, `python -m pytest data`.

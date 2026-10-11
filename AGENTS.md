@@ -35,6 +35,10 @@ assets/ (infrastructure, patrol units) ──────┘        (<= now only
 ```
 
 - `python -m core.pipeline` runs micro-batches on a simulated clock; `--watch` reruns every N seconds.
+- Live mode on REAL AIS: `python -m data.aisstream` records the aisstream.io feed for the active area (`live.area`) into
+  `data/raw/ais/<area>/` (never committed); `python -m core.live` runs the same rules and fusion on it on the wall clock
+  and writes a `mode: "live"` timeline. Real data has no `simulated` flag; only the patrol units stay simulated.
+  aisstream.io has no receiver near Constanța, so real AIS arrives only in the `varna` area.
 - `contracts/` holds the pydantic models, exported JSON Schema, and examples. Everything exchanged between modules matches them.
 - Path to variant A (live server + WebSocket): replace only `core/sources.py`, `core/sinks.py`, and `web/loader.js`.
   `contracts/`, `detect/`, `acoustic/` must never import or assume anything about transport.
@@ -67,6 +71,8 @@ Run from the repo root with the virtualenv active. `make` is optional; each targ
 | `make serve` | `python -m http.server 8000` then open http://localhost:8000/web/ |
 | `make schema` | `python -m contracts.export_schema` |
 | `make validate` | `python -m contracts.validate out/timeline.json --model Timeline` |
+| `make record` | `python -m data.aisstream` (needs `AISSTREAM_API_KEY` in `.env`, see `.env.example`) |
+| `make live` | `python -m core.live` (real AIS, wall clock; run `make record` and `make serve` alongside) |
 
 Single steps: `python -m data.generate`, `python -m data.inject`, `python -m acoustic.analyze`, `python -m core.pipeline [--now ISO]`.
 Seeds: tuning `42`, held-out reporting `1337` (in `config.yaml`). Never tune thresholds on the reporting seed.
@@ -122,7 +128,9 @@ main  <──(/integrate, Dev 4)──  role/<role>  <──(merge after /verify
 - Python 3.11+, pandas, numpy, shapely, pyyaml, pydantic, pytest. `librosa` only inside `acoustic/`.
 - Modules are run with `python -m` from the repo root. No `sys.path` hacks.
 - Read and write files as UTF-8; call `contracts.runtime.utf8_stdout()` in CLI entry points (Windows consoles).
-- Do not download datasets. Do not add features beyond the module task lists.
+- Do not download datasets. Do not add features beyond the module task lists. Recording the live AIS feed
+  (`data.aisstream`) is not a dataset download; the recording stays in `data/raw/` and is never committed.
+- Secrets (the aisstream.io key) live only in `.env` (gitignored). Never print them, log them or write them to `out/`.
 
 ## Authorship: no AI co-authors
 

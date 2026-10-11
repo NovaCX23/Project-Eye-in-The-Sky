@@ -8,7 +8,8 @@ paths:
 - Owns: `ais_rules.py` (gap, speed inconsistency on reappearance, loitering, position jump), `zones.py`
   (exclusion-zone policy).
 - Consumes: a DataFrame of PositionMessage rows with timestamp <= `now` (core guarantees it; `run_all` raises
-  otherwise), `now`, `config.yaml` section `detect`, `contracts.geo`, `contracts.assets`.
+  otherwise), `now`, `config.yaml` section `detect`, `contracts.geo`, `contracts.assets`, and on real data the
+  `zones.LearnedZones` built by core (receiver coverage, anchorages; `None` for synthetic data).
 - Produces: `list[SensorEvent]` with `source="ais"`, ids from `stable_id("ais", type, mmsi, start)`, and every
   number the explanation template needs in `metrics`.
 - Commands: `python -m pytest detect`; end to end `python -m core.demo` then `python -m eval.evaluate`.

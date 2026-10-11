@@ -41,9 +41,27 @@ Each `make` target is a thin wrapper around a `python -m` command. Without `make
 | `make data` | `python -m data.generate` then `python -m data.inject` | data only |
 | `make acoustic` | `python -m acoustic.analyze` | acoustic events only |
 | `make pipeline` | `python -m core.pipeline` | pipeline only (replay) |
+| `make record` | `python -m data.aisstream` | records REAL AIS (needs `.env`, see below) |
+| `make live` | `python -m core.live` | pipeline on the real recording, wall clock |
 
-Live mode: run `python -m core.pipeline --watch` in one terminal and `python -m http.server 8000` in another, then tick "Live" on the page.
-If `--watch` is restarted it resumes where it stopped; add `--fresh` to start the scenario over.
+Watch mode (simulated clock): run `python -m core.pipeline --watch` in one terminal and `python -m http.server 8000` in another,
+then tick "Live" on the page. If `--watch` is restarted it resumes where it stopped; add `--fresh` to start the scenario over.
+
+### Live mode on REAL AIS
+
+1. Copy `.env.example` to `.env` and put your free aisstream.io key in it (https://aisstream.io, sign in with GitHub,
+   "API Keys"). `.env` is never committed.
+2. Pick the area in `config.yaml` (`live.area`, or the `SEAGRID_AREA` environment variable). **aisstream.io has no receiver
+   near Constanța**, so use `varna` to get real traffic.
+3. Three terminals:
+   ```bash
+   python -m data.aisstream     # = make record: keeps recording into data/raw/ais/<area>/
+   python -m core.live          # = make live: rewrites out/timeline.json every minute
+   python -m http.server 8000   # open http://localhost:8000/web/ (badge "LIVE · REAL AIS")
+   ```
+The rules learn from the recording where AIS is actually received and where ships anchor, so a ship leaving radio range
+or waiting at an anchorage is not an alert. A useful coverage map needs a few hours of recording.
+`python -m core.live --at <ISO time> --ais-dir <folder>` replays one moment of an existing recording.
 
 ## Architecture (variant B, micro-batch)
 
