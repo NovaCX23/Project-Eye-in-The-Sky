@@ -22,6 +22,8 @@ def test_dark_vessel_alert(demo_out):
     assert alert["recommendation"] is not None
     assert alert["simulated"] is True
     assert "too slow" in alert["explanation"]
+    acoustic = next(f for f in alert["factors"] if f["code"] == "acoustic_lowfreq")
+    assert "Signature: propeller" in acoustic["detail"]
 
 
 def test_loiter_vessel_alert(demo_out):

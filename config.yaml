@@ -28,6 +28,20 @@ generator:                        # data/generate.py
   dropout_min_s: 120
   dropout_max_s: 540              # sub speed_consistency.min_gap_min
   departure_window_min: 120       # navele plecate pornesc în primele N minute
+  # Trafic lent NORMAL (testează alarmele false): traulere pe platoul continental și o pilotină la port.
+  n_fishing: 3
+  fishing_speed_kn_min: 4.0       # viteză de traulare; peste pragurile de loitering/rendezvous chiar cu zgomot
+  fishing_speed_kn_max: 4.6
+  fishing_tow_km: 8.0             # lungimea unei trageri (linie dreaptă), apoi întoarcere
+  fishing_tow_spacing_km: 0.8     # distanța dintre trageri paralele
+  fishing_min_separation_km: 6.0  # traulerele pornesc departe unul de altul
+  n_pilot: 1
+  pilot_speed_kn: 14.0
+  pilot_berth_min: 30             # cât stă pilotina la dană între ieșiri
+  pilot_hold_min: 15              # cât așteaptă la intrarea în coridor nava de pilotat
+  pilot_hold_sog_kn: 1.5
+  pilot_hold_radius_km: 0.2
+  pilot_hold_inset_km: 1.5        # punctul de așteptare e în coridor, spre port față de intrare
 
 injector:                         # data/inject.py
   random_anomalies:               # anomalii suplimentare, alese din seed, pentru evaluare
@@ -35,12 +49,14 @@ injector:                         # data/inject.py
     position_jump: 1
     loitering: 1
     rendezvous: 1
+    identity_spoofing: 1            # clonă a transponderului, emisie simultană la distanță
   random_gap_min: 90
   random_jump_km: 25.0
   random_loiter_min: 90
   random_loiter_sog_kn: 0.8
   random_margin_min: 60           # anomaliile aleatoare nu încep/termină la marginea scenariului
   edge_safety_km: 25.0            # anomaliile aleatoare stau departe de marginea acoperirii
+  random_ship_types: [cargo, tanker]  # anomaliile aleatoare se pun doar pe aceste tipuri de nave
 
 detect:
   gap:

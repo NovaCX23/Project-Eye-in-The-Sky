@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "description": "APPROXIMATE, hand-drawn land outline (Bulgaria, Romania, Ukraine coast). Display only: offline background for the map when the OpenStreetMap tiles cannot load. Not used by detection, scoring or ETA.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "Land (approx.)", "approximate": true},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [27.47, 42.00], [27.47, 42.50], [27.90, 42.70], [27.92, 43.05], [27.95, 43.20], [28.17, 43.40],
+          [28.47, 43.36], [28.60, 43.54], [28.58, 43.74], [28.59, 43.81], [28.64, 43.95], [28.65, 44.06],
+          [28.67, 44.12], [28.66, 44.18], [28.63, 44.25], [28.64, 44.31], [28.68, 44.34], [28.78, 44.42],
+          [28.90, 44.55], [29.00, 44.68], [29.20, 44.78], [29.45, 44.85], [29.62, 44.89], [29.65, 45.00],
+          [29.73, 45.16], [29.70, 45.25], [29.75, 45.35], [30.10, 45.80], [30.50, 46.20], [30.75, 46.48],
+          [31.00, 46.60], [31.00, 47.50], [26.00, 47.50], [26.00, 42.00], [27.47, 42.00]
+        ]]
+      }
+    }
+  ]
+}

@@ -13,6 +13,7 @@ traffic:                       # geografia traficului normal (data/generate.py)
     south: {lat: 43.56, lon_min: 29.90, lon_max: 30.40}
     north: {lat: 44.94, lon_min: 30.00, lon_max: 30.60}
   anchorage_id: ANCH-1         # din assets/infrastructure.geojson
+  fishing_box: {lat_min: 44.50, lat_max: 44.66, lon_min: 29.35, lon_max: 29.85}  # zona de pescuit, departe de infrastructură
 
 dark_vessel:                   # nava cargo care închide AIS 2 ore lângă platformă și cablu
   mmsi: "636012345"

@@ -14,7 +14,7 @@ A static page (Leaflet from a CDN, plain JavaScript, no build) that replays `out
 
 ## Files
 `index.html`, `app.js` (rendering and replay), `loader.js` (transport: periodically reads `timeline.json`; the only file
-to change for variant A with WebSocket), `style.css`.
+to change for variant A with WebSocket), `style.css`, `coastline_approx.geojson` (hand-drawn, APPROXIMATE land outline, shown only when the map tiles fail to load).
 
 ## Consumes
 `../out/timeline.json` (or `?src=<path>`), `../assets/infrastructure.geojson`, `../assets/reference_infrastructure.geojson`, `../assets/patrol_units.json`.
@@ -26,15 +26,16 @@ python -m http.server 8000     # from the repo root
 # http://localhost:8000/web/
 ```
 Live: in another terminal run `python -m core.pipeline --watch`, then tick "Live".
-The map tiles (OpenStreetMap) need internet. Without a network, the SeaGrid layers show on a blank background.
+The map tiles (OpenStreetMap) need internet. Without a network, the page draws an approximate land outline instead ("Offline: approximate coastline" in the attribution).
 
 ## Tasks (prioritised)
 1. P0: demo rehearsal: the story must read clearly at 300× (alert, rising score, recommended unit).
-2. P1: a timeline with markers for the alert moments under the slider.
-3. P1: highlight the infrastructure nearest to the selected alert.
-4. P2: an offline map background (an image of the coast) for a room without internet.
 
 ## Done
+- ✔ Offline background: when the tiles fail to load, an approximate coastline is drawn so the map is not blank in a room without internet.
+- ✔ Readability at 300×: until the presenter clicks an alert, the detail panel follows the highest-scoring alert; the acoustic history only lists contacts already reported at the cursor time (no spoilers when scrubbing).
+- ✔ The infrastructure nearest to the selected alert is highlighted on the map, and the alert panel lists the three nearest protected features with distances (from `nearest_infrastructure`).
+- ✔ A timeline with markers for the alert moments under the slider.
 - ✔ Critical alerts pulse on the map.
 - ✔ Toggleable reference layer of real infrastructure (approx., not scored).
 - ✔ Acoustic panel: hydrophone and DAS fibre sensors shown separately, signatures, spectrograms and acoustic history.

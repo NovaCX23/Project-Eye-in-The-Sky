@@ -28,16 +28,15 @@ python -m core.demo && python -m eval.evaluate      # effect on the metrics
 From Python: `from detect.ais_rules import run_all`.
 
 ## Tasks (prioritised)
-1. P1: re-check loitering false alarms once `data/` adds slow normal traffic (fishing boats, pilot boats).
-   Today no normal vessel ever triggers a rule, so a lone loitering (20 points = `score.alert_min`) is safe;
-   with slow normal traffic it may not be.
-2. P1: a new rule with `/add-rule`, for example rendezvous (two slow vessels close together).
+1. P1: a new rule with `/add-rule`, for example rendezvous (two slow vessels close together).
    Needs an injected rendezvous anomaly first (`data/`, `/add-anomaly`), otherwise it cannot be evaluated.
-3. P2: loitering extent as a radius around the centroid instead of the bbox diagonal. A per-window haversine loop
+2. P2: loitering extent as a radius around the centroid instead of the bbox diagonal. A per-window haversine loop
    would slow the replay noticeably, and the bbox diagonal already catches every injected case on all seeds.
-4. P2: ignore service vessels (pilot, tug) by type (the synthetic traffic has none yet).
+3. P2: ignore service vessels (pilot, tug) by type. The synthetic pilot boat now exists but stays inside the port
+   exclusion zone, so it triggers nothing today.
 
 ## Done
+- ✔ Re-checked against the new slow normal traffic (3 trawlers, 1 pilot boat): no events on them, 0 false alarms on both seeds.
 - ✔ A lone loitering far from infrastructure now raises an alert (`score.points.loitering` 15 -> 20): held-out detection 80% -> 100%, 0 false alarms.
 - ✔ Expected speed on reappearance = median SOG of the `history_min` before the gap (the speed after reappearance no longer counts).
 - ✔ A loitering episode starts at the first slow message (the demo start now matches the ground truth).
