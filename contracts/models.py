@@ -158,6 +158,10 @@ class Timeline(_Model):
     simulated: bool
     reload_interval_s: float | None = None
     area_name: str | None = Field(default=None, description="Real-data area (live mode); None for the demo scenario")
+    area_assets: str | None = Field(
+        default=None,
+        description="Folder (relative to the repo root) with the area's infrastructure.geojson and patrol_units.json; "
+                    "None = assets/ (demo scenario)")
     ais_coverage: list[list[float]] = Field(
         default_factory=list,
         description="Cells where AIS is actually received, [lat_s, lon_w, lat_n, lon_e]; empty = not measured")

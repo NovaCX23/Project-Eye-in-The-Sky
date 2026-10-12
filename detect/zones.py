@@ -1,7 +1,8 @@
 """Zone de excludere și acoperire: unde un comportament (ex. viteză mică, tăcere) e normal sau nu dovedește nimic.
 
 Două surse:
-  - zonele desenate din assets/infrastructure.geojson (proprietatea "exclusion": true), mereu active;
+  - zonele desenate din infrastructure.geojson al zonei rulate (proprietatea "exclusion": true), mereu active
+    (assets/ pentru scenariul demo, assets/areas/<zonă>/ în modul live, vezi contracts.assets.area_assets_dir);
   - zonele învățate din înregistrarea AIS reală (LearnedZones, construite de core din data/recorded.py):
     ancorajele (excludere) și acoperirea de recepție (o tăcere în afara ei nu e o gaură AIS).
 Ce reguli țin cont de excludere se decide în config.yaml: detect.exclusion.applies_to.
@@ -12,7 +13,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from contracts.assets import in_exclusion_zone
+from contracts.assets import area_infrastructure, in_exclusion_zone
 
 LEARNED_ANCHORAGE = "learned-anchorage"
 
@@ -36,7 +37,7 @@ def is_excluded(rule: str, lat: float, lon: float, cfg: dict, learned: LearnedZo
     """Întoarce id-ul zonei care exclude regula în acest punct, sau None."""
     if rule not in cfg["detect"]["exclusion"]["applies_to"]:
         return None
-    zone = in_exclusion_zone(lat, lon)
+    zone = in_exclusion_zone(lat, lon, area_infrastructure(cfg))
     if zone is None and learned is not None and _cell(lat, lon, learned.anchorage_cell_deg) in learned.anchorages:
         zone = LEARNED_ANCHORAGE
     return zone

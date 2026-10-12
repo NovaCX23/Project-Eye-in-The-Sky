@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from contracts.assets import distance_to_feature_km, load_infrastructure
+from contracts.assets import area_infrastructure, distance_to_feature_km
 from contracts.geo import haversine_km
 from contracts.models import KNOWN_EVENT_TYPES, Alert, InfraProximity, ScoreFactor, ScorePoint, SensorEvent
 from contracts.runtime import stable_id
@@ -86,8 +86,8 @@ def _episodes(events: list[SensorEvent], now: datetime, cfg: dict) -> list[Episo
     return out
 
 
-def _infra(lat: float, lon: float) -> list[InfraProximity]:
-    feats = [f for f in load_infrastructure() if f.protected]
+def _infra(lat: float, lon: float, cfg: dict) -> list[InfraProximity]:
+    feats = [f for f in area_infrastructure(cfg) if f.protected]
     near = sorted(((distance_to_feature_km(lat, lon, f), f) for f in feats), key=lambda x: (x[0], x[1].infra_id))
     return [InfraProximity(infra_id=f.infra_id, name=f.name, kind=f.kind, distance_km=round(d, 2))
             for d, f in near[:NEAREST_INFRA_COUNT]]
@@ -118,7 +118,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
             raw.append((code, scoring.points_for(code, cfg), explain.factor_detail(code, vals, best.simulated),
                         best.event_id, best.simulated))
 
-        infra = _infra(p.lat, p.lon)
+        infra = _infra(p.lat, p.lon, cfg)
         if infra and infra[0].distance_km <= fc["infra_radius_km"]:
             i0 = infra[0]
             raw.append(("near_infrastructure", scoring.points_for("near_infrastructure", cfg),

@@ -16,8 +16,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from contracts.assets import area_assets_dir
 from contracts.models import SensorEvent, Timeline, TrackPoint, VesselTrack
-from contracts.runtime import OUT_DIR, iso, load_config, parse_time, utf8_stdout
+from contracts.runtime import OUT_DIR, REPO_ROOT, iso, load_config, parse_time, utf8_stdout
 from core import patrol, sources
 from core import state as state_store
 from core.fusion import AlertMemory, build_alerts
@@ -111,6 +112,7 @@ def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineS
         simulated=bool(view.ais["simulated"].any()) or any(e.simulated for e in events),
         reload_interval_s=cfg["web"]["reload_interval_s"],
         area_name=area_name,
+        area_assets=area_assets_dir(cfg).relative_to(REPO_ROOT).as_posix() if cfg.get("active_area") else None,
         ais_coverage=coverage or [],
         # Unitățile de patrulare sunt tot piste de navă (ship_type="patrol"), calculate din trimiterile de până la now.
         vessels=_tracks(shown, dec, cfg["pipeline"]["track_min_interval_s"])

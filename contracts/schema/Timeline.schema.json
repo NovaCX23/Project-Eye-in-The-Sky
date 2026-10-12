@@ -584,6 +584,19 @@
       "title": "Alerts",
       "type": "array"
     },
+    "area_assets": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Folder (relative to the repo root) with the area's infrastructure.geojson and patrol_units.json; None = assets/ (demo scenario)",
+      "title": "Area Assets"
+    },
     "area_name": {
       "anyOf": [
         {

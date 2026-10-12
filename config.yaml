@@ -12,7 +12,8 @@ scenario:
   # Zona de acoperire AIS (bbox). Navele care ies din ea nu sunt "dark".
   coverage_bbox: {lat_min: 43.55, lat_max: 44.95, lon_min: 28.55, lon_max: 30.90}
 
-# Zone geografice pentru datele REALE (modul live). Scenariul demo sintetic rămâne pe scenario.coverage_bbox.
+# Zone geografice pentru datele REALE (modul live). Scenariul demo sintetic rămâne pe scenario.coverage_bbox
+# și pe assets/; o zonă cu `assets` își ia infrastructura și unitățile din assets/<assets>/.
 # aisstream.io nu are receptor lângă Constanța (acoperirea vestică a Mării Negre se oprește la ~43.4°N, Balchik),
 # deci AIS real se înregistrează efectiv doar în zona varna.
 areas:
@@ -22,6 +23,7 @@ areas:
   varna:
     name: "Varna sector, Bulgarian Black Sea"
     bbox: {lat_min: 42.65, lat_max: 43.55, lon_min: 27.85, lon_max: 29.30}
+    assets: areas/varna           # infrastructură și unități de patrulare proprii (relativ la assets/)
 
 live:                             # data/aisstream.py, data/recorded.py
   area: varna                     # zona activă; variabila de mediu SEAGRID_AREA o suprascrie

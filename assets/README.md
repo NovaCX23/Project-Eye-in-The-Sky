@@ -12,6 +12,12 @@
 - `simulated_submarine_contacts.json`: SIMULATED, hand-authored scenario for the replay: two submerged contacts
   (tracks with uncertainty and confidence) and two low-cost magnetometer buoys. SC-1 has a SCRIPTED critical assessment
   (hand-authored score and factors, same points and thresholds as `config.yaml`). Read only by `web/`, never by the pipeline.
+- `areas/<area>/`: the scored layer and patrol units of a real-data area, used only by live mode
+  (`config.yaml` `areas.<area>.assets`). `areas/varna/infrastructure.geojson`: the Galata platform and the
+  Kaliakra/Kamchia wellheads, the Galata pipeline, the KAFOS Varna branch and the Caucasus Cable System landing at
+  Balchik (protected), plus the Varna Bay and Balchik harbour approaches (exclusion); same properties as above, each
+  with a `source` link. `areas/varna/patrol_units.json`: three FICTITIOUS units at Varna naval base and Balchik.
+  The demo scenario never reads `areas/`.
 - `reference_infrastructure.geojson`: DISPLAY ONLY. Real-world infrastructure from the documents in this folder
   (`Rezumat.docx` and its subfolders): Neptun Deep (Domino, Pelican Sud) and its pipeline to Tuzla, the Port of
   Constanța and its maritime security hub, the BSSC power cable, the KAFOS data cable (Mangalia landing) and the

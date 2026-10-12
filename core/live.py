@@ -39,6 +39,8 @@ class Live:
         self.lc = cfg["live"]
         self.ais_dir, self.out_dir = ais_dir, out_dir
         area = active_area(cfg)
+        # Zona rulată: infrastructura și unitățile de patrulare vin din assets/areas/<zonă>/ (contracts.assets).
+        self.cfg["active_area"] = area
         self.area_name = cfg["areas"][area]["name"]
         self.bbox = cfg["areas"][area]["bbox"]
         self.learned: LearnedZones | None = None

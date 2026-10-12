@@ -64,6 +64,11 @@ def test_live_gap_alert_inside_receiver_coverage(tmp_path, cfg, monkeypatch):
     dark = [a for a in tl.alerts if a.mmsi == DARK]
     assert [a.alert_type for a in dark] == ["ais_gap"]
     assert dark[0].vessel_name == "REAL 1"
+    # Infrastructura și unitățile de patrulare ale zonei varna, nu cele ale scenariului demo (Constanța).
+    assert tl.area_assets == "assets/areas/varna"
+    assert dark[0].nearest_infrastructure and all(i.infra_id.startswith("BG-") for i in dark[0].nearest_infrastructure)
+    patrols = [v for v in tl.vessels if v.ship_type == "patrol"]
+    assert patrols and all(v.mmsi.startswith("207") for v in patrols)
     _assert_nothing_after(tl, NOW)
     assert (tmp_path / "out" / "timeline.json").exists()
 
