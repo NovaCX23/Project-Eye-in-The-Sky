@@ -36,6 +36,7 @@ const REF_STYLE = {
   license_block: { color: "#9fe870", weight: 1, opacity: 0.6, fillColor: "#9fe870", fillOpacity: 0.06 },
 };
 // Infrastructura cea mai apropiată de alerta selectată (din nearest_infrastructure, calculat de core).
+const LIVE_FIT_MAX_ZOOM = 10;   // prima centrare pe date reale nu intră mai aproape de atât
 const COVERAGE_STYLE = { stroke: false, fillColor: "#3fb6a8", fillOpacity: 0.07, interactive: false };  // canvas: stil direct
 const INFRA_HIGHLIGHT = { color: "#ffe066", weight: 6, opacity: 1, fillOpacity: 0.18 };
 const INFRA_HIGHLIGHT_RADIUS = 11;
@@ -239,13 +240,17 @@ legend.onAdd = () => {
     Object.entries(LEVEL_COLOR).map(([k, c]) => `<div><i style="background:${c}"></i>${LEVEL_LABEL[k]} alert</div>`).join("") +
     `<div><i class="glow-swatch"></i>Patrol unit (simulated) · dashed line = dispatched</div>` +
     `<div><i class="base-swatch"></i>Patrol base</div>` +
+    `<div data-live-only hidden><i style="background:rgba(63,182,168,.35)"></i>AIS coverage (reception measured)</div>` +
+    `<div data-demo-only>` +
     `<div class="legend-head">Sensors</div>` +
     `<div><i style="background:#a855f7; border-radius:50%"></i>Hydrophone with contact</div>` +
     `<div><i class="glow-swatch round"></i>Hydrophone on standby</div>` +
     `<div><i style="background:#f97316; border-radius:50%"></i>Fibre-optic (DAS) event</div>` +
     `<div><i class="glow-swatch sub"></i>Submerged contact (simulated)</div>` +
     `<div><i class="dot" style="border-color:#2dd4bf"></i>Magnetometer buoy (simulated)</div>` +
-    `<div class="legend-head">Demo infrastructure</div>` +
+    `</div>` +
+    `<div class="legend-head">Scored infrastructure</div>` +
+    `<div><i class="dot" style="border-color:#fff; background:#f0a050"></i>Gas platform</div>` +
     `<div><i style="background:#f0a050"></i>Pipeline</div><div><i style="background:#b48af0"></i>Subsea cable</div>` +
     `<div class="legend-head">Reference (display only)</div>` +
     `<div><i class="dot" style="border-color:#f0a050"></i>Oil / gas platform</div>` +
@@ -347,11 +352,9 @@ function refTooltip(p) {
 }
 
 async function loadAssets() {
-  // Cele trei fișiere se încarcă în paralel; un fișier lipsă nu le blochează pe celelalte.
-  const [ref, gj, pu, subs] = await Promise.allSettled([
+  // Fișierele se încarcă în paralel; un fișier lipsă nu le blochează pe celelalte.
+  const [ref, subs] = await Promise.allSettled([
     SeaGridLoader.fetchJSON(ASSETS + "reference_infrastructure.geojson"),
-    SeaGridLoader.fetchJSON(ASSETS + "infrastructure.geojson"),
-    SeaGridLoader.fetchJSON(ASSETS + "patrol_units.json"),
     SeaGridLoader.fetchJSON(ASSETS + "simulated_submarine_contacts.json"),
   ]);
   if (subs.status === "fulfilled") {
@@ -378,6 +381,22 @@ async function loadAssets() {
       onEachFeature: (f, l) => l.bindTooltip(refTooltip(f.properties), { sticky: true }),
     }).addTo(layers.reference);
   } else console.warn(ref.reason);
+}
+
+// Infrastructura punctată și unitățile de patrulare ale zonei rulate: assets/ pentru scenariul demo,
+// timeline.area_assets în modul live (ex. assets/areas/varna). Se reîncarcă doar când se schimbă zona.
+async function loadAreaAssets(base) {
+  if (S.assetsBase === base) return;
+  S.assetsBase = base;
+  const [gj, pu] = await Promise.allSettled([
+    SeaGridLoader.fetchJSON(base + "infrastructure.geojson"),
+    SeaGridLoader.fetchJSON(base + "patrol_units.json"),
+  ]);
+  if (S.assetsBase !== base) return;   // între timp a sosit un timeline din altă zonă
+  layers.infra.clearLayers();
+  layers.units.clearLayers();
+  S.infraGeo = null; S.infraById = {}; S.infraHighlight = null;
+  S.units = {}; S.unitByMmsi = {};
   if (gj.status === "fulfilled") {
     S.infraGeo = L.geoJSON(gj.value, {
       style: (f) => INFRA_STYLE[f.properties.kind] || { color: "#ccc" },
@@ -433,13 +452,19 @@ function ingest(tl) {
   $("live-badge").hidden = !S.realData;
   $("live-badge").textContent = `LIVE · REAL AIS${tl.area_name ? " · " + tl.area_name : ""}`;
   drawCoverage(tl.ais_coverage || []);
+  loadAreaAssets(tl.area_assets ? "../" + tl.area_assets + "/" : ASSETS);
   if (S.realData && !S.fitted) {
     // Prima dată pe date reale: urmărim ultimul batch și centrăm harta pe zona unde se aude AIS.
     S.fitted = true;
     S.live = true;
     $("live").checked = true;
+    // Navele văzute plus acoperirea învățată (la început, câteva celule lângă port).
+    const ships = S.tracks.filter((v) => v.ship_type !== PATROL_TYPE && v.points.length)
+      .map((v) => [v.points[v.points.length - 1].lat, v.points[v.points.length - 1].lon]);
     const box = coverageBounds(tl.ais_coverage || []);
-    if (box) map.fitBounds(box, { padding: [20, 20] });
+    if (ships.length && box) box.extend(L.latLngBounds(ships));
+    const fit = box || (ships.length > 1 ? L.latLngBounds(ships) : null);
+    if (fit) map.fitBounds(fit, { padding: [20, 20], maxZoom: LIVE_FIT_MAX_ZOOM });
   }
   $("slider").max = Math.max(1, Math.round((S.end - S.start) / 1000));
   if (S.live || S.t === 0 || S.t > S.end) S.t = S.live ? S.end : Math.min(Math.max(S.t, S.start), S.end);
@@ -1044,6 +1069,7 @@ applyTheme(document.documentElement.dataset.theme === "day" ? "day" : "night");
 $("theme-toggle").onclick = () => applyTheme(document.documentElement.dataset.theme === "day" ? "night" : "day");
 
 loadAssets();
+loadAreaAssets(ASSETS);
 SeaGridLoader.start(ingest, (err) => {
   $("status").textContent = `Cannot load ${SeaGridLoader.SRC}: run make demo and serve the repo root.`;
   console.error(err);
