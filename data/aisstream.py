@@ -22,11 +22,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from contracts.runtime import REPO_ROOT, iso, load_config, utf8_stdout, write_json_atomic
+from contracts.runtime import RAW_DIR, REPO_ROOT, active_area, iso, load_config, utf8_stdout, write_json_atomic
 
-RAW_AIS_DIR = REPO_ROOT / "data" / "raw" / "ais"
+RAW_AIS_DIR = RAW_DIR / "ais"
 ENV_PATH = REPO_ROOT / ".env"
-AREA_ENV = "SEAGRID_AREA"
 KEY_NAME = "AISSTREAM_API_KEY"
 
 POS_FIELDS = ["received_utc", "mmsi", "msg_type", "lat", "lon", "sog_kn", "cog_deg", "heading_deg", "nav_status"]
@@ -39,14 +38,6 @@ STATIC_TYPES = ("ShipStaticData", "StaticDataReport")
 SOG_NA = 102.3
 COG_NA = 360.0
 HEADING_NA = 511
-
-
-def active_area(cfg: dict) -> str:
-    """Id-ul zonei live active (SEAGRID_AREA are prioritate față de config.yaml)."""
-    area = os.environ.get(AREA_ENV) or cfg["live"]["area"]
-    if area not in cfg["areas"]:
-        raise SystemExit(f"Unknown area {area!r}; config.yaml defines: {', '.join(cfg['areas'])}")
-    return area
 
 
 def area_dir(cfg: dict) -> Path:

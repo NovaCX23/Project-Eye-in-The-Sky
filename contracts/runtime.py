@@ -16,11 +16,21 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
 ASSETS_DIR = REPO_ROOT / "assets"
 OUT_DIR = REPO_ROOT / "out"
+RAW_DIR = REPO_ROOT / "data" / "raw"      # date reale înregistrate/descărcate local (nu se comit)
+AREA_ENV = "SEAGRID_AREA"
 
 
 def load_config(path: Path | str | None = None) -> dict[str, Any]:
     with open(path or CONFIG_PATH, encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def active_area(cfg: dict) -> str:
+    """Id-ul zonei reale active (config.yaml live.area; variabila de mediu SEAGRID_AREA are prioritate)."""
+    area = os.environ.get(AREA_ENV) or cfg["live"]["area"]
+    if area not in cfg["areas"]:
+        raise SystemExit(f"Unknown area {area!r}; config.yaml defines: {', '.join(cfg['areas'])}")
+    return area
 
 
 def stable_id(*parts: object, prefix: str = "") -> str:
