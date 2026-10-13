@@ -119,6 +119,8 @@ main  <──(/integrate, Dev 4)──  role/<role>  <──(merge after /verify
 - Merge a feature into its role branch only after `/verify` passes (`git switch role/<role> && git merge --no-ff feat/...`).
   Then delete the feature branch.
 - Role branches reach `main` only through `/integrate` (Dev 4). Never commit or push directly to `main`.
+- `main` is protected on GitHub (ruleset "main: owner approval", `.github/CODEOWNERS`): every change arrives through a
+  pull request and needs the repository owner's approval, including `/integrate` merges. Only the owner can bypass it.
 - Before starting a new feature, update the role branch from `main`: `git switch role/<role> && git merge main`.
 - If an experiment breaks things, abandon the feature branch instead of patching the role branch. Never
   `git push --force` to `main` or `role/*`; never rewrite history that others have pulled.
