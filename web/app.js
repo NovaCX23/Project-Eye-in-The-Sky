@@ -19,6 +19,7 @@ const LEVEL_RANK = { low: 0, medium: 1, high: 2, critical: 3 };
 const NORMAL_COLOR = "#3fb6a8";
 const PATROL_TYPE = "patrol";   // ship_type al unităților de patrulare în timeline (scris de core)
 const DARK_COLOR = "#8195ab";
+const START_AT = Date.parse(new URLSearchParams(location.search).get("at") || "") || 0;
 const SIM_TAG = '<span class="tag-sim">SIMULATED</span>';
 const SCRIPT_TAG = '<span class="tag-sim tag-script">SCRIPTED</span>';
 const INFRA_STYLE = {
@@ -176,6 +177,9 @@ const showsDemoExtras = () => !S.realData;
 function setRealData(on) {
   if (S.realData === on) return;
   S.realData = on;
+  // Comutatorul Demo / Live urmează timeline-ul afișat (și cu ?src=...).
+  $("mode-live").toggleAttribute("aria-current", on);
+  $("mode-demo").toggleAttribute("aria-current", !on);
   for (const el of document.querySelectorAll("[data-demo-only]")) el.hidden = on;
   for (const el of document.querySelectorAll("[data-live-only]")) el.hidden = !on;
   for (const key of ["hydroStations", "hydroCoverage", "submarines"]) {
@@ -534,6 +538,7 @@ function ingest(tl) {
     if (fit) map.fitBounds(fit, { padding: [20, 20], maxZoom: LIVE_FIT_MAX_ZOOM });
   }
   $("slider").max = Math.max(1, Math.round((S.end - S.start) / 1000));
+  if (S.t === 0 && START_AT) S.t = START_AT;   // ?at=<ISO>: deschide replay-ul la un moment anume (prezentare)
   if (S.live || S.t === 0 || S.t > S.end) S.t = S.live ? S.end : Math.min(Math.max(S.t, S.start), S.end);
   $("status").textContent = `mode ${tl.mode} · batch ${tl.batch_index} · now ${fmtTime(S.end)}`;
 
@@ -1001,6 +1006,11 @@ function renderDarkTargets(pass) {
   $("radar-meta").textContent = pass
     ? `${pass.satellite} · image ${fmtTime(pass.acq)} · published ${fmtTime(pass.avail)} · ${pass.targets.length} targets on the sea`
     : "No radar image published up to this moment.";
+  // Fără AIS înregistrat la momentul imaginii, țintele nu pot fi judecate: nu spunem că totul e în regulă.
+  const unchecked = pass ? pass.targets.filter((x) => x.status === "unchecked").length : 0;
+  $("no-radar").textContent = unchecked
+    ? `${unchecked} targets not checked: no AIS was recorded around the image time.`
+    : "Every vessel-sized radar return on the sea is matched to an AIS vessel.";
   $("no-radar").hidden = dark.length > 0 || !pass;
   $("radar-list").innerHTML = dark.sort((a, b) => b.peak_db - a.peak_db).map((x) => `
     <li data-id="${esc(x.target_id)}" tabindex="0">

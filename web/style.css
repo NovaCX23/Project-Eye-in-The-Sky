@@ -111,7 +111,7 @@ h3 { font-size: 11px; margin: 14px 0 8px; color: var(--muted); text-transform: u
 .mode-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .mode-switch a { padding: 3px 12px; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; }
 .mode-switch a:hover { color: inherit; }
-.mode-switch a[aria-current="page"] { background: rgba(63, 182, 168, .18); color: var(--ok, #3fb6a8); }
+.mode-switch a[aria-current] { background: rgba(63, 182, 168, .18); color: var(--ok, #3fb6a8); }
 .badge { padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; letter-spacing: .5px; }
 .badge.sim { background: rgba(184, 161, 240, .16); color: var(--sim); border: 1px solid rgba(184, 161, 240, .4); }
 .badge.approx { border: 1px solid var(--line); color: var(--muted); }
