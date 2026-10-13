@@ -453,3 +453,12 @@ input[type=checkbox] { accent-color: var(--accent); }
 .radar-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
 .radar-list li { display: flex; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-size: 12.5px; }
 .radar-list li:hover, .radar-list li:focus { border-color: var(--accent); outline: none; }
+
+/* Acknowledge & engage (decizia operatorului, doar în pagină) */
+.engage { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn-engage { padding: 6px 14px; border-radius: 6px; border: 1px solid #3fb6a8; background: rgba(63, 182, 168, .18);
+  color: #3fb6a8; font-weight: 700; font-size: 12px; cursor: pointer; }
+.btn-engage:hover { background: rgba(63, 182, 168, .32); }
+.engaged-note { width: 100%; font-size: 12px; }
+.tag-engaged { color: #3fb6a8; font-size: 10.5px; font-weight: 700; margin-left: 6px; letter-spacing: .4px; }
+.alert-list li.engaged { opacity: .8; }

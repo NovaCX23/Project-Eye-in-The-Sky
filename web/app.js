@@ -151,7 +151,18 @@ const S = {
   fitted: false,         // harta s-a centrat o dată pe datele reale
   radar: [],             // trecerile Sentinel-1 din timeline (doar pe date reale)
   radarEvents: {},       // event_id -> eveniment radar (dovada factorilor sar_*)
+  engaged: loadEngaged(), // alert_id -> { unitId, at }: confirmările operatorului (doar în această pagină)
 };
+
+// "Acknowledge & engage": decizia operatorului, nu a sistemului. Se ține doar în browser, pe id-ul stabil al alertei;
+// scorul, nivelul și recomandarea rămân cele din timeline.
+function loadEngaged() {
+  try { return JSON.parse(localStorage.getItem("seagrid.engaged") || "{}"); } catch (e) { return {}; }
+}
+function saveEngaged() {
+  try { localStorage.setItem("seagrid.engaged", JSON.stringify(S.engaged)); } catch (e) { /* stocare indisponibilă */ }
+}
+const ENGAGED_TAG = '<span class="tag-engaged">ENGAGED</span>';
 
 // Numele unei alerte: nava AIS, sau ținta radar fără AIS.
 const shortTarget = (id) => String(id || "").replace(/^S1(\w)_(\d{8})T(\d{4})\d*_\d+-/, "S1$1 $2 $3 #");
@@ -262,7 +273,7 @@ legend.onAdd = () => {
     `<div><i style="background:${NORMAL_COLOR}"></i>Normal vessel</div>` +
     `<div><i style="background:${DARK_COLOR}"></i>AIS off (uncertainty area)</div>` +
     Object.entries(LEVEL_COLOR).map(([k, c]) => `<div><i style="background:${c}"></i>${LEVEL_LABEL[k]} alert</div>`).join("") +
-    `<div><i class="glow-swatch"></i>Patrol unit (simulated) · dashed line = dispatched</div>` +
+    `<div><i class="glow-swatch"></i>Patrol unit (simulated) · dashed = dispatched, solid = engaged</div>` +
     `<div><i class="base-swatch"></i>Patrol base</div>` +
     `<div data-live-only hidden><i style="background:rgba(63,182,168,.35)"></i>AIS coverage (reception measured)</div>` +
     `<div data-radar-only hidden>` +
@@ -354,9 +365,11 @@ function renderPatrols(t, active) {
       }
       const name = esc(alertName(m.a));
       const onScene = etaLeft === 0;
-      status = onScene ? `On scene: ${name}` : `Dispatched to ${name} · ETA ${Number(etaLeft).toFixed(0)} min${m.a.scripted ? " (scripted re-task)" : ""}`;
+      status = (S.engaged[m.a.alert_id] ? "Engaged by operator · " : "") +
+        (onScene ? `On scene: ${name}` : `Dispatched to ${name} · ETA ${Number(etaLeft).toFixed(0)} min${m.a.scripted ? " (scripted re-task)" : ""}`);
       if (!onScene) {
-        L.polyline([pos, target], { color: "#7cc4ff", weight: 2, dashArray: "6 6", opacity: 0.85 })
+        const engaged = S.engaged[m.a.alert_id];
+        L.polyline([pos, target], { color: engaged ? "#3fb6a8" : "#7cc4ff", weight: engaged ? 3 : 2, dashArray: engaged ? null : "6 6", opacity: 0.9 })
           .bindTooltip(`${esc(v.name)} → ${name} · ETA ${Number(etaLeft).toFixed(0)} min`, { sticky: true })
           .addTo(layers.routes);
       }
@@ -1011,11 +1024,13 @@ function renderAlertList(active) {
   $("alert-count").textContent = active.length;
   $("no-alerts").hidden = active.length > 0;
   $("alert-list").innerHTML = active.map(({ a, st }) => {
-    const cls = [a.alert_id === S.selected ? "selected" : "", st.score > FLASH_SCORE ? "flash" : st.score >= PULSE_SCORE ? "pulse" : ""].join(" ");
+    // O alertă confirmată de operator nu mai clipește: cineva se ocupă de ea.
+    const eng = S.engaged[a.alert_id];
+    const cls = [a.alert_id === S.selected ? "selected" : "", eng ? "engaged" : st.score > FLASH_SCORE ? "flash" : st.score >= PULSE_SCORE ? "pulse" : ""].join(" ");
     return `
     <li data-id="${esc(a.alert_id)}" class="${cls}" tabindex="0">
       <span class="chip lvl-${esc(st.level)}"></span>
-      <span class="name">${esc(alertName(a))}${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}</span>
+      <span class="name">${esc(alertName(a))}${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}${eng ? ENGAGED_TAG : ""}</span>
       <span class="score">${st.score}</span>
       <span class="sub">${esc(a.alert_type)} · ${LEVEL_LABEL[st.level] || esc(st.level)} · since ${fmtTime(a.created)}</span>
     </li>`;
@@ -1072,6 +1087,41 @@ function renderDetail(t) {
     ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ${st.eta_min === 0 ? "on scene" : `ETA ${st.eta_min != null ? Number(st.eta_min).toFixed(0) + " min" : "?"}`}${u && u.simulated ? SIM_TAG : ""}`
     // Timeline-ul nu spune de ce lipsește unitatea (sub nivelul de recomandare sau toate unitățile trimise deja).
     : "No unit recommended at this moment (below the recommendation level, or every unit is already dispatched).";
+  renderEngage(a, st, u);
+}
+
+function taskingText(a, st, u) {
+  const lines = [
+    `TASKING ${new Date(S.t).toISOString().slice(0, 16).replace("T", " ")} UTC`,
+    `Unit: ${u ? u.name : st.unit_id}${u && u.simulated ? " (SIMULATED)" : ""}`,
+    `Target: ${alertName(a)}${a.mmsi ? ` (MMSI ${a.mmsi})` : ""}`,
+    `Position: ${num(a.lat, 4)} N, ${num(a.lon, 4)} E`,
+    `Risk: ${st.score}/100 (${LEVEL_LABEL[st.level] || st.level})` + (st.eta_min != null ? ` · ETA ${Number(st.eta_min).toFixed(0)} min` : ""),
+    `Reason: ${a.explanation || a.alert_type}`,
+    `Alert id: ${a.alert_id}`,
+  ];
+  return lines.join("\n");
+}
+
+function renderEngage(a, st, u) {
+  const box = $("engage");
+  const eng = S.engaged[a.alert_id];
+  if (!st.unit_id && !eng) { box.innerHTML = ""; return; }
+  box.innerHTML = eng
+    ? `<div class="engaged-note">${ENGAGED_TAG} ${esc(S.units[eng.unitId] ? S.units[eng.unitId].name : eng.unitId)} engaged by the operator at ${fmtTime(eng.at)}</div>
+       <button type="button" class="btn-mini" id="btn-copy-tasking">Copy tasking</button>
+       <button type="button" class="btn-mini" id="btn-release">Release</button>`
+    : `<button type="button" class="btn-engage" id="btn-engage">Acknowledge &amp; engage</button>
+       <button type="button" class="btn-mini" id="btn-copy-tasking">Copy tasking</button>`;
+  const engage = $("btn-engage");
+  if (engage) engage.onclick = () => { S.engaged[a.alert_id] = { unitId: st.unit_id, at: S.t }; saveEngaged(); render(); };
+  const release = $("btn-release");
+  if (release) release.onclick = () => { delete S.engaged[a.alert_id]; saveEngaged(); render(); };
+  const copy = $("btn-copy-tasking");
+  if (copy) copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(taskingText(a, st, u)); copy.textContent = "Copied"; }
+    catch (e) { copy.textContent = "Copy failed"; }
+  };
 }
 
 function select(id) {
