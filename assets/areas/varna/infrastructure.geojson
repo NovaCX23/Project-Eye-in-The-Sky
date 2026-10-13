@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "description": "Scored infrastructure of the Varna live area (Bulgarian Black Sea). APPROXIMATE positions from public sources (see each feature's source); the same features appear, unscored, in assets/reference_infrastructure.geojson.",
+  "features": [
+    {"type": "Feature", "properties": {"id": "BG-PLT-GALATA", "name": "Galata gas platform (approx.)", "kind": "platform", "protected": true, "exclusion": false, "approximate": true, "source": "https://en.wikipedia.org/wiki/Galata_gas_field"},
+     "geometry": {"type": "Point", "coordinates": [28.193, 43.045]}},
+    {"type": "Feature", "properties": {"id": "BG-PLT-KALIAKRA", "name": "Kaliakra gas field wellhead (approx.)", "kind": "platform", "protected": true, "exclusion": false, "approximate": true, "source": "https://en.wikipedia.org/wiki/Kaliakra_gas_field"},
+     "geometry": {"type": "Point", "coordinates": [28.27, 43.0]}},
+    {"type": "Feature", "properties": {"id": "BG-PLT-KAMCHIA", "name": "Kamchia gas field wellhead (approx.)", "kind": "platform", "protected": true, "exclusion": false, "approximate": true, "source": "https://en.wikipedia.org/wiki/Kamchia_gas_field"},
+     "geometry": {"type": "Point", "coordinates": [28.12, 42.98]}},
+    {"type": "Feature", "properties": {"id": "BG-PIPE-GALATA", "name": "Galata pipeline to shore south of Varna (approx.)", "kind": "pipeline", "protected": true, "exclusion": false, "approximate": true, "source": "https://en.wikipedia.org/wiki/Galata_gas_field"},
+     "geometry": {"type": "LineString", "coordinates": [[28.27, 43.0], [28.193, 43.045], [28.05, 43.1], [27.93, 43.13]]}},
+    {"type": "Feature", "properties": {"id": "BG-CABLE-KAFOS", "name": "KAFOS data cable, Varna branch (approx.)", "kind": "cable", "protected": true, "exclusion": false, "approximate": true, "source": "https://www.submarinecablemap.com/"},
+     "geometry": {"type": "LineString", "coordinates": [[28.75, 43.1], [28.2, 43.15], [27.95, 43.19]]}},
+    {"type": "Feature", "properties": {"id": "BG-CABLE-CCS", "name": "Caucasus Cable System, Balchik landing (approx.)", "kind": "cable", "protected": true, "exclusion": false, "approximate": true, "source": "https://en.wikipedia.org/wiki/Caucasus_Cable_System"},
+     "geometry": {"type": "LineString", "coordinates": [[29.3, 43.338], [29.0, 43.35], [28.17, 43.4]]}},
+    {"type": "Feature", "properties": {"id": "BG-APPR-VARNA", "name": "Varna Bay, port and canal to Lake Varna (approx.)", "kind": "port_approach", "protected": true, "exclusion": true, "approximate": true, "source": "https://www.openstreetmap.org/#map=12/43.19/27.98"},
+     "geometry": {"type": "Polygon", "coordinates": [[[27.70, 43.175], [27.90, 43.165], [27.98, 43.155], [28.08, 43.15], [28.12, 43.175], [28.08, 43.225], [27.98, 43.22], [27.90, 43.215], [27.70, 43.215], [27.70, 43.175]]]}},
+    {"type": "Feature", "properties": {"id": "BG-APPR-BALCHIK", "name": "Balchik harbour approach (approx.)", "kind": "port_approach", "protected": false, "exclusion": true, "approximate": true, "source": "https://www.openstreetmap.org/#map=14/43.40/28.17"},
+     "geometry": {"type": "Polygon", "coordinates": [[[28.14, 43.395], [28.19, 43.385], [28.21, 43.40], [28.18, 43.415], [28.14, 43.41], [28.14, 43.395]]]}}
+  ]
+}

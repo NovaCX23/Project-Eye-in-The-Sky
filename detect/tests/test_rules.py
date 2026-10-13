@@ -155,3 +155,63 @@ def test_identity_spoofing_detected(t0, cfg):
     assert ev[0].metrics["distance_km"] >= 30.0
     assert ev[0].metrics["implied_kn"] > 500.0
 
+
+
+# --- Date reale: acoperire de recepție, transmisie regulată, ancoraje învățate, nave acostate ---------------------
+
+def _learned(cfg, lat, lon, coverage=True, anchorage=False):
+    from detect.zones import LearnedZones
+
+    lc = cfg["live"]
+    cov, anc = lc["coverage_cell_deg"], lc["anchorage_cell_deg"]
+    cell = lambda size: (int(lat // size), int(lon // size))  # noqa: E731
+    return LearnedZones(bbox=cfg["scenario"]["coverage_bbox"], coverage_cell_deg=cov, anchorage_cell_deg=anc,
+                        coverage=frozenset({cell(cov)} if coverage else set()),
+                        anchorages=frozenset({cell(anc)} if anchorage else set()))
+
+
+def test_gap_outside_receiver_coverage_is_ignored(t0, cfg):
+    df = to_df(straight_track("111111111", t0, range(0, 30), *OPEN_SEA))
+    now = t0 + timedelta(minutes=29 + cfg["detect"]["gap"]["threshold_min"] + 5)
+    last = (df.iloc[-1]["lat"], df.iloc[-1]["lon"])
+    assert _types(ais_rules.detect_gaps(df, now, cfg, _learned(cfg, *last))) == ["ais_gap"]
+    assert ais_rules.detect_gaps(df, now, cfg, _learned(cfg, *last, coverage=False)) == []
+
+
+def test_gap_needs_regular_reporting_before(t0, cfg):
+    # Un raport la 15 minute: sub detect.gap.min_messages_last_hour, deci tăcerea nu e o gaură AIS.
+    sparse = to_df(straight_track("111111111", t0, range(0, 60, 15), *OPEN_SEA))
+    now = t0 + timedelta(minutes=45 + cfg["detect"]["gap"]["threshold_min"] + 5)
+    assert ais_rules.detect_gaps(sparse, now, cfg) == []
+
+
+def test_learned_anchorage_excludes_loitering(t0, cfg):
+    rows = straight_track("111111111", t0, range(0, 90), *OPEN_SEA, sog=0.5)
+    assert ais_rules.detect_loitering(to_df(rows), cfg, _learned(cfg, *OPEN_SEA, anchorage=True)) == []
+    assert "loitering" in _types(ais_rules.detect_loitering(to_df(rows), cfg, _learned(cfg, *OPEN_SEA)))
+
+
+def test_port_buffer_excludes_loitering_near_the_coast(t0, cfg):
+    from dataclasses import replace
+
+    rows = straight_track("111111111", t0, range(0, 90), *OPEN_SEA, sog=0.5)
+    buffer_km = cfg["detect"]["exclusion"]["port_buffer_km"]
+    near = replace(_learned(cfg, *OPEN_SEA), coast_km=lambda lat, lon: buffer_km / 2)
+    far = replace(_learned(cfg, *OPEN_SEA), coast_km=lambda lat, lon: buffer_km * 5)
+    assert ais_rules.detect_loitering(to_df(rows), cfg, near) == []
+    assert "loitering" in _types(ais_rules.detect_loitering(to_df(rows), cfg, far))
+
+
+def test_moored_vessel_is_not_loitering(t0, cfg):
+    still = cfg["detect"]["loitering"]["max_moored_sog_kn"] / 2
+    rows = straight_track("111111111", t0, range(0, 90), *OPEN_SEA, sog=still)
+    assert ais_rules.detect_loitering(to_df(rows), cfg) == []
+
+
+def test_two_moored_vessels_side_by_side_are_not_a_rendezvous(t0, cfg):
+    # Pe AIS real: două nave la ancoră, la 850 m, nemișcate ore întregi. Nu e o întâlnire.
+    still = cfg["detect"]["rendezvous"]["max_moored_sog_kn"] / 2
+    vessel_a = straight_track("111111111", t0, range(0, 60), *OPEN_SEA, sog=still)
+    lat_b, lon_b = destination(OPEN_SEA[0], OPEN_SEA[1], 45.0, 0.85)
+    vessel_b = straight_track("222222222", t0, range(0, 60), lat_b, lon_b, sog=0.0)
+    assert ais_rules.detect_rendezvous(to_df(vessel_a + vessel_b), cfg) == []

@@ -2,10 +2,10 @@
   "$defs": {
     "Alert": {
       "additionalProperties": false,
-      "description": "A fused alert for one vessel incident.",
+      "description": "A fused alert for one vessel incident (an AIS vessel, or a radar target with no AIS).",
       "properties": {
         "alert_id": {
-          "description": "Deterministic id: hash(mmsi, primary type, start)",
+          "description": "Deterministic id: hash(mmsi or target, primary type, start)",
           "title": "Alert Id",
           "type": "string"
         },
@@ -68,9 +68,18 @@
           "type": "number"
         },
         "mmsi": {
-          "pattern": "^\\d{9}$",
-          "title": "Mmsi",
-          "type": "string"
+          "anyOf": [
+            {
+              "pattern": "^\\d{9}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None = radar target with no AIS",
+          "title": "Mmsi"
         },
         "nearest_infrastructure": {
           "items": {
@@ -113,6 +122,19 @@
           "title": "Start Time",
           "type": "string"
         },
+        "target_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Radar target id when the alert has no AIS vessel",
+          "title": "Target Id"
+        },
         "updated_at": {
           "format": "date-time",
           "title": "Updated At",
@@ -133,7 +155,6 @@
       },
       "required": [
         "alert_id",
-        "mmsi",
         "alert_type",
         "start_time",
         "created_at",
@@ -214,6 +235,215 @@
         "eta_min"
       ],
       "title": "PatrolRecommendation",
+      "type": "object"
+    },
+    "RadarPass": {
+      "additionalProperties": false,
+      "description": "One Sentinel-1 overflight of the area, known from the moment ESA published it.",
+      "properties": {
+        "acquired_at": {
+          "format": "date-time",
+          "title": "Acquired At",
+          "type": "string"
+        },
+        "available_at": {
+          "description": "ESA processing time: the radar evidence exists from here on",
+          "format": "date-time",
+          "title": "Available At",
+          "type": "string"
+        },
+        "footprint": {
+          "description": "[[lat, lon], ...] of the imaged sea",
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Footprint",
+          "type": "array"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Radar image (PNG), path relative to the repo root",
+          "title": "Image"
+        },
+        "image_bounds": {
+          "description": "[[lat_s, lon_w], [lat_n, lon_e]]",
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Image Bounds",
+          "type": "array"
+        },
+        "pass_id": {
+          "title": "Pass Id",
+          "type": "string"
+        },
+        "satellite": {
+          "title": "Satellite",
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/RadarTarget"
+          },
+          "title": "Targets",
+          "type": "array"
+        }
+      },
+      "required": [
+        "pass_id",
+        "satellite",
+        "acquired_at",
+        "available_at",
+        "footprint"
+      ],
+      "title": "RadarPass",
+      "type": "object"
+    },
+    "RadarTarget": {
+      "additionalProperties": false,
+      "description": "A vessel-sized return on one Sentinel-1 image, and what the cross-reference with AIS made of it.",
+      "properties": {
+        "chip": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Radar crop, path relative to the repo root",
+          "title": "Chip"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "length_m": {
+          "description": "Apparent length on the image (sidelobes make it longer)",
+          "minimum": 0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "match_km": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Match Km"
+        },
+        "mmsi": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{9}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Matched AIS vessel, or the silent one",
+          "title": "Mmsi"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "peak_db": {
+          "description": "Brightest pixel over the local sea clutter",
+          "title": "Peak Db",
+          "type": "number"
+        },
+        "status": {
+          "description": "unchecked = no AIS was recorded around the image time, so the target cannot be judged",
+          "enum": [
+            "matched",
+            "dark",
+            "dark_uncovered",
+            "fixed",
+            "coastal",
+            "excluded",
+            "unchecked"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "vessel_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vessel Name"
+        }
+      },
+      "required": [
+        "target_id",
+        "lat",
+        "lon",
+        "length_m",
+        "peak_db",
+        "status"
+      ],
+      "title": "RadarTarget",
       "type": "object"
     },
     "ScoreFactor": {
@@ -334,7 +564,7 @@
     },
     "SensorEvent": {
       "additionalProperties": false,
-      "description": "An event produced by a detector (AIS, acoustic or fibre).",
+      "description": "An event produced by a detector (AIS, acoustic, fibre or satellite radar).",
       "properties": {
         "confidence": {
           "maximum": 1,
@@ -436,7 +666,8 @@
           "enum": [
             "ais",
             "acoustic",
-            "fibre"
+            "fibre",
+            "sar"
           ],
           "title": "Source",
           "type": "string"
@@ -445,6 +676,19 @@
           "format": "date-time",
           "title": "Start",
           "type": "string"
+        },
+        "target_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Radar target the event is about (source sar)",
+          "title": "Target Id"
         }
       },
       "required": [
@@ -566,12 +810,49 @@
   "additionalProperties": false,
   "description": "The out/timeline.json file, the web UI's only input.",
   "properties": {
+    "ais_coverage": {
+      "description": "Cells where AIS is actually received, [lat_s, lon_w, lat_n, lon_e]; empty = not measured",
+      "items": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "title": "Ais Coverage",
+      "type": "array"
+    },
     "alerts": {
       "items": {
         "$ref": "#/$defs/Alert"
       },
       "title": "Alerts",
       "type": "array"
+    },
+    "area_assets": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Folder (relative to the repo root) with the area's infrastructure.geojson and patrol_units.json; None = assets/ (demo scenario)",
+      "title": "Area Assets"
+    },
+    "area_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Real-data area (live mode); None for the demo scenario",
+      "title": "Area Name"
     },
     "batch_index": {
       "minimum": 0,
@@ -586,10 +867,12 @@
       "type": "array"
     },
     "mode": {
+      "description": "live = real AIS recorded right now, wall-clock time",
       "enum": [
         "single",
         "replay",
-        "watch"
+        "watch",
+        "live"
       ],
       "title": "Mode",
       "type": "string"
@@ -599,6 +882,14 @@
       "format": "date-time",
       "title": "Now",
       "type": "string"
+    },
+    "radar_passes": {
+      "description": "Sentinel-1 passes published by now (real data only)",
+      "items": {
+        "$ref": "#/$defs/RadarPass"
+      },
+      "title": "Radar Passes",
+      "type": "array"
     },
     "reload_interval_s": {
       "anyOf": [
@@ -618,7 +909,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.1",
       "title": "Schema Version",
       "type": "string"
     },

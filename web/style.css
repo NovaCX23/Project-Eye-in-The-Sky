@@ -108,9 +108,14 @@ h3 { font-size: 11px; margin: 14px 0 8px; color: var(--muted); text-transform: u
 .subtitle, .muted { color: var(--muted); }
 .small { font-size: 12px; }
 .status { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.mode-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.mode-switch a { padding: 3px 12px; font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; }
+.mode-switch a:hover { color: inherit; }
+.mode-switch a[aria-current] { background: rgba(63, 182, 168, .18); color: var(--ok, #3fb6a8); }
 .badge { padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; letter-spacing: .5px; }
 .badge.sim { background: rgba(184, 161, 240, .16); color: var(--sim); border: 1px solid rgba(184, 161, 240, .4); }
 .badge.approx { border: 1px solid var(--line); color: var(--muted); }
+.badge.live { background: rgba(63, 182, 168, .16); color: var(--ok, #3fb6a8); border: 1px solid rgba(63, 182, 168, .5); }
 .tag-sim { color: var(--sim); font-size: 10.5px; font-weight: 600; margin-left: 6px; letter-spacing: .4px; }
 
 /* Filtre hartă ca butoane-pastilă */
@@ -429,3 +434,31 @@ input[type=checkbox] { accent-color: var(--accent); }
 .infra-list li.nearest span { color: #e0b800; font-weight: 600; }
 .history-item[hidden] { display: none; }
 .offline-land { fill: var(--land); fill-opacity: 1; stroke: var(--land-edge); }
+
+/* Radar Sentinel-1: ținte (romb), decupaje, lista țintelor fără AIS */
+.radar-target {
+  width: 100%; height: 100%; box-sizing: border-box; transform: rotate(45deg) scale(.78);
+  border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent);
+}
+.radar-target.strong { background: color-mix(in srgb, var(--c) 35%, transparent); box-shadow: 0 0 10px 2px color-mix(in srgb, var(--c) 55%, transparent); }
+.radar-target.selected { outline: 2px solid #fff; outline-offset: 2px; }
+.legend i.radar-swatch { transform: rotate(45deg) scale(.75); border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 22%, transparent); border-radius: 0; box-shadow: none; }
+.legend i.radar-swatch.strong { background: color-mix(in srgb, var(--c) 45%, transparent); }
+.radar-image { image-rendering: pixelated; }
+.radar-chip { image-rendering: pixelated; border-radius: 4px; border: 1px solid var(--line); background: #000; flex: none; }
+.radar-chip.small { vertical-align: middle; }
+.radar-evidence { display: flex; gap: 10px; align-items: flex-start; }
+.evidence-link { font-size: 11.5px; color: var(--accent); text-decoration: none; }
+.evidence-link:hover { text-decoration: underline; }
+.radar-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.radar-list li { display: flex; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-size: 12.5px; }
+.radar-list li:hover, .radar-list li:focus { border-color: var(--accent); outline: none; }
+
+/* Acknowledge & engage (decizia operatorului, doar în pagină) */
+.engage { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn-engage { padding: 6px 14px; border-radius: 6px; border: 1px solid #3fb6a8; background: rgba(63, 182, 168, .18);
+  color: #3fb6a8; font-weight: 700; font-size: 12px; cursor: pointer; }
+.btn-engage:hover { background: rgba(63, 182, 168, .32); }
+.engaged-note { width: 100%; font-size: 12px; }
+.tag-engaged { color: #3fb6a8; font-size: 10.5px; font-weight: 700; margin-left: 6px; letter-spacing: .4px; }
+.alert-list li.engaged { opacity: .8; }

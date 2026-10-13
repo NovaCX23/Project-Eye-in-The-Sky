@@ -18,6 +18,17 @@
 - `state.py`: `--watch` saves its state to `out/pipeline_state.json` after every batch and resumes from it after a restart,
   but only if the input data up to that moment is unchanged; otherwise it starts from the scenario start.
 - `demo.py`: the full chain for `make demo`.
+- Radar (real data only): `sources.load_live` also loads the Sentinel-1 passes processed by `sar.process` and
+  published by `now` (the pass exists from its ESA processing time, not its acquisition time). `pipeline.run_batch`
+  runs `detect.sar_rules` once per pass, at the first batch after publication; radar events with an MMSI join that
+  vessel's incident, a dark target with no AIS opens its own alert (`mmsi: null`, `target_id`). The timeline lists
+  the recent passes with every target's status in `radar_passes` (`detect.sar.max_age_h`).
+- `live.py`: LIVE mode on real AIS recorded by `data.aisstream`, on the wall clock. Every `live.tick_s` seconds it loads the
+  last `live.window_min` minutes (plus `live.lookback_min` for the rules that look back) through `sources.load_live`,
+  relearns receiver coverage and anchorages every `live.zones_refresh_min` minutes (`detect.zones.LearnedZones`),
+  and writes `out/live/timeline.json` (separate from the demo) with `mode: "live"`, the area name and the coverage cells. On start it replays the
+  window once so alerts keep their history. `--at ISO --ais-dir DIR` runs one batch at a past moment of a recording.
+  No injected anomalies: only the patrol units are simulated.
 
 ## Consumes
 `out/ais.csv`, `out/acoustic_events.json`, `out/fibre_events.json`, `assets/`, `config.yaml`
@@ -31,6 +42,9 @@
 python -m core.pipeline                              # replay to the end of the scenario
 python -m core.pipeline --now 2026-03-15T08:30:00Z   # a single batch
 python -m core.pipeline --watch --interval-s 3 --sim-step-min 5   # resumes after a restart; --fresh starts over
+python -m core.live                                  # real AIS, wall clock (needs python -m data.aisstream running;
+                                                     # radar passes come from python -m sar.process --watch)
+python -m core.live --at 2026-10-12T04:00:00Z --ais-dir data/raw/ais/varna   # one batch at a past moment
 python -m pytest core
 ```
 

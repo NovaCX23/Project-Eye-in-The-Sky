@@ -5,6 +5,6 @@ description = "SeaGrid: detection of suspicious activity near Romanian maritime 
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
-testpaths = ["contracts", "data", "detect", "acoustic", "core", "eval", "devtools"]
+testpaths = ["contracts", "data", "detect", "acoustic", "sar", "core", "eval", "devtools"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning:audioread.*"]

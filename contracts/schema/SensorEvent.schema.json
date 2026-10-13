@@ -2,7 +2,7 @@
   "$id": "seagrid/SensorEvent.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "An event produced by a detector (AIS, acoustic or fibre).",
+  "description": "An event produced by a detector (AIS, acoustic, fibre or satellite radar).",
   "properties": {
     "confidence": {
       "maximum": 1,
@@ -104,7 +104,8 @@
       "enum": [
         "ais",
         "acoustic",
-        "fibre"
+        "fibre",
+        "sar"
       ],
       "title": "Source",
       "type": "string"
@@ -113,6 +114,19 @@
       "format": "date-time",
       "title": "Start",
       "type": "string"
+    },
+    "target_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Radar target the event is about (source sar)",
+      "title": "Target Id"
     }
   },
   "required": [

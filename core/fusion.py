@@ -1,9 +1,10 @@
-"""Fuziune: evenimente (AIS, acustic, fibră) -> alerte cu scor, explicație și recomandare.
+"""Fuziune: evenimente (AIS, radar, acustic, fibră) -> alerte cu scor, explicație și recomandare.
 
-Un incident = evenimentele AIS ale aceleiași nave apropiate în timp. Senzorii fără MMSI
-(acustic, fibră) și celelalte nave suspecte din zonă se atașează ca factori de context.
+Un incident = evenimentele AIS și radar ale aceleiași nave apropiate în timp; o țintă radar fără AIS e propriul
+ei incident (alertă fără MMSI). Senzorii fără MMSI (acustic, fibră) și celelalte nave suspecte din zonă se atașează
+ca factori de context.
 
-# STUB: doar evenimentele AIS deschid alerte; un senzor fără navă AIS în zonă nu produce alertă.
+# STUB: acusticul și fibra nu deschid singure alerte; un astfel de senzor fără navă în zonă nu produce alertă.
 """
 
 from __future__ import annotations
@@ -11,13 +12,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from contracts.assets import distance_to_feature_km, load_infrastructure
+from contracts.assets import area_infrastructure, distance_to_feature_km
 from contracts.geo import haversine_km
 from contracts.models import KNOWN_EVENT_TYPES, Alert, InfraProximity, ScoreFactor, ScorePoint, SensorEvent
 from contracts.runtime import stable_id
 from core import explain, patrol, scoring
 
 CONTEXT_SOURCES = ("acoustic", "fibre")
+INCIDENT_SOURCES = ("ais", "sar")   # deschid incidente: o navă AIS (mmsi) sau o țintă radar fără AIS (target_id)
 NEAREST_INFRA_COUNT = 3
 
 
@@ -58,11 +60,24 @@ def _type_rank(event_type: str) -> int:
     return KNOWN_EVENT_TYPES.index(event_type) if event_type in KNOWN_EVENT_TYPES else len(KNOWN_EVENT_TYPES)
 
 
+def _key(e: SensorEvent) -> str | None:
+    """Cui aparține evenimentul: navei AIS (mmsi) sau țintei radar fără AIS."""
+    return e.mmsi or (f"target:{e.target_id}" if e.target_id else None)
+
+
 @dataclass
 class Episode:
-    mmsi: str
+    key: str
     events: list[SensorEvent]
     primary_id: str | None = None
+
+    @property
+    def mmsi(self) -> str | None:
+        return None if self.key.startswith("target:") else self.key
+
+    @property
+    def target_id(self) -> str | None:
+        return self.key.removeprefix("target:") if self.key.startswith("target:") else None
 
     @property
     def primary(self) -> SensorEvent:
@@ -74,20 +89,20 @@ class Episode:
 
 def _episodes(events: list[SensorEvent], now: datetime, cfg: dict) -> list[Episode]:
     window = timedelta(minutes=cfg["fusion"]["same_vessel_window_min"])
-    ais = sorted((e for e in events if e.source == "ais" and e.mmsi),
-                 key=lambda e: (e.mmsi, e.start, _type_rank(e.event_type), e.event_id))
+    own = sorted((e for e in events if e.source in INCIDENT_SOURCES and _key(e)),
+                 key=lambda e: (_key(e), e.start, _type_rank(e.event_type), e.event_id))
     out: list[Episode] = []
-    for e in ais:
+    for e in own:
         last = out[-1] if out else None
-        if last and last.mmsi == e.mmsi and e.start <= last.end(now) + window:
+        if last and last.key == _key(e) and e.start <= last.end(now) + window:
             last.events.append(e)
         else:
-            out.append(Episode(e.mmsi, [e]))
+            out.append(Episode(_key(e), [e]))
     return out
 
 
-def _infra(lat: float, lon: float) -> list[InfraProximity]:
-    feats = [f for f in load_infrastructure() if f.protected]
+def _infra(lat: float, lon: float, cfg: dict) -> list[InfraProximity]:
+    feats = [f for f in area_infrastructure(cfg) if f.protected]
     near = sorted(((distance_to_feature_km(lat, lon, f), f) for f in feats), key=lambda x: (x[0], x[1].infra_id))
     return [InfraProximity(infra_id=f.infra_id, name=f.name, kind=f.kind, distance_km=round(d, 2))
             for d, f in near[:NEAREST_INFRA_COUNT]]
@@ -98,6 +113,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
     """last_seen: ultima poziție AIS a fiecărei nave la `now`; unitatea trimisă merge acolo (altfel la poziția alertei)."""
     last_seen = last_seen or {}
     fc = cfg["fusion"]
+    weak = set(fc["weak_event_types"])
     episodes = _episodes(events, now, cfg)
     context = sorted((e for e in events if e.source in CONTEXT_SOURCES), key=lambda e: (e.start, e.event_id))
     alerts: list[Alert] = []
@@ -107,7 +123,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
         ep.primary_id = known[0] if known else ep.events[0].event_id
     for ep in episodes:
         p = ep.primary
-        alert_id = stable_id(ep.mmsi, p.event_type, p.start, prefix="alr-")
+        alert_id = stable_id(ep.mmsi or ep.target_id, p.event_type, p.start, prefix="alr-")
         ep_start, ep_end = p.start, ep.end(now)
         # (code, points, detail, event_id, simulated)
         raw: list[tuple[str, int, str, str | None, bool]] = []
@@ -118,7 +134,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
             raw.append((code, scoring.points_for(code, cfg), explain.factor_detail(code, vals, best.simulated),
                         best.event_id, best.simulated))
 
-        infra = _infra(p.lat, p.lon)
+        infra = _infra(p.lat, p.lon, cfg)
         if infra and infra[0].distance_km <= fc["infra_radius_km"]:
             i0 = infra[0]
             raw.append(("near_infrastructure", scoring.points_for("near_infrastructure", cfg),
@@ -142,17 +158,19 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
 
         related = []
         for other in episodes:
-            if other.mmsi == ep.mmsi:
+            # Un indiciu slab (ex. o țintă radar unde recepția AIS nu e dovedită) nu face suspectă o altă navă.
+            if other.key == ep.key or all(e.event_type in weak for e in other.events):
                 continue
             d = haversine_km(p.lat, p.lon, other.primary.lat, other.primary.lon)
             overlap = other.primary.start <= ep_end and ep_start <= other.end(now)
             if d <= fc["correlation_radius_km"] and overlap:
                 related.append((d, other))
         if related:
-            d, other = min(related, key=lambda x: (x[0], x[1].mmsi))
+            d, other = min(related, key=lambda x: (x[0], x[1].key))
             raw.append(("correlated_vessel", scoring.points_for("correlated_vessel", cfg),
                         explain.factor_detail("correlated_vessel", {
-                            "other_name": names.get(other.mmsi) or "unknown", "other_mmsi": other.mmsi, "dist_km": d}),
+                            "other_label": explain.vessel_label(names.get(other.mmsi), other.mmsi, other.target_id),
+                            "dist_km": d}),
                         other.primary.event_id, other.primary.simulated))
 
         score = scoring.total([r[1] for r in raw], cfg)
@@ -169,11 +187,11 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
             factors.append(ScoreFactor(code=code, label=explain.label(code), points=pts, detail=detail,
                                        event_id=eid, added_at=added, simulated=sim))
         drafts.append(_Draft(alert_id, ep, p, ep_start, created, score, level, factors, infra,
-                             sorted({o.mmsi for _, o in related})))
+                             sorted({o.mmsi for _, o in related if o.mmsi})))
 
     # Unitățile se repartizează după ce se cunosc toate alertele: prioritate după nivel, scor, vechime.
     drafts.sort(key=lambda d: (-patrol.LEVEL_ORDER.index(d.level), -d.score, d.created, d.alert_id))
-    recs = patrol.assign([(d.alert_id, *last_seen.get(d.ep.mmsi, (d.primary.lat, d.primary.lon)), d.level)
+    recs = patrol.assign([(d.alert_id, *last_seen.get(d.ep.key, (d.primary.lat, d.primary.lon)), d.level)
                           for d in drafts], cfg, memory.dispatched, now, memory.unit_legs)
     eta_step = cfg["patrol"]["eta_update_min"]
     for d in drafts:
@@ -186,10 +204,11 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
         if not hist or hist[-1].score != d.score or hist[-1].unit_id != unit or eta_moved:
             hist.append(ScorePoint(t=now, score=d.score, level=d.level, unit_id=unit,
                                    eta_min=rec.eta_min if rec else None))
-        name = names.get(d.ep.mmsi)
+        name = names.get(d.ep.mmsi) if d.ep.mmsi else None
         alerts.append(Alert(
             alert_id=d.alert_id,
             mmsi=d.ep.mmsi,
+            target_id=d.ep.target_id,
             vessel_name=name,
             alert_type=d.primary.event_type,
             start_time=d.start,
@@ -202,7 +221,7 @@ def build_alerts(events: list[SensorEvent], now: datetime, cfg: dict, names: dic
             factors=d.factors,
             history=list(hist),
             explanation=explain.alert_text(name, d.ep.mmsi, d.score, d.level, [f.detail for f in d.factors],
-                                           rec.model_dump() if rec else None),
+                                           rec.model_dump() if rec else None, target_id=d.ep.target_id),
             event_ids=sorted({e.event_id for e in d.ep.events} | {f.event_id for f in d.factors if f.event_id}),
             related_mmsis=d.related,
             nearest_infrastructure=d.infra,

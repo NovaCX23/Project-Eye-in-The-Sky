@@ -1,0 +1,15 @@
+{
+  "description": "FICTITIOUS patrol units for the Varna live area; bases are real ports (approx.), routes, speeds and MMSIs are simulated. lat/lon = home base; speed_kn = response speed; patrol_speed_kn = speed while patrolling; route = closed loop at sea, [lat, lon] points, starting and ending at the harbour exit.",
+  "simulated": true,
+  "units": [
+    {"id": "UNIT-1", "name": "Patrol vessel Alfa (simulated)", "mmsi": "207999001", "base": "Varna naval base",
+     "lat": 43.192, "lon": 27.945, "speed_kn": 25.0, "patrol_speed_kn": 12.0, "simulated": true,
+     "route": [[43.180, 27.990], [43.150, 28.300], [43.050, 28.600], [42.920, 28.400], [42.980, 28.050], [43.180, 27.990]]},
+    {"id": "UNIT-2", "name": "Patrol vessel Bravo (simulated)", "mmsi": "207999002", "base": "Port of Balchik",
+     "lat": 43.405, "lon": 28.165, "speed_kn": 22.0, "patrol_speed_kn": 10.0, "simulated": true,
+     "route": [[43.385, 28.200], [43.300, 28.500], [43.250, 28.900], [43.420, 28.850], [43.450, 28.650], [43.385, 28.200]]},
+    {"id": "UNIT-3", "name": "Patrol vessel Charlie (simulated)", "mmsi": "207999003", "base": "Varna naval base",
+     "lat": 43.192, "lon": 27.945, "speed_kn": 22.0, "patrol_speed_kn": 12.0, "simulated": true,
+     "route": [[43.170, 28.000], [42.850, 28.050], [42.750, 28.400], [42.850, 28.800], [43.000, 29.000], [43.100, 28.600], [43.170, 28.000]]}
+  ]
+}

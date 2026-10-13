@@ -9,7 +9,8 @@ __pycache__/
 .venv/
 venv/
 
-# Date reale (nu se comit)
+# Date reale și secrete (nu se comit)
+.env
 data/raw/
 acoustic/clips/real/
 

@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"   # 1.1: radar Sentinel-1 (sursa "sar"), alerte fără MMSI (țintă radar), radar_passes
 
 # Tipuri de evenimente cunoscute. `event_type` rămâne string liber (format snake_case),
 # astfel încât o regulă nouă (skill-ul add-rule) nu cere schimbarea contractului.
@@ -22,9 +22,13 @@ KNOWN_EVENT_TYPES = (
     "position_jump",
     "acoustic_lowfreq",
     "fibre_vibration",
+    "sar_gap_confirmation",
+    "sar_dark_target",
+    "sar_dark_target_uncovered",
+    "ais_no_radar_return",
 )
 
-EventSource = Literal["ais", "acoustic", "fibre"]
+EventSource = Literal["ais", "acoustic", "fibre", "sar"]
 AlertLevel = Literal["low", "medium", "high", "critical"]
 
 MetricValue = float | int | str | bool | None
@@ -51,12 +55,13 @@ class PositionMessage(_Model):
 
 
 class SensorEvent(_Model):
-    """An event produced by a detector (AIS, acoustic or fibre)."""
+    """An event produced by a detector (AIS, acoustic, fibre or satellite radar)."""
 
     event_id: str = Field(description="Deterministic id: hash(source, type, mmsi/sensor, start)")
     event_type: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     source: EventSource
     mmsi: str | None = Field(default=None, pattern=r"^\d{9}$")
+    target_id: str | None = Field(default=None, description="Radar target the event is about (source sar)")
     sensor_id: str | None = None
     start: datetime
     end: datetime | None = Field(default=None, description="None = still ongoing at time now")
@@ -107,10 +112,11 @@ class PatrolRecommendation(_Model):
 
 
 class Alert(_Model):
-    """A fused alert for one vessel incident."""
+    """A fused alert for one vessel incident (an AIS vessel, or a radar target with no AIS)."""
 
-    alert_id: str = Field(description="Deterministic id: hash(mmsi, primary type, start)")
-    mmsi: str = Field(pattern=r"^\d{9}$")
+    alert_id: str = Field(description="Deterministic id: hash(mmsi or target, primary type, start)")
+    mmsi: str | None = Field(default=None, pattern=r"^\d{9}$", description="None = radar target with no AIS")
+    target_id: str | None = Field(default=None, description="Radar target id when the alert has no AIS vessel")
     vessel_name: str | None = None
     alert_type: str = Field(description="Type of the event that opened the incident")
     start_time: datetime
@@ -146,16 +152,58 @@ class VesselTrack(_Model):
     points: list[TrackPoint]
 
 
+class RadarTarget(_Model):
+    """A vessel-sized return on one Sentinel-1 image, and what the cross-reference with AIS made of it."""
+
+    target_id: str
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    length_m: float = Field(ge=0, description="Apparent length on the image (sidelobes make it longer)")
+    peak_db: float = Field(description="Brightest pixel over the local sea clutter")
+    status: Literal["matched", "dark", "dark_uncovered", "fixed", "coastal", "excluded", "unchecked"] = Field(
+        description="unchecked = no AIS was recorded around the image time, so the target cannot be judged")
+    mmsi: str | None = Field(default=None, pattern=r"^\d{9}$", description="Matched AIS vessel, or the silent one")
+    vessel_name: str | None = None
+    match_km: float | None = Field(default=None, ge=0)
+    note: str | None = None
+    chip: str | None = Field(default=None, description="Radar crop, path relative to the repo root")
+
+
+class RadarPass(_Model):
+    """One Sentinel-1 overflight of the area, known from the moment ESA published it."""
+
+    pass_id: str
+    satellite: str
+    acquired_at: datetime
+    available_at: datetime = Field(description="ESA processing time: the radar evidence exists from here on")
+    footprint: list[list[float]] = Field(description="[[lat, lon], ...] of the imaged sea")
+    image: str | None = Field(default=None, description="Radar image (PNG), path relative to the repo root")
+    image_bounds: list[list[float]] = Field(default_factory=list, description="[[lat_s, lon_w], [lat_n, lon_e]]")
+    source_url: str | None = None
+    targets: list[RadarTarget] = Field(default_factory=list)
+
+
 class Timeline(_Model):
     """The out/timeline.json file, the web UI's only input."""
 
     schema_version: str = SCHEMA_VERSION
-    mode: Literal["single", "replay", "watch"]
+    mode: Literal["single", "replay", "watch", "live"] = Field(
+        description="live = real AIS recorded right now, wall-clock time")
     batch_index: int = Field(ge=0)
     scenario_start: datetime
     now: datetime = Field(description="Nothing in the file has timestamp > now")
     simulated: bool
     reload_interval_s: float | None = None
+    area_name: str | None = Field(default=None, description="Real-data area (live mode); None for the demo scenario")
+    area_assets: str | None = Field(
+        default=None,
+        description="Folder (relative to the repo root) with the area's infrastructure.geojson and patrol_units.json; "
+                    "None = assets/ (demo scenario)")
+    ais_coverage: list[list[float]] = Field(
+        default_factory=list,
+        description="Cells where AIS is actually received, [lat_s, lon_w, lat_n, lon_e]; empty = not measured")
+    radar_passes: list[RadarPass] = Field(
+        default_factory=list, description="Sentinel-1 passes published by now (real data only)")
     vessels: list[VesselTrack]
     events: list[SensorEvent]
     alerts: list[Alert]

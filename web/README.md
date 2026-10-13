@@ -9,6 +9,15 @@ A static page (Leaflet from a CDN, plain JavaScript, no build) that replays `out
 - the alert list at the cursor time, the score broken down by factor, the explanation lines, the recommended unit with ETA;
 - time slider, play/pause, replay speed, "Live" mode for `--watch`;
 - "SIMULATED" labels on everything simulated and the "SIMULATED DATA" badge.
+- "Acknowledge & engage" on the recommended unit: an operator decision kept in this browser only (by alert id);
+  the alert gets an ENGAGED tag and stops flashing, the unit's route turns solid, and "Copy tasking" copies a
+  ready-to-send order. Score, level and recommendation still come only from the timeline;
+- `?at=<ISO time>` opens the replay at that moment (e.g. `?at=2026-03-15T09:45:00Z` for the demo's critical alert);
+- a Demo / Live switch in the header: Demo reads `out/timeline.json`, Live (`?mode=live`) reads `out/live/timeline.json`;
+- live mode (`mode: "live"`, real AIS from `core.live`): a "LIVE · REAL AIS · <area>" badge, an "AIS coverage" layer
+  (cells from `ais_coverage` in the timeline), the map centred on that coverage, "Live" ticked; the scripted demo extras
+  (hydrophone panel, submerged contacts) are hidden; the area's SIMULATED hydrophone stations
+  (`hydrophones.json` next to its infrastructure) are drawn with their range and no detections.
 
 **Display only.** No rule, threshold or score is computed here.
 

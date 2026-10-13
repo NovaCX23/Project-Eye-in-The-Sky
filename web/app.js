@@ -19,6 +19,7 @@ const LEVEL_RANK = { low: 0, medium: 1, high: 2, critical: 3 };
 const NORMAL_COLOR = "#3fb6a8";
 const PATROL_TYPE = "patrol";   // ship_type al unităților de patrulare în timeline (scris de core)
 const DARK_COLOR = "#8195ab";
+const START_AT = Date.parse(new URLSearchParams(location.search).get("at") || "") || 0;
 const SIM_TAG = '<span class="tag-sim">SIMULATED</span>';
 const SCRIPT_TAG = '<span class="tag-sim tag-script">SCRIPTED</span>';
 const INFRA_STYLE = {
@@ -36,6 +37,20 @@ const REF_STYLE = {
   license_block: { color: "#9fe870", weight: 1, opacity: 0.6, fillColor: "#9fe870", fillOpacity: 0.06 },
 };
 // Infrastructura cea mai apropiată de alerta selectată (din nearest_infrastructure, calculat de core).
+// Ținte radar Sentinel-1, după comparația cu AIS (statusul îl calculează core; pagina doar îl afișează).
+const RADAR_STATUS = {
+  dark: { color: "#f0525b", label: "No AIS · AIS is received here" },
+  dark_uncovered: { color: "#e3b341", label: "No AIS · reception unproven" },
+  matched: { color: "#3fb6a8", label: "Matched to AIS" },
+  fixed: { color: "#8195ab", label: "Fixed structure" },
+  coastal: { color: "#8195ab", label: "Harbour / coastal clutter" },
+  excluded: { color: "#8195ab", label: "Inside an exclusion zone" },
+  unchecked: { color: "#b9c6d4", label: "Not checked: no AIS recorded at the image time" },
+};
+const RADAR_IMAGE_OPACITY = 0.8;
+const SENTINEL_ATTRIBUTION = 'Radar: contains modified <a href="https://dataspace.copernicus.eu/">Copernicus Sentinel</a> data (ESA)';
+const LIVE_FIT_MAX_ZOOM = 10;   // prima centrare pe date reale nu intră mai aproape de atât
+const COVERAGE_STYLE = { stroke: false, fillColor: "#3fb6a8", fillOpacity: 0.07, interactive: false };  // canvas: stil direct
 const INFRA_HIGHLIGHT = { color: "#ffe066", weight: 6, opacity: 1, fillOpacity: 0.18 };
 const INFRA_HIGHLIGHT_RADIUS = 11;
 const REF_POINT = { platform: "#f0a050", port: "#5b9be6", security_hub: "#3fb6a8", naval_base: "#f472b6" };
@@ -133,7 +148,44 @@ const S = {
   subs: [], subSensors: {}, tlAlerts: [], revealedAlerts: new Set(),
   infraGeo: null, infraById: {}, infraHighlight: null,
   userSelected: false,   // până la primul clic, panoul urmărește alerta cu scorul cel mai mare
+  realData: false,       // timeline în modul live (AIS real): fără elementele scriptate ale scenariului demo
+  fitted: false,         // harta s-a centrat o dată pe datele reale
+  radar: [],             // trecerile Sentinel-1 din timeline (doar pe date reale)
+  radarEvents: {},       // event_id -> eveniment radar (dovada factorilor sar_*)
+  engaged: loadEngaged(), // alert_id -> { unitId, at }: confirmările operatorului (doar în această pagină)
 };
+
+// "Acknowledge & engage": decizia operatorului, nu a sistemului. Se ține doar în browser, pe id-ul stabil al alertei;
+// scorul, nivelul și recomandarea rămân cele din timeline.
+function loadEngaged() {
+  try { return JSON.parse(localStorage.getItem("seagrid.engaged") || "{}"); } catch (e) { return {}; }
+}
+function saveEngaged() {
+  try { localStorage.setItem("seagrid.engaged", JSON.stringify(S.engaged)); } catch (e) { /* stocare indisponibilă */ }
+}
+const ENGAGED_TAG = '<span class="tag-engaged">ENGAGED</span>';
+
+// Numele unei alerte: nava AIS, sau ținta radar fără AIS.
+const shortTarget = (id) => String(id || "").replace(/^S1(\w)_(\d{8})T(\d{4})\d*_\d+-/, "S1$1 $2 $3 #");
+const alertName = (a) => a.vessel_name || a.mmsi || (a.target_id ? `Radar target ${shortTarget(a.target_id)}` : "Unknown vessel");
+// Pagina arată doar ce știa sistemul la momentul t: o trecere radar există de la publicarea ei.
+const radarPassAt = (t) => { let p = null; for (const r of S.radar) if (r.avail <= t) p = r; return p; };
+const findTarget = (id) => { for (const r of S.radar) for (const x of r.targets) if (x.target_id === id) return { pass: r, target: x }; return null; };
+
+// Elementele scenariului demo (hidrofoane și contacte submarine scriptate în pagină) nu au sens pe date reale.
+const showsDemoExtras = () => !S.realData;
+function setRealData(on) {
+  if (S.realData === on) return;
+  S.realData = on;
+  // Comutatorul Demo / Live urmează timeline-ul afișat (și cu ?src=...).
+  $("mode-live").toggleAttribute("aria-current", on);
+  $("mode-demo").toggleAttribute("aria-current", !on);
+  for (const el of document.querySelectorAll("[data-demo-only]")) el.hidden = on;
+  for (const el of document.querySelectorAll("[data-live-only]")) el.hidden = !on;
+  for (const key of ["hydroStations", "hydroCoverage", "submarines"]) {
+    if (on) map.removeLayer(layers[key]); else layers[key].addTo(map);
+  }
+}
 
 const $ = (id) => document.getElementById(id);
 const ms = (iso) => Date.parse(iso);
@@ -161,7 +213,7 @@ const isNearShoreNote = (note) => /near shore|coastal/i.test(note || "");
 const map = L.map("map", { preferCanvas: true, zoomControl: true }).setView(MAP_CENTER, MAP_ZOOM);
 const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 13,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · SeaGrid: simulated data, approximate coordinates',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · SeaGrid: approximate infrastructure coordinates',
 }).addTo(map);
 
 // Fără internet (sală fără rețea): după câteva dale eșuate desenăm un contur de uscat aproximativ, ca harta să nu fie goală.
@@ -184,6 +236,9 @@ map.createPane("glowHigh").style.zIndex = 450;
 const glowIcon = (cls, size) => L.divIcon({ className: "", html: `<div class="${cls}"></div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 
 const layers = {
+  areaHydro: L.layerGroup(),
+  radarImage: L.layerGroup(),
+  coverage: L.layerGroup(),
   reference: L.layerGroup(),
   infra: L.layerGroup(),
   units: L.layerGroup(),
@@ -195,6 +250,7 @@ const layers = {
   vessels: L.layerGroup(),
   submarines: L.layerGroup(),
   routes: L.layerGroup(),
+  radarTargets: L.layerGroup(),
 };
 for (const g of Object.values(layers)) g.addTo(map);
 
@@ -221,15 +277,27 @@ legend.onAdd = () => {
     `<div><i style="background:${NORMAL_COLOR}"></i>Normal vessel</div>` +
     `<div><i style="background:${DARK_COLOR}"></i>AIS off (uncertainty area)</div>` +
     Object.entries(LEVEL_COLOR).map(([k, c]) => `<div><i style="background:${c}"></i>${LEVEL_LABEL[k]} alert</div>`).join("") +
-    `<div><i class="glow-swatch"></i>Patrol unit (simulated) · dashed line = dispatched</div>` +
+    `<div><i class="glow-swatch"></i>Patrol unit (simulated) · dashed = dispatched, solid = engaged</div>` +
     `<div><i class="base-swatch"></i>Patrol base</div>` +
+    `<div data-live-only hidden><i style="background:rgba(63,182,168,.35)"></i>AIS coverage (reception measured)</div>` +
+    `<div data-radar-only hidden>` +
+    `<div class="legend-head">Sentinel-1 radar</div>` +
+    `<div><i class="radar-swatch strong" style="--c:#f0525b"></i>Target with no AIS (AIS received here)</div>` +
+    `<div><i class="radar-swatch strong" style="--c:#e3b341"></i>Target with no AIS (reception unproven)</div>` +
+    `<div><i class="radar-swatch" style="--c:#3fb6a8"></i>Target matched to AIS</div>` +
+    `<div><i class="radar-swatch" style="--c:#8195ab"></i>Fixed structure / coastal clutter</div>` +
+    `<div><i class="radar-swatch" style="--c:#b9c6d4"></i>Not checked (no AIS recorded then)</div>` +
+    `</div>` +
+    `<div data-demo-only>` +
     `<div class="legend-head">Sensors</div>` +
     `<div><i style="background:#a855f7; border-radius:50%"></i>Hydrophone with contact</div>` +
     `<div><i class="glow-swatch round"></i>Hydrophone on standby</div>` +
     `<div><i style="background:#f97316; border-radius:50%"></i>Fibre-optic (DAS) event</div>` +
     `<div><i class="glow-swatch sub"></i>Submerged contact (simulated)</div>` +
     `<div><i class="dot" style="border-color:#2dd4bf"></i>Magnetometer buoy (simulated)</div>` +
-    `<div class="legend-head">Demo infrastructure</div>` +
+    `</div>` +
+    `<div class="legend-head">Scored infrastructure</div>` +
+    `<div><i class="dot" style="border-color:#fff; background:#f0a050"></i>Gas platform</div>` +
     `<div><i style="background:#f0a050"></i>Pipeline</div><div><i style="background:#b48af0"></i>Subsea cable</div>` +
     `<div class="legend-head">Reference (display only)</div>` +
     `<div><i class="dot" style="border-color:#f0a050"></i>Oil / gas platform</div>` +
@@ -299,11 +367,13 @@ function renderPatrols(t, active) {
       } else {
         etaLeft = m.st.eta_min;
       }
-      const name = esc(m.a.vessel_name || m.a.mmsi);
+      const name = esc(alertName(m.a));
       const onScene = etaLeft === 0;
-      status = onScene ? `On scene: ${name}` : `Dispatched to ${name} · ETA ${Number(etaLeft).toFixed(0)} min${m.a.scripted ? " (scripted re-task)" : ""}`;
+      status = (S.engaged[m.a.alert_id] ? "Engaged by operator · " : "") +
+        (onScene ? `On scene: ${name}` : `Dispatched to ${name} · ETA ${Number(etaLeft).toFixed(0)} min${m.a.scripted ? " (scripted re-task)" : ""}`);
       if (!onScene) {
-        L.polyline([pos, target], { color: "#7cc4ff", weight: 2, dashArray: "6 6", opacity: 0.85 })
+        const engaged = S.engaged[m.a.alert_id];
+        L.polyline([pos, target], { color: engaged ? "#3fb6a8" : "#7cc4ff", weight: engaged ? 3 : 2, dashArray: engaged ? null : "6 6", opacity: 0.9 })
           .bindTooltip(`${esc(v.name)} → ${name} · ETA ${Number(etaLeft).toFixed(0)} min`, { sticky: true })
           .addTo(layers.routes);
       }
@@ -331,16 +401,14 @@ function refTooltip(p) {
 }
 
 async function loadAssets() {
-  // Cele trei fișiere se încarcă în paralel; un fișier lipsă nu le blochează pe celelalte.
-  const [ref, gj, pu, subs] = await Promise.allSettled([
+  // Fișierele se încarcă în paralel; un fișier lipsă nu le blochează pe celelalte.
+  const [ref, subs] = await Promise.allSettled([
     SeaGridLoader.fetchJSON(ASSETS + "reference_infrastructure.geojson"),
-    SeaGridLoader.fetchJSON(ASSETS + "infrastructure.geojson"),
-    SeaGridLoader.fetchJSON(ASSETS + "patrol_units.json"),
     SeaGridLoader.fetchJSON(ASSETS + "simulated_submarine_contacts.json"),
   ]);
   if (subs.status === "fulfilled") {
     S.subs = subs.value.contacts || [];
-    if (S.tl) S.alerts = S.tlAlerts.concat(scriptedAlerts());
+    if (S.tl && showsDemoExtras()) S.alerts = S.tlAlerts.concat(scriptedAlerts());
     for (const m of subs.value.low_cost_sensors || []) {
       S.subSensors[m.id] = m;
       L.circleMarker([m.lat, m.lon], { radius: 5, color: "#2dd4bf", weight: 2, fillColor: "#2dd4bf", fillOpacity: 0.25 })
@@ -362,6 +430,36 @@ async function loadAssets() {
       onEachFeature: (f, l) => l.bindTooltip(refTooltip(f.properties), { sticky: true }),
     }).addTo(layers.reference);
   } else console.warn(ref.reason);
+}
+
+// Infrastructura punctată și unitățile de patrulare ale zonei rulate: assets/ pentru scenariul demo,
+// timeline.area_assets în modul live (ex. assets/areas/varna). Se reîncarcă doar când se schimbă zona.
+async function loadAreaAssets(base) {
+  if (S.assetsBase === base) return;
+  S.assetsBase = base;
+  const [gj, pu, hy] = await Promise.allSettled([
+    SeaGridLoader.fetchJSON(base + "infrastructure.geojson"),
+    SeaGridLoader.fetchJSON(base + "patrol_units.json"),
+    // Hidrofoanele SIMULATE ale zonei live (doar poziție și rază; nu există flux acustic real).
+    base === ASSETS ? Promise.reject(new Error("demo hydrophones are scripted in the page")) : SeaGridLoader.fetchJSON(base + "hydrophones.json"),
+  ]);
+  if (S.assetsBase !== base) return;   // între timp a sosit un timeline din altă zonă
+  layers.infra.clearLayers();
+  layers.units.clearLayers();
+  layers.areaHydro.clearLayers();
+  if (hy.status === "fulfilled") {
+    const rangeM = (hy.value.range_km || 15) * 1000;
+    for (const h of hy.value.stations) {
+      L.circle([h.lat, h.lon], { radius: rangeM, color: "#0284c7", weight: 1, opacity: 0.25, dashArray: "5 5", fillOpacity: 0.02, interactive: false })
+        .addTo(layers.areaHydro);
+      L.marker([h.lat, h.lon], { icon: glowIcon("glow-dot", 24), pane: "glowLow", keyboard: false })
+        .bindTooltip(`<b>${esc(h.id)}</b> · ${esc(h.name)}<br><span class="tt-info">SIMULATED station · ${hy.value.range_km || 15} km range · no live acoustic feed</span>`,
+          { direction: "top", offset: [0, -8] })
+        .addTo(layers.areaHydro);
+    }
+  }
+  S.infraGeo = null; S.infraById = {}; S.infraHighlight = null;
+  S.units = {}; S.unitByMmsi = {};
   if (gj.status === "fulfilled") {
     S.infraGeo = L.geoJSON(gj.value, {
       style: (f) => INFRA_STYLE[f.properties.kind] || { color: "#ccc" },
@@ -405,21 +503,67 @@ function ingest(tl) {
     created: ms(a.created_at),
     hist: a.history.map((h) => ({ ...h, tm: ms(h.t) })),
   }));
-  S.alerts = S.tlAlerts.concat(scriptedAlerts());
+  setRealData(tl.mode === "live");
+  S.alerts = showsDemoExtras() ? S.tlAlerts.concat(scriptedAlerts()) : S.tlAlerts;
   S.gapsByMmsi = {};
   for (const e of tl.events.filter((e) => e.event_type === "ais_gap")) {
     (S.gapsByMmsi[e.mmsi] ||= []).push({ ...e, s: ms(e.start), e: e.end ? ms(e.end) : S.end });
   }
-  S.sensors = tl.events.filter((e) => e.source !== "ais").map((e) => ({ ...e, s: ms(e.start) }))
+  S.sensors = tl.events.filter((e) => e.source === "acoustic" || e.source === "fibre").map((e) => ({ ...e, s: ms(e.start) }))
     .sort((a, b) => a.s - b.s);
+  S.radar = (tl.radar_passes || []).map((r) => ({ ...r, avail: ms(r.available_at), acq: ms(r.acquired_at) }))
+    .sort((a, b) => a.acq - b.acq);
+  S.radarEvents = Object.fromEntries(tl.events.filter((e) => e.source === "sar").map((e) => [e.event_id, e]));
+  for (const el of document.querySelectorAll("[data-radar-only]")) el.hidden = !S.radar.length;
+  if (S.radar.length && !S.sentinelCredited) {
+    S.sentinelCredited = true;
+    map.attributionControl.addAttribution(SENTINEL_ATTRIBUTION);
+  }
   $("sim-badge").hidden = !tl.simulated;
+  $("live-badge").hidden = !S.realData;
+  $("live-badge").textContent = `LIVE · REAL AIS${S.radar.length ? " + RADAR" : ""}${tl.area_name ? " · " + tl.area_name : ""}`;
+  drawCoverage(tl.ais_coverage || []);
+  loadAreaAssets(tl.area_assets ? "../" + tl.area_assets + "/" : ASSETS);
+  if (S.realData && !S.fitted) {
+    // Prima dată pe date reale: urmărim ultimul batch și centrăm harta pe zona unde se aude AIS.
+    S.fitted = true;
+    S.live = true;
+    $("live").checked = true;
+    // Navele văzute plus acoperirea învățată (la început, câteva celule lângă port).
+    const ships = S.tracks.filter((v) => v.ship_type !== PATROL_TYPE && v.points.length)
+      .map((v) => [v.points[v.points.length - 1].lat, v.points[v.points.length - 1].lon]);
+    const box = coverageBounds(tl.ais_coverage || []);
+    if (ships.length && box) box.extend(L.latLngBounds(ships));
+    const fit = box || (ships.length > 1 ? L.latLngBounds(ships) : null);
+    if (fit) map.fitBounds(fit, { padding: [20, 20], maxZoom: LIVE_FIT_MAX_ZOOM });
+  }
   $("slider").max = Math.max(1, Math.round((S.end - S.start) / 1000));
+  if (S.t === 0 && START_AT) S.t = START_AT;   // ?at=<ISO>: deschide replay-ul la un moment anume (prezentare)
   if (S.live || S.t === 0 || S.t > S.end) S.t = S.live ? S.end : Math.min(Math.max(S.t, S.start), S.end);
   $("status").textContent = `mode ${tl.mode} · batch ${tl.batch_index} · now ${fmtTime(S.end)}`;
 
-  buildHydrophoneLayers();
-  renderAcousticHistory();
+  if (showsDemoExtras()) {
+    buildHydrophoneLayers();
+    renderAcousticHistory();
+  }
   render();
+}
+
+// Acoperirea AIS vine din timeline (celule învățate de core din înregistrare); pagina doar le desenează.
+let coverageKey = "";
+function drawCoverage(cells) {
+  const key = cells.length + ":" + (cells[0] || []).join(",") + ":" + (cells[cells.length - 1] || []).join(",");
+  if (key === coverageKey) return;
+  coverageKey = key;
+  layers.coverage.clearLayers();
+  for (const [s, w, n, e] of cells) {
+    L.rectangle([[s, w], [n, e]], COVERAGE_STYLE).addTo(layers.coverage);
+  }
+}
+
+function coverageBounds(cells) {
+  if (!cells.length) return null;
+  return L.latLngBounds(cells.flatMap(([s, w, n, e]) => [[s, w], [n, e]]));
 }
 
 // Stațiile de hidrofoane sunt fixe: se construiesc o singură dată (fără flicker la fiecare tick).
@@ -476,6 +620,7 @@ function render() {
   if (!S.userSelected) S.selected = active.length ? active[0].a.alert_id : null;
   const levelByMmsi = {};
   for (const { a, st } of active) {
+    if (!a.mmsi) continue;   // ținte radar fără AIS: se colorează în renderRadar
     const cur = levelByMmsi[a.mmsi];
     if (!cur || LEVEL_RANK[st.level] > LEVEL_RANK[cur]) levelByMmsi[a.mmsi] = st.level;
   }
@@ -549,10 +694,13 @@ function render() {
   }
 
   highlightNearestInfra(sel && sel.created <= t ? sel : null);
-  renderSubmarines(t);
+  if (showsDemoExtras()) {
+    renderSubmarines(t);
+    updateRealtimeAudioBanner(t);
+    highlightActiveHistoryItem(t);
+  }
   renderPatrols(t, active);
-  updateRealtimeAudioBanner(t);
-  highlightActiveHistoryItem(t);
+  renderRadar(t, active);
   renderAlertList(active);
   renderDetail(t);
   renderTimelineMarkers(t);
@@ -780,15 +928,119 @@ $("btn-realtime-audio").onclick = () => {
 };
 $("btn-close-audio-banner").onclick = () => { $("realtime-audio-banner").hidden = true; };
 
+// ---------- radar Sentinel-1 ----------
+// Decupajul radar al țintei (scris de sar.process) și legătura spre produsul ESA din catalog.
+function radarEvidence(e) {
+  const hit = findTarget(e.target_id);
+  const m = e.metrics || {};
+  const chip = hit && hit.target.chip;
+  return `
+    <div class="evidence radar-evidence">
+      ${chip ? `<img class="radar-chip" src="../${esc(chip)}" alt="Radar crop of the target" width="96" height="96">` : ""}
+      <div>
+        <div class="evidence-title">RADAR TARGET · ${esc(m.satellite || "Sentinel-1")} · ${esc(m.acquired || "")}</div>
+        <div class="evidence-sub">${num(m.length_m, 0)} m apparent length · ${num(m.peak_db, 1)} dB over the sea clutter</div>
+        ${hit && hit.pass.source_url ? `<a class="evidence-link" href="${esc(hit.pass.source_url)}" target="_blank" rel="noopener">ESA product in the catalogue ↗</a>` : ""}
+      </div>
+    </div>`;
+}
+
+let radarKey = "";
+function renderRadar(t, active) {
+  const pass = radarPassAt(t);
+  const selected = S.alerts.find((a) => a.alert_id === S.selected);
+  const alertByTarget = {};
+  for (const { a, st } of active) if (a.target_id) alertByTarget[a.target_id] = st.level;
+  const key = [pass ? pass.pass_id : "", selected ? selected.target_id || "" : "", JSON.stringify(alertByTarget)].join("|");
+  renderDarkTargets(pass);
+  if (key === radarKey) return;   // nimic nou: fără redesenare (tooltipurile nu clipesc)
+  radarKey = key;
+  layers.radarImage.clearLayers();
+  layers.radarTargets.clearLayers();
+  if (!pass) return;
+  if (pass.image && pass.image_bounds.length === 2) {
+    L.imageOverlay("../" + pass.image, pass.image_bounds, { opacity: RADAR_IMAGE_OPACITY, interactive: false, className: "radar-image" })
+      .addTo(layers.radarImage);
+  }
+  if (pass.footprint.length > 2) {
+    L.polygon(pass.footprint, { color: "#9ab8d8", weight: 1, dashArray: "4 6", fill: false, interactive: false })
+      .addTo(layers.radarImage);
+  }
+  const when = `${esc(pass.satellite)} · image ${fmtTime(pass.acq)} · published ${fmtTime(pass.avail)}`;
+  for (const x of pass.targets) {
+    const look = RADAR_STATUS[x.status] || RADAR_STATUS.fixed;
+    const level = alertByTarget[x.target_id];
+    const strong = x.status === "dark" || x.status === "dark_uncovered";
+    const isSel = selected && selected.target_id === x.target_id;
+    const size = strong ? 18 : 11;
+    const marker = L.marker([x.lat, x.lon], {
+      icon: L.divIcon({
+        className: "",
+        html: `<div class="radar-target${strong ? " strong" : ""}${isSel ? " selected" : ""}" style="--c:${level ? LEVEL_COLOR[level] : look.color}"></div>`,
+        iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+      }),
+      keyboard: false, zIndexOffset: strong ? 500 : 0,
+    });
+    const who = x.mmsi
+      ? `<br>${x.status === "matched" ? "AIS" : "Silent vessel"}: ${esc(x.vessel_name || "unknown")} (MMSI ${esc(x.mmsi)})${x.match_km != null ? ` · ${num(x.match_km, 2)} km` : ""}`
+      : "";
+    marker.bindTooltip(
+      `${x.chip ? `<img class="radar-chip small" src="../${esc(x.chip)}" alt="" width="64" height="64"><br>` : ""}` +
+      `<b>Radar target</b> · ${num(x.length_m, 0)} m · ${num(x.peak_db, 1)} dB<br>${esc(look.label)}${who}` +
+      `${x.note ? `<br><i>${esc(x.note)}</i>` : ""}<br><span class="muted">${when}</span>`,
+      { direction: "top", offset: [0, -8] });
+    const a = S.alerts.find((al) => al.target_id === x.target_id);
+    if (a) marker.on("click", () => select(a.alert_id));
+    marker.addTo(layers.radarTargets);
+  }
+}
+
+// Lista țintelor fără AIS ale trecerii vizibile (cele mai luminoase primele).
+let darkKey = "";
+function renderDarkTargets(pass) {
+  const dark = pass ? pass.targets.filter((x) => x.status === "dark" || x.status === "dark_uncovered") : [];
+  const key = (pass ? pass.pass_id : "") + "|" + dark.length;
+  if (key === darkKey) return;
+  darkKey = key;
+  $("radar-count").textContent = dark.length;
+  $("radar-meta").textContent = pass
+    ? `${pass.satellite} · image ${fmtTime(pass.acq)} · published ${fmtTime(pass.avail)} · ${pass.targets.length} targets on the sea`
+    : "No radar image published up to this moment.";
+  // Fără AIS înregistrat la momentul imaginii, țintele nu pot fi judecate: nu spunem că totul e în regulă.
+  const unchecked = pass ? pass.targets.filter((x) => x.status === "unchecked").length : 0;
+  $("no-radar").textContent = unchecked
+    ? `${unchecked} targets not checked: no AIS was recorded around the image time.`
+    : "Every vessel-sized radar return on the sea is matched to an AIS vessel.";
+  $("no-radar").hidden = dark.length > 0 || !pass;
+  $("radar-list").innerHTML = dark.sort((a, b) => b.peak_db - a.peak_db).map((x) => `
+    <li data-id="${esc(x.target_id)}" tabindex="0">
+      ${x.chip ? `<img class="radar-chip small" src="../${esc(x.chip)}" alt="" width="40" height="40">` : ""}
+      <span><b>${num(x.length_m, 0)} m</b> · ${num(x.peak_db, 1)} dB<br><span class="muted">${esc((RADAR_STATUS[x.status] || {}).label || x.status)}${x.mmsi ? ` · ${esc(x.vessel_name || x.mmsi)}` : ""}</span></span>
+    </li>`).join("");
+  for (const li of $("radar-list").querySelectorAll("li")) {
+    const go = () => {
+      const hit = findTarget(li.dataset.id);
+      if (!hit) return;
+      map.setView([hit.target.lat, hit.target.lon], Math.max(map.getZoom(), 11));
+      const a = S.alerts.find((al) => al.target_id === li.dataset.id);
+      if (a) select(a.alert_id);
+    };
+    li.onclick = go;
+    li.onkeydown = (ev) => { if (ev.key === "Enter") go(); };
+  }
+}
+
 function renderAlertList(active) {
   $("alert-count").textContent = active.length;
   $("no-alerts").hidden = active.length > 0;
   $("alert-list").innerHTML = active.map(({ a, st }) => {
-    const cls = [a.alert_id === S.selected ? "selected" : "", st.score > FLASH_SCORE ? "flash" : st.score >= PULSE_SCORE ? "pulse" : ""].join(" ");
+    // O alertă confirmată de operator nu mai clipește: cineva se ocupă de ea.
+    const eng = S.engaged[a.alert_id];
+    const cls = [a.alert_id === S.selected ? "selected" : "", eng ? "engaged" : st.score > FLASH_SCORE ? "flash" : st.score >= PULSE_SCORE ? "pulse" : ""].join(" ");
     return `
     <li data-id="${esc(a.alert_id)}" class="${cls}" tabindex="0">
       <span class="chip lvl-${esc(st.level)}"></span>
-      <span class="name">${esc(a.vessel_name || a.mmsi)}${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}</span>
+      <span class="name">${esc(alertName(a))}${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}${eng ? ENGAGED_TAG : ""}</span>
       <span class="score">${st.score}</span>
       <span class="sub">${esc(a.alert_type)} · ${LEVEL_LABEL[st.level] || esc(st.level)} · since ${fmtTime(a.created)}</span>
     </li>`;
@@ -805,10 +1057,10 @@ function renderDetail(t) {
   $("detail").hidden = !st;
   if (!st) return;
   const factors = a.factors.filter((f) => ms(f.added_at) <= t);
-  $("detail-title").innerHTML = `${esc(a.vessel_name || "Unknown vessel")} · ${st.score}/100 ${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}`;
+  $("detail-title").innerHTML = `${esc(a.scripted ? a.vessel_name || "Unknown vessel" : alertName(a))} · ${st.score}/100 ${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}`;
   $("detail-meta").textContent = (a.scripted
     ? `Submerged contact ${a.sub_id} · scripted demo scenario (not computed by the pipeline) · level ${LEVEL_LABEL[st.level] || st.level} · alert ${fmtTime(a.created)}`
-    : `MMSI ${a.mmsi} · level ${LEVEL_LABEL[st.level] || st.level} · onset ${fmtTime(ms(a.start_time))} · alert ${fmtTime(a.created)} · id ${a.alert_id}`);
+    : `${a.mmsi ? `MMSI ${a.mmsi}` : `No AIS · radar target ${a.target_id}`} · level ${LEVEL_LABEL[st.level] || st.level} · onset ${fmtTime(ms(a.start_time))} · alert ${fmtTime(a.created)} · id ${a.alert_id}`);
   $("factors").innerHTML = factors.map((f) => `
     <div class="factor"><div class="row"><span>${esc(f.label)}${f.simulated ? SIM_TAG : ""}</span><b>+${f.points}</b></div>
     <div class="bar"><span style="width:${Math.min(100, f.points)}%"></span></div></div>`).join("") +
@@ -829,6 +1081,8 @@ function renderDetail(t) {
           ${hyd ? `<button type="button" class="btn-mini" data-hyd="${esc(hyd.id)}">View sonar spectrogram</button>` : ""}
         </div>`;
     }
+    const sar = f.event_id && S.radarEvents[f.event_id];
+    if (sar) extra = radarEvidence(sar);
     return `<li>${esc(f.detail)}${extra}</li>`;
   }).join("");
   for (const b of $("detail-lines").querySelectorAll("button[data-hyd]")) b.onclick = () => openSonarModal(findHydro(b.dataset.hyd));
@@ -843,6 +1097,41 @@ function renderDetail(t) {
     ? `<b>${esc(u ? u.name : st.unit_id)}</b> · ${st.eta_min === 0 ? "on scene" : `ETA ${st.eta_min != null ? Number(st.eta_min).toFixed(0) + " min" : "?"}`}${u && u.simulated ? SIM_TAG : ""}`
     // Timeline-ul nu spune de ce lipsește unitatea (sub nivelul de recomandare sau toate unitățile trimise deja).
     : "No unit recommended at this moment (below the recommendation level, or every unit is already dispatched).";
+  renderEngage(a, st, u);
+}
+
+function taskingText(a, st, u) {
+  const lines = [
+    `TASKING ${new Date(S.t).toISOString().slice(0, 16).replace("T", " ")} UTC`,
+    `Unit: ${u ? u.name : st.unit_id}${u && u.simulated ? " (SIMULATED)" : ""}`,
+    `Target: ${alertName(a)}${a.mmsi ? ` (MMSI ${a.mmsi})` : ""}`,
+    `Position: ${num(a.lat, 4)} N, ${num(a.lon, 4)} E`,
+    `Risk: ${st.score}/100 (${LEVEL_LABEL[st.level] || st.level})` + (st.eta_min != null ? ` · ETA ${Number(st.eta_min).toFixed(0)} min` : ""),
+    `Reason: ${a.explanation || a.alert_type}`,
+    `Alert id: ${a.alert_id}`,
+  ];
+  return lines.join("\n");
+}
+
+function renderEngage(a, st, u) {
+  const box = $("engage");
+  const eng = S.engaged[a.alert_id];
+  if (!st.unit_id && !eng) { box.innerHTML = ""; return; }
+  box.innerHTML = eng
+    ? `<div class="engaged-note">${ENGAGED_TAG} ${esc(S.units[eng.unitId] ? S.units[eng.unitId].name : eng.unitId)} engaged by the operator at ${fmtTime(eng.at)}</div>
+       <button type="button" class="btn-mini" id="btn-copy-tasking">Copy tasking</button>
+       <button type="button" class="btn-mini" id="btn-release">Release</button>`
+    : `<button type="button" class="btn-engage" id="btn-engage">Acknowledge &amp; engage</button>
+       <button type="button" class="btn-mini" id="btn-copy-tasking">Copy tasking</button>`;
+  const engage = $("btn-engage");
+  if (engage) engage.onclick = () => { S.engaged[a.alert_id] = { unitId: st.unit_id, at: S.t }; saveEngaged(); render(); };
+  const release = $("btn-release");
+  if (release) release.onclick = () => { delete S.engaged[a.alert_id]; saveEngaged(); render(); };
+  const copy = $("btn-copy-tasking");
+  if (copy) copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(taskingText(a, st, u)); copy.textContent = "Copied"; }
+    catch (e) { copy.textContent = "Copy failed"; }
+  };
 }
 
 function select(id) {
@@ -995,7 +1284,12 @@ applyTheme(document.documentElement.dataset.theme === "day" ? "day" : "night");
 $("theme-toggle").onclick = () => applyTheme(document.documentElement.dataset.theme === "day" ? "night" : "day");
 
 loadAssets();
+loadAreaAssets(ASSETS);
+$(SeaGridLoader.MODE === "live" ? "mode-live" : "mode-demo").setAttribute("aria-current", "page");
 SeaGridLoader.start(ingest, (err) => {
-  $("status").textContent = `Cannot load ${SeaGridLoader.SRC}: run make demo and serve the repo root.`;
+  const hint = SeaGridLoader.MODE === "live"
+    ? "start python -m data.aisstream and python -m core.live"
+    : "run python -m core.demo";
+  $("status").textContent = `Cannot load ${SeaGridLoader.SRC}: ${hint}, and serve the repo root.`;
   console.error(err);
 });

@@ -2,10 +2,10 @@
 # Fără make (Windows): rulați direct comanda din dreapta, listată și în README.md.
 PY ?= python
 
-.PHONY: help setup test demo eval eval-report watch serve schema validate data acoustic pipeline
+.PHONY: help setup test demo eval eval-report watch serve schema validate data acoustic pipeline record live radar
 
 help:
-	@$(PY) -c "print('targets: setup test demo eval eval-report watch serve schema validate data acoustic pipeline')"
+	@$(PY) -c "print('targets: setup test demo eval eval-report watch serve schema validate data acoustic pipeline record live radar')"
 
 setup:        ## pip install -r requirements.txt + core.hooksPath=.githooks
 	$(PY) -m devtools.bootstrap
@@ -43,3 +43,12 @@ acoustic:
 
 pipeline:
 	$(PY) -m core.pipeline
+
+record:       ## real AIS from aisstream.io -> data/raw/ais/<area>/ (needs AISSTREAM_API_KEY in .env)
+	$(PY) -m data.aisstream
+
+live:         ## pipeline on the real AIS recording, wall clock -> out/timeline.json (mode live)
+	$(PY) -m core.live
+
+radar:        ## Sentinel-1 radar: process every new pass over the live area -> data/raw/sar/<area>/
+	$(PY) -m sar.process --watch

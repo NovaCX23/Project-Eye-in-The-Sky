@@ -35,6 +35,21 @@ class PatrolUnit:
     simulated: bool
 
 
+def area_assets_dir(cfg: dict | None = None) -> Path:
+    """Folderul cu infrastructura și unitățile de patrulare ale zonei rulate.
+
+    `cfg["active_area"]` îl pune doar modul live (core/live.py), pe copia lui de config; dacă zona are
+    `areas.<zonă>.assets` (cale relativă la assets/), se folosește acel folder. Altfel (scenariul demo): assets/.
+    """
+    area = (cfg or {}).get("active_area")
+    sub = cfg["areas"][area].get("assets") if area else None
+    return ASSETS_DIR / sub if sub else ASSETS_DIR
+
+
+def area_infrastructure(cfg: dict | None = None) -> tuple[InfraFeature, ...]:
+    return load_infrastructure(area_assets_dir(cfg) / "infrastructure.geojson")
+
+
 @lru_cache(maxsize=4)
 def load_infrastructure(path: Path | None = None) -> tuple[InfraFeature, ...]:
     gj = read_json(path or ASSETS_DIR / "infrastructure.geojson")

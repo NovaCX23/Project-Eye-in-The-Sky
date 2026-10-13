@@ -30,8 +30,23 @@ An **alert** with:
 5. The hydrophone hears something, the cable fibre vibrates. The score becomes **critical** and the system recommends a patrol vessel.
 6. SEA FALCON reappears too close for the speed it was reporting: "too slow", so it stopped somewhere.
 
+## And on real data?
+The same rules also run on **real ships**, live:
+- **Real AIS.** SeaGrid records the positions real ships broadcast around Varna (Bulgaria, about 100 km south of
+  Constanța: the free feed has no receiver near Constanța) and checks them every minute. It first learns where the
+  radio signal is actually received and where ships anchor, so a ship sailing out of range or waiting in port is
+  not an alert.
+- **Real satellite radar.** Twice a day the European Sentinel-1 satellite takes a radar picture of the sea. SeaGrid
+  finds every ship-sized spot on it and asks: "is there an AIS signal here?" A ship on the radar with no AIS is a
+  **dark vessel**, the thing this system exists to catch.
+- **The operator decides.** On each alert, *Acknowledge & engage* marks it as handled and *Copy tasking* copies a
+  ready-to-send order for the patrol vessel.
+
+Use the **Demo / Live** switch at the top of the page to move between the story and the real sea.
+
 ## Important
-- **Everything is simulated.** The ships, sensors and patrol units are made up and labelled **SIMULATED**.
+- **The demo is simulated.** Its ships, sensors and patrol units are made up and labelled **SIMULATED**.
+- **Live mode is real** (AIS and radar), except the patrol units and hydrophone stations, which are always simulated.
 - **Platform and cable positions are approximate**, not official.
 - **The explanations are not written by an AI.** They are fixed sentences filled in with the detector's numbers.
 
@@ -41,5 +56,6 @@ python -m devtools.bootstrap      # once: installs everything
 python -m core.demo               # generates the story
 python -m http.server 8000        # then open http://localhost:8000/web/ and press ▶
 ```
+Live mode needs a free aisstream.io key: see "Live mode on REAL AIS" in the [main README](../README.md).
 
 More details: [the main README](../README.md) · team rules: [AGENTS.md](../AGENTS.md)

@@ -11,8 +11,9 @@ from collections.abc import Container
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import lru_cache
+from pathlib import Path
 
-from contracts.assets import load_patrol_units
+from contracts.assets import area_assets_dir, load_patrol_units
 from contracts.geo import destination, haversine_km, initial_bearing_deg, kn_to_kmh
 from contracts.models import PatrolRecommendation, TrackPoint, VesselTrack
 from contracts.runtime import ASSETS_DIR, parse_time, read_json
@@ -53,12 +54,14 @@ class UnitState:
 
 
 @lru_cache(maxsize=4)
-def load_plans() -> tuple[UnitPlan, ...]:
+def load_plans(assets_dir: Path = ASSETS_DIR) -> tuple[UnitPlan, ...]:
+    """Unitățile din assets_dir/patrol_units.json (assets/ pentru demo, assets/areas/<zonă>/ în modul live)."""
     # contracts/assets.py nu citește câmpurile de rută (contractele sunt înghețate), deci le citim aici
     # din același fișier; câmpurile de bază vin tot prin încărcătorul comun.
-    raw = {u["id"]: u for u in read_json(ASSETS_DIR / "patrol_units.json")["units"]}
+    path = assets_dir / "patrol_units.json"
+    raw = {u["id"]: u for u in read_json(path)["units"]}
     plans = []
-    for u in load_patrol_units():
+    for u in load_patrol_units(path):
         r = raw[u.unit_id]
         route = tuple((float(p[0]), float(p[1])) for p in r.get("route") or [(u.lat, u.lon)])
         plans.append(UnitPlan(unit_id=u.unit_id, name=u.name, mmsi=str(r["mmsi"]), base_name=r.get("base", ""),
@@ -128,7 +131,7 @@ def recommend(lat: float, lon: float, level: str, cfg: dict, now: datetime, legs
     start = parse_time(cfg["scenario"]["start"])
     legs = legs or {}
     best = None
-    for plan in load_plans():
+    for plan in load_plans(area_assets_dir(cfg)):
         if plan.unit_id in busy or (only is not None and plan.unit_id != only):
             continue
         # STUB: linie dreaptă, fără ocolirea uscatului.
@@ -176,18 +179,21 @@ def assign(candidates: list[tuple[str, float, float, str]], cfg: dict, dispatche
     return out
 
 
-def tracks(legs: dict[str, list[Leg]], now: datetime, cfg: dict, decimals: int) -> list[VesselTrack]:
-    """Traseele unităților de la scenario.start până la `now` (inclusiv), ca piste de navă în timeline."""
+def tracks(legs: dict[str, list[Leg]], now: datetime, cfg: dict, decimals: int,
+           since: datetime | None = None) -> list[VesselTrack]:
+    """Traseele unităților de la scenario.start (sau `since`, în modul live) până la `now`, ca piste de navă."""
     start = parse_time(cfg["scenario"]["start"])
     step = timedelta(minutes=cfg["patrol"]["track_step_min"])
     times = []
     t = start
+    while since is not None and t + step <= since:
+        t += step
     while t < now:
         times.append(t)
         t += step
     times.append(now)
     out = []
-    for plan in load_plans():
+    for plan in load_plans(area_assets_dir(cfg)):
         unit_legs = legs.get(plan.unit_id, [])
         pts = []
         for t in times:

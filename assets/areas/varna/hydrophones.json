@@ -1,0 +1,37 @@
+{
+ "description": "SIMULATED hydrophone stations around the Galata/Kaliakra gas fields and the approaches to Varna. There is no public acoustic feed for the Black Sea: in live mode the page shows the stations and their range only, never a detection.",
+ "simulated": true,
+ "range_km": 15,
+ "stations": [
+  {
+   "id": "HYD-1",
+   "name": "Galata Gas Platform",
+   "lat": 43.045,
+   "lon": 28.193
+  },
+  {
+   "id": "HYD-2",
+   "name": "East of Kaliakra Field",
+   "lat": 43.0,
+   "lon": 28.4
+  },
+  {
+   "id": "HYD-3",
+   "name": "Subsea Communications Cable",
+   "lat": 43.12,
+   "lon": 28.5
+  },
+  {
+   "id": "HYD-4",
+   "name": "Varna Approaches",
+   "lat": 43.17,
+   "lon": 28.1
+  },
+  {
+   "id": "HYD-5",
+   "name": "Outer Perimeter",
+   "lat": 43.2,
+   "lon": 28.95
+  }
+ ]
+}

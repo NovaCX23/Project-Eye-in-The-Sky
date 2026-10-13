@@ -24,7 +24,7 @@ on reappearance its position does not match its reported speed. A second vessel 
 SeaGrid correlates both tracks with the infrastructure map, plus acoustic and fibre-optic events, and raises
 an alert with a risk score, a template explanation, and the recommended patrol unit with ETA.
 Judged on: detection rate of injected anomalies, false alarms on normal traffic, explanation quality, time to alert.
-All data is synthetic and every simulated item carries `simulated: true`.
+Demo data is synthetic and every simulated item carries `simulated: true`; live mode uses real AIS and Sentinel-1 radar.
 
 ## Architecture (variant B: micro-batch, no server)
 
@@ -35,6 +35,13 @@ assets/ (infrastructure, patrol units) ──────┘        (<= now only
 ```
 
 - `python -m core.pipeline` runs micro-batches on a simulated clock; `--watch` reruns every N seconds.
+- Live mode on REAL AIS: `python -m data.aisstream` records the aisstream.io feed for the active area (`live.area`) into
+  `data/raw/ais/<area>/` (never committed); `python -m core.live` runs the same rules and fusion on it on the wall clock
+  and writes a `mode: "live"` timeline to `out/live/timeline.json` (the page's Demo / Live switch, `?mode=live`). Real data has no `simulated` flag; only the patrol units stay simulated.
+  aisstream.io has no receiver near Constanța, so real AIS arrives only in the `varna` area.
+- Satellite radar on REAL images: `python -m sar.process --watch` finds ships on each new Sentinel-1 pass over the area
+  (Microsoft Planetary Computer, no account) into `data/raw/sar/<area>/`; `core.live` cross-references the targets with
+  AIS through `detect/sar_rules.py` once the pass is published. A ship on the radar with no AIS is a dark vessel.
 - `contracts/` holds the pydantic models, exported JSON Schema, and examples. Everything exchanged between modules matches them.
 - Path to variant A (live server + WebSocket): replace only `core/sources.py`, `core/sinks.py`, and `web/loader.js`.
   `contracts/`, `detect/`, `acoustic/` must never import or assume anything about transport.
@@ -67,6 +74,9 @@ Run from the repo root with the virtualenv active. `make` is optional; each targ
 | `make serve` | `python -m http.server 8000` then open http://localhost:8000/web/ |
 | `make schema` | `python -m contracts.export_schema` |
 | `make validate` | `python -m contracts.validate out/timeline.json --model Timeline` |
+| `make record` | `python -m data.aisstream` (needs `AISSTREAM_API_KEY` in `.env`, see `.env.example`) |
+| `make live` | `python -m core.live` (real AIS, wall clock; run `make record` and `make serve` alongside) |
+| `make radar` | `python -m sar.process --watch` (Sentinel-1 passes over the live area; run next to `make live`) |
 
 Single steps: `python -m data.generate`, `python -m data.inject`, `python -m acoustic.analyze`, `python -m core.pipeline [--now ISO]`.
 Seeds: tuning `42`, held-out reporting `1337` (in `config.yaml`). Never tune thresholds on the reporting seed.
@@ -83,16 +93,17 @@ Each directory has exactly one owner. Only the owner changes it.
 | `eval/` | Dev 1 | `evaluate.py`: detection rate, false alarms, time to alert |
 | `detect/` | Dev 2 | AIS rules (gap, speed inconsistency, loitering, position jump), exclusion zones |
 | `acoustic/` | Dev 3 | low-frequency energy detector, clips, acoustic events |
+| `sar/` | Dev 3 | Sentinel-1 radar: pass catalogue, image reading, sea mask, ship detection (real data only) |
 | `core/` | Dev 4 | orchestration, fusion, score, explanations, patrol ETA, timeline, `--watch` |
 | `web/` | Dev 5 | `index.html` map, alert panel, factor breakdown, replay, uncertainty area |
 | `pitch/` | Dev 5 | presentation outline, jury questions, `metrics.md` (generated) |
 | root files, `devtools/`, `.githooks/`, `.claude/` | Dev 4 (integration owner) | Makefile, requirements, hooks, assistant config |
 
 `config.yaml` is shared by section: each owner edits only their own section
-(`generator`/`injector`/`eval`: Dev 1, `detect`: Dev 2, `acoustic`: Dev 3,
+(`generator`/`injector`/`eval`: Dev 1, `detect`: Dev 2, `acoustic`/`sar`: Dev 3,
 `fusion`/`score`/`patrol`/`pipeline`: Dev 4, `web`: Dev 5, `scenario`: Dev 1 with team agreement).
 
-Role branches: `role/data-eval`, `role/detect`, `role/acoustic`, `role/core`, `role/web-pitch`.
+Role branches: `role/data-eval`, `role/detect`, `role/acoustic` (also `sar/`), `role/core`, `role/web-pitch`.
 
 ## Git workflow
 
@@ -119,10 +130,14 @@ main  <──(/integrate, Dev 4)──  role/<role>  <──(merge after /verify
 - `main` must always run the demo. Follow "Git workflow": feature branch, frequent commits, `/verify` before merging.
 - Prefer the simplest thing that honours the contract. Mark shortcuts with `# STUB` or `# HACK` and a one-line reason.
 - Everything is in English (identifiers, UI text, alert explanations, data, CLI output, READMEs, docs, pitch), except code comments and docstrings, which stay in Romanian.
-- Python 3.11+, pandas, numpy, shapely, pyyaml, pydantic, pytest. `librosa` only inside `acoustic/`.
+- Python 3.11+, pandas, numpy, shapely, pyyaml, pydantic, pytest. `librosa` only inside `acoustic/`; `rasterio`,
+  `pystac-client`, `planetary-computer`, `pillow`, `requests` only inside `sar/`.
 - Modules are run with `python -m` from the repo root. No `sys.path` hacks.
 - Read and write files as UTF-8; call `contracts.runtime.utf8_stdout()` in CLI entry points (Windows consoles).
-- Do not download datasets. Do not add features beyond the module task lists.
+- Do not download datasets. Do not add features beyond the module task lists. Recording the live AIS feed
+  (`data.aisstream`) and reading Sentinel-1 passes over the area (`sar.process`) are not dataset downloads; both stay
+  in `data/raw/` and are never committed.
+- Secrets (the aisstream.io key) live only in `.env` (gitignored). Never print them, log them or write them to `out/`.
 
 ## Authorship: no AI co-authors
 

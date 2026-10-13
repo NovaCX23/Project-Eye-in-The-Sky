@@ -16,13 +16,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from contracts.models import SensorEvent, Timeline, TrackPoint, VesselTrack
-from contracts.runtime import OUT_DIR, iso, load_config, parse_time, utf8_stdout
+from contracts.assets import area_assets_dir
+from contracts.models import RadarPass, RadarTarget, SensorEvent, Timeline, TrackPoint, VesselTrack
+from contracts.runtime import OUT_DIR, REPO_ROOT, iso, load_config, parse_time, utf8_stdout
 from core import patrol, sources
 from core import state as state_store
 from core.fusion import AlertMemory, build_alerts
 from core.sinks import write_timeline
-from detect import ais_rules
+from detect import ais_rules, sar_rules
+from detect.zones import LearnedZones
 
 
 @dataclass
@@ -32,6 +34,8 @@ class PipelineState:
     memory: AlertMemory = field(default_factory=AlertMemory)
     batch_index: int = 0
     last_alerts: list = field(default_factory=list)
+    # pass_id -> statusul țintelor radar; fiecare trecere se compară cu AIS o singură dată (doar în memorie).
+    radar: dict[str, list[sar_rules.TargetStatus]] = field(default_factory=dict)
 
 
 def _close_finished_gaps(state: PipelineState, ais: pd.DataFrame) -> None:
@@ -46,10 +50,68 @@ def _close_finished_gaps(state: PipelineState, ais: pd.DataFrame) -> None:
             state.events[eid] = e.model_copy(update={"end": back, "metrics": {**e.metrics, "gap_min": gap_min}})
 
 
-def _tracks(ais: pd.DataFrame, decimals: int) -> list[VesselTrack]:
+def _thin(times: pd.Series, min_interval_s: float) -> list[bool]:
+    """Păstrează un punct la cel mult min_interval_s secunde (AIS real raportează și la 2 s); ultimul rămâne mereu."""
+    keep, last = [], None
+    for t in times:
+        ok = last is None or (t - last).total_seconds() >= min_interval_s
+        keep.append(ok)
+        if ok:
+            last = t
+    if keep:
+        keep[-1] = True
+    return keep
+
+
+def _radar_events(view: sources.Inputs, now: datetime, cfg: dict, state: PipelineState,
+                  learned: LearnedZones | None) -> list[SensorEvent]:
+    """Fiecare trecere radar publicată se compară cu AIS la primul batch de după publicare (rezultat determinist:
+    pozițiile care încadrează momentul imaginii sosesc cu mult înaintea publicării). Doar trecerile recente
+    (detect.sar.max_age_h) deschid alerte; cele vechi rămân pe hartă."""
+    out: list[SensorEvent] = []
+    if view.coast_km is None:
+        return out
+    max_age = timedelta(hours=cfg["detect"]["sar"]["max_age_h"])
+    for rec in view.radar:
+        if rec["pass_id"] in state.radar:
+            continue
+        statuses, events = sar_rules.cross_reference(rec, view.ais, now, cfg, view.coast_km, view.lengths, learned)
+        state.radar[rec["pass_id"]] = statuses
+        if now - parse_time(rec["acquired_at"]) <= max_age:
+            out += events
+    return out
+
+
+def _radar_passes(view: sources.Inputs, now: datetime, cfg: dict, state: PipelineState) -> list[RadarPass]:
+    """Trecerile recente, cu statusul fiecărei ținte, pentru hartă. Căile sunt relative la rădăcina repo-ului."""
+    max_age = timedelta(hours=cfg["detect"]["sar"]["max_age_h"])
+    out = []
+    for rec in view.radar:
+        if rec["pass_id"] not in state.radar or now - parse_time(rec["acquired_at"]) > max_age:
+            continue
+        d = rec.get("dir")
+        status = {st.target_id: st for st in state.radar[rec["pass_id"]]}
+        targets = []
+        for t in rec["targets"]:
+            st = status[t["target_id"]]
+            targets.append(RadarTarget(target_id=t["target_id"], lat=t["lat"], lon=t["lon"], length_m=t["length_m"],
+                                       peak_db=t["peak_db"], status=st.status, mmsi=st.mmsi, vessel_name=st.vessel_name,
+                                       match_km=st.match_km, note=st.note,
+                                       chip=f"{d}/{t['chip']}" if d and t.get("chip") else None))
+        out.append(RadarPass(pass_id=rec["pass_id"], satellite=sar_rules.satellite_name(rec["platform"]),
+                             acquired_at=parse_time(rec["acquired_at"]), available_at=parse_time(rec["available_at"]),
+                             footprint=rec["footprint"], image=f"{d}/{rec['image']}" if d and rec.get("image") else None,
+                             image_bounds=rec.get("image_bounds", []), source_url=rec.get("source_url"),
+                             targets=targets))
+    return out
+
+
+def _tracks(ais: pd.DataFrame, decimals: int, min_interval_s: float = 0) -> list[VesselTrack]:
     out = []
     for mmsi, g in ais.groupby("mmsi", sort=True):
         first = g.iloc[0]
+        if min_interval_s:
+            g = g[_thin(g["timestamp"], min_interval_s)]
         pts = [
             TrackPoint(t=t.to_pydatetime(), lat=round(la, decimals), lon=round(lo, decimals),
                        sog=None if pd.isna(s) else round(float(s), 1), cog=None if pd.isna(c) else round(float(c), 0))
@@ -62,10 +124,15 @@ def _tracks(ais: pd.DataFrame, decimals: int) -> list[VesselTrack]:
 
 
 def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineState, mode: str,
-              emit: bool = True) -> Timeline | None:
-    """Un micro-batch. Cu emit=False actualizează doar starea (replay rapid, fără a construi pistele)."""
+              emit: bool = True, learned: LearnedZones | None = None, window_start: datetime | None = None,
+              area_name: str | None = None, coverage: list[list[float]] | None = None) -> Timeline | None:
+    """Un micro-batch. Cu emit=False actualizează doar starea (replay rapid, fără a construi pistele).
+
+    Pe date reale (modul live): `learned` = zonele învățate din înregistrare, `window_start` = de unde se văd pistele,
+    `area_name` și `coverage` ajung în timeline pentru afișare.
+    """
     view = sources.until(inputs, now)  # singurul loc prin care intră datele: nimic din viitor
-    for e in ais_rules.run_all(view.ais, now, cfg) + view.sensors:
+    for e in ais_rules.run_all(view.ais, now, cfg, learned) + view.sensors + _radar_events(view, now, cfg, state, learned):
         state.events[e.event_id] = e
     _close_finished_gaps(state, view.ais)
     events = sorted(state.events.values(), key=lambda e: (e.start, e.event_id))
@@ -80,16 +147,22 @@ def run_batch(inputs: sources.Inputs, now: datetime, cfg: dict, state: PipelineS
     state.last_alerts = alerts
     if not emit:
         return None
+    shown = view.ais if window_start is None else view.ais[view.ais["timestamp"] >= pd.Timestamp(window_start)]
+    dec = cfg["pipeline"]["coord_decimals"]
     tl = Timeline(
         mode=mode,
         batch_index=state.batch_index,
-        scenario_start=parse_time(cfg["scenario"]["start"]),
+        scenario_start=window_start or parse_time(cfg["scenario"]["start"]),
         now=now,
         simulated=bool(view.ais["simulated"].any()) or any(e.simulated for e in events),
         reload_interval_s=cfg["web"]["reload_interval_s"],
+        area_name=area_name,
+        area_assets=area_assets_dir(cfg).relative_to(REPO_ROOT).as_posix() if cfg.get("active_area") else None,
+        ais_coverage=coverage or [],
+        radar_passes=_radar_passes(view, now, cfg, state),
         # Unitățile de patrulare sunt tot piste de navă (ship_type="patrol"), calculate din trimiterile de până la now.
-        vessels=_tracks(view.ais, cfg["pipeline"]["coord_decimals"])
-        + patrol.tracks(state.memory.unit_legs, now, cfg, cfg["pipeline"]["coord_decimals"]),
+        vessels=_tracks(shown, dec, cfg["pipeline"]["track_min_interval_s"])
+        + patrol.tracks(state.memory.unit_legs, now, cfg, dec, since=window_start),
         events=events,
         alerts=alerts,
     )

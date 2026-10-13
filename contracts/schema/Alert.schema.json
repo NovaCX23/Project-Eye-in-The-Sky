@@ -186,10 +186,10 @@
   "$id": "seagrid/Alert.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "A fused alert for one vessel incident.",
+  "description": "A fused alert for one vessel incident (an AIS vessel, or a radar target with no AIS).",
   "properties": {
     "alert_id": {
-      "description": "Deterministic id: hash(mmsi, primary type, start)",
+      "description": "Deterministic id: hash(mmsi or target, primary type, start)",
       "title": "Alert Id",
       "type": "string"
     },
@@ -252,9 +252,18 @@
       "type": "number"
     },
     "mmsi": {
-      "pattern": "^\\d{9}$",
-      "title": "Mmsi",
-      "type": "string"
+      "anyOf": [
+        {
+          "pattern": "^\\d{9}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "None = radar target with no AIS",
+      "title": "Mmsi"
     },
     "nearest_infrastructure": {
       "items": {
@@ -297,6 +306,19 @@
       "title": "Start Time",
       "type": "string"
     },
+    "target_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Radar target id when the alert has no AIS vessel",
+      "title": "Target Id"
+    },
     "updated_at": {
       "format": "date-time",
       "title": "Updated At",
@@ -317,7 +339,6 @@
   },
   "required": [
     "alert_id",
-    "mmsi",
     "alert_type",
     "start_time",
     "created_at",
