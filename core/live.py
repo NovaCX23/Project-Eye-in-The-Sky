@@ -1,9 +1,10 @@
 """Modul live: pipeline-ul pe AIS REAL înregistrat chiar acum (data.aisstream), pe ceasul real.
 
-Rulare (trei terminale, din rădăcina repo-ului):
+Rulare (patru terminale, din rădăcina repo-ului):
   python -m data.aisstream          # 1: înregistrează AIS real (zona live.area din config.yaml)
-  python -m core.live               # 2: rescrie out/timeline.json la fiecare live.tick_s secunde
-  python -m http.server 8000        # 3: http://localhost:8000/web/ și bifați "Live"
+  python -m sar.process --watch     # 2: (opțional) procesează fiecare trecere Sentinel-1 nouă peste zonă
+  python -m core.live               # 3: rescrie out/timeline.json la fiecare live.tick_s secunde
+  python -m http.server 8000        # 4: http://localhost:8000/web/ și bifați "Live"
 
   python -m core.live --once                                   # un singur batch, apoi iese
   python -m core.live --at 2026-10-08T16:00:00Z --ais-dir DIR  # un batch la un moment trecut al unei înregistrări
@@ -24,6 +25,7 @@ from contracts.runtime import OUT_DIR, iso, load_config, parse_time, utf8_stdout
 from core import pipeline, sources
 from core.sinks import write_timeline
 from data.aisstream import active_area, area_dir
+from sar.store import area_dir as sar_area_dir
 from data.recorded import anchorage_cells, coverage_boxes, coverage_cells
 from detect.zones import LearnedZones
 
@@ -33,11 +35,11 @@ MODE = "live"
 class Live:
     """Starea modului live între batch-uri: zonele învățate, memoria alertelor, epoca unităților de patrulare."""
 
-    def __init__(self, cfg: dict, ais_dir: Path, out_dir: Path):
+    def __init__(self, cfg: dict, ais_dir: Path, out_dir: Path, sar_dir: Path | None = None):
         # Copie: epoca rutelor de patrulare (scenario.start) devine începutul primei ferestre, fără a atinge config-ul.
         self.cfg = copy.deepcopy(cfg)
         self.lc = cfg["live"]
-        self.ais_dir, self.out_dir = ais_dir, out_dir
+        self.ais_dir, self.out_dir, self.sar_dir = ais_dir, out_dir, sar_dir
         area = active_area(cfg)
         # Zona rulată: infrastructura și unitățile de patrulare vin din assets/areas/<zonă>/ (contracts.assets).
         self.cfg["active_area"] = area
@@ -65,7 +67,8 @@ class Live:
 
     def tick(self, now: datetime) -> Timeline | None:
         start = now - timedelta(minutes=self.lc["window_min"])
-        inputs = sources.load_live(self.ais_dir, start - timedelta(minutes=self.lc["lookback_min"]), now, self.cfg)
+        inputs = sources.load_live(self.ais_dir, start - timedelta(minutes=self.lc["lookback_min"]), now, self.cfg,
+                                   self.sar_dir)
         if inputs.ais.empty:
             print(f"[core.live] {iso(now)}: no AIS recorded in the last {self.lc['window_min']} min "
                   f"in {self.ais_dir}; is python -m data.aisstream running?", flush=True)
@@ -83,6 +86,8 @@ class Live:
                 t += step
         tl = pipeline.run_batch(inputs, now, self.cfg, self.state, MODE, **kw)
         self._prune(start)
+        loaded = {r["pass_id"] for r in inputs.radar}
+        self.state.radar = {k: v for k, v in self.state.radar.items() if k in loaded}
         write_timeline(tl, self.out_dir)
         self.last_now = now
         print(f"[core.live] {iso(now)} batch {tl.batch_index}: {len(tl.vessels)} tracks, {len(tl.events)} events, "
@@ -97,9 +102,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--once", action="store_true", help="one batch, then exit")
     ap.add_argument("--at", help="one batch at this past moment of the recording (ISO 8601); implies --once")
     ap.add_argument("--ais-dir", type=Path, default=None, help="recording folder (default: data/raw/ais/<area>)")
+    ap.add_argument("--sar-dir", type=Path, default=None,
+                    help="processed Sentinel-1 passes (default: data/raw/sar/<area>, written by python -m sar.process)")
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
     args = ap.parse_args(argv)
-    live = Live(cfg, args.ais_dir or area_dir(cfg), args.out_dir)
+    live = Live(cfg, args.ais_dir or area_dir(cfg), args.out_dir, args.sar_dir or sar_area_dir(cfg))
     if args.at:
         return 0 if live.tick(parse_time(args.at)) else 1
     try:
