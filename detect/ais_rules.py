@@ -84,11 +84,14 @@ def detect_gaps(df: pd.DataFrame, now: datetime, cfg: dict, learned: LearnedZone
     return out
 
 
-def detect_speed_inconsistency(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]:
+def detect_speed_inconsistency(df: pd.DataFrame, cfg: dict, learned: LearnedZones | None = None) -> list[SensorEvent]:
     """La reapariție (pauză > min_gap_min): distanța parcursă nu se potrivește cu viteza raportată.
 
-    Se verifică în ambele direcții: prea rapid și prea lent.
+    Se verifică în ambele direcții: prea rapid și prea lent. Pauza trebuie să fie o tăcere adevărată, ca la ais_gap:
+    nu într-o zonă de excludere (port, ancoraj) și, pe date reale, unde AIS se recepționează, după rapoarte regulate.
+    Altfel nava doar a ieșit din raza receptorului (pe AIS real, cauza obișnuită a acestor "inconsistențe").
     """
+    regular = cfg["detect"]["gap"]["min_messages_last_hour"]
     c = cfg["detect"]["speed_consistency"]
     history = np.timedelta64(int(c["history_min"] * 60), "s")
     out = []
@@ -100,6 +103,12 @@ def detect_speed_inconsistency(df: pd.DataFrame, cfg: dict) -> list[SensorEvent]
         idx = np.nonzero(dt_min > c["min_gap_min"])[0]
         for i in idx:
             a, b = g.iloc[i], g.iloc[i + 1]
+            if is_excluded("speed_inconsistency", a.lat, a.lon, cfg, learned):
+                continue
+            if learned is not None:
+                before = int(((t > t[i] - np.timedelta64(1, "h")) & (t <= t[i])).sum())
+                if not is_covered(a.lat, a.lon, learned) or before < regular:
+                    continue
             dist = haversine_km(a.lat, a.lon, b.lat, b.lon)
             implied_kn = kmh_to_kn(dist / (dt_min[i] / 60.0))
             # Viteza așteptată = mediana SOG din istoricul dinainte de pauză; SOG-ul de după reapariție nu contează.
@@ -257,11 +266,16 @@ def detect_rendezvous(df: pd.DataFrame, cfg: dict, learned: LearnedZones | None 
 
     slow = slow.sort_values("timestamp")
     mmsis = sorted(slow["mmsi"].unique())
+    # Pescadorii care lucrează împreună (traul în pereche, flotile) stau aproape și încet: comportament normal.
+    types = df.dropna(subset=["ship_type"]).groupby("mmsi")["ship_type"].last().to_dict()
+    ignore = set(c.get("ignore_pair_types", []))
     out: list[SensorEvent] = []
 
     for idx_a in range(len(mmsis)):
         for idx_b in range(idx_a + 1, len(mmsis)):
             ma, mb = mmsis[idx_a], mmsis[idx_b]
+            if types.get(ma) in ignore and types.get(mb) in ignore:
+                continue
             ga = slow[slow["mmsi"] == ma]
             gb = slow[slow["mmsi"] == mb]
             if len(ga) < min_msgs or len(gb) < min_msgs:
@@ -389,7 +403,7 @@ def run_all(df: pd.DataFrame, now: datetime, cfg: dict, learned: LearnedZones | 
         return []
     return (
         detect_gaps(df, now, cfg, learned)
-        + detect_speed_inconsistency(df, cfg)
+        + detect_speed_inconsistency(df, cfg, learned)
         + detect_loitering(df, cfg, learned)
         + detect_position_jumps(df, cfg)
         + detect_rendezvous(df, cfg, learned)

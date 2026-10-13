@@ -91,15 +91,22 @@ def test_recorded_range_is_none_without_recordings(tmp_path):
     assert recorded_range(tmp_path) is None
 
 
-def test_coverage_needs_messages_from_several_vessels(cfg):
+def test_coverage_needs_messages_from_several_vessels_over_several_hours(cfg):
     c = cfg["live"]
     n = c["coverage_min_messages"]
-    one = pd.DataFrame({"mmsi": ["273000001"] * n, "lat": [43.21] * n, "lon": [28.61] * n, "sog_kn": [9.0] * n})
+    hours = c["coverage_min_hours"]
+    # Mesajele unei nave, întinse pe `hours` ore diferite.
+    ts = pd.date_range("2026-10-12T06:00:00Z", periods=n, freq=pd.Timedelta(hours=hours) / n)
+    one = pd.DataFrame({"mmsi": ["273000001"] * n, "lat": [43.21] * n, "lon": [28.61] * n, "sog_kn": [9.0] * n,
+                        "timestamp": ts})
     assert coverage_cells(one, cfg) == set()
     two = pd.concat([one, one.assign(mmsi="273000002")], ignore_index=True)
     cells = coverage_cells(two, cfg)
     assert in_cells(43.21, 28.61, cells, c["coverage_cell_deg"])
     assert not in_cells(43.5, 28.9, cells, c["coverage_cell_deg"])
+    # Aceleași mesaje într-o singură rafală (o flotilă care trece): recepția nu e încă dovedită.
+    burst = two.assign(timestamp=pd.Timestamp("2026-10-12T06:00:00Z"))
+    assert coverage_cells(burst, cfg) == set()
 
 
 def test_anchorage_needs_several_still_vessels(cfg):

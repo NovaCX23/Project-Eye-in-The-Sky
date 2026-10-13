@@ -65,6 +65,13 @@ def static_table(days: list[str], ais_dir: Path) -> pd.DataFrame:
     return agg[["mmsi", "vessel_name", "ship_type", "length_m"]]
 
 
+def vessel_lengths(start: datetime, end: datetime, ais_dir: Path, static_days_before: int) -> dict[str, float]:
+    """Lungimea raportată de fiecare navă (rapoartele statice), pentru regulile radar; doar valorile pozitive."""
+    st = static_table(_days(start - timedelta(days=static_days_before), end), ais_dir)
+    st = st[pd.to_numeric(st["length_m"], errors="coerce") > 0]
+    return {str(m): float(v) for m, v in zip(st["mmsi"], st["length_m"])}
+
+
 def load_recorded(start: datetime, end: datetime, ais_dir: Path, static_days_before: int) -> pd.DataFrame:
     """Rapoartele de poziție cu start <= timestamp <= end, cu numele și tipul din rapoartele statice.
 
@@ -109,14 +116,16 @@ def in_cells(lat: float, lon: float, cells: set[Cell], size: float) -> bool:
 
 
 def coverage_cells(df: pd.DataFrame, cfg: dict) -> set[Cell]:
-    """Celulele (i, j) de live.coverage_cell_deg cu destule mesaje de la destule nave."""
+    """Celulele (i, j) de live.coverage_cell_deg cu destule mesaje de la destule nave, în destule ore diferite."""
     c = cfg["live"]
     if df.empty:
         return set()
     i, j = _cells(df["lat"].to_numpy(), df["lon"].to_numpy(), c["coverage_cell_deg"])
-    g = pd.DataFrame({"i": i, "j": j, "mmsi": df["mmsi"].to_numpy()}).groupby(["i", "j"])
-    stats = g.agg(n=("mmsi", "size"), v=("mmsi", "nunique"))
-    ok = stats[(stats["n"] >= c["coverage_min_messages"]) & (stats["v"] >= c["coverage_min_vessels"])]
+    hour = df["timestamp"].dt.floor("h").to_numpy()
+    g = pd.DataFrame({"i": i, "j": j, "mmsi": df["mmsi"].to_numpy(), "h": hour}).groupby(["i", "j"])
+    stats = g.agg(n=("mmsi", "size"), v=("mmsi", "nunique"), hours=("h", "nunique"))
+    ok = stats[(stats["n"] >= c["coverage_min_messages"]) & (stats["v"] >= c["coverage_min_vessels"])
+               & (stats["hours"] >= c["coverage_min_hours"])]
     return {(int(a), int(b)) for a, b in ok.index}
 
 

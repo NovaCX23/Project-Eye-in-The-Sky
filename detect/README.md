@@ -18,6 +18,21 @@ Naive but real AIS rules (they catch the demo scenario), in `ais_rules.py`:
 - learned anchorages count as exclusion zones, like the drawn ones;
 - a vessel sitting still (mean speed <= `detect.loitering.max_moored_sog_kn`) is moored, not loitering.
 
+**Radar** (`sar_rules.py`, real data only): when a Sentinel-1 pass is published, `core` hands over its targets
+(found by `sar/`) and the AIS known up to `now`. Every AIS vessel gets a position at the image time (interpolated
+between two fixes, or dead-reckoned for a few minutes), targets and vessels are paired one-to-one (Hungarian
+assignment) inside a gate that grows with the position uncertainty plus an along-track allowance for moving ships.
+What is left over:
+
+| Event | Logic | Points |
+|---|---|---|
+| `sar_gap_confirmation` | a dark target inside the area a vessel could have reached since its AIS went silent (same conditions as `ais_gap`, at the image time), nearest to its dead-reckoned position | 40 |
+| `sar_dark_target` | a ship-sized target with no AIS vessel, not a fixed structure, not coastal clutter, where AIS reception is proven | 35 |
+| `sar_dark_target_uncovered` | the same where no receiver is proven to hear AIS: a weak clue, never an alert on its own | 10 |
+| `ais_no_radar_return` | a vessel of at least `min_length_no_return_m` (by its own static report) at a near-certain position on open sea, with no radar return | 15 |
+
+Thresholds: `detect.sar.*`; points: `score.points`.
+
 Without learned zones (synthetic data) the whole coverage box counts as covered. The tuning and held-out metrics
 did not change with these rules (100% detection, 0 false alarms on both seeds).
 
@@ -26,7 +41,8 @@ A DataFrame of `PositionMessage` rows with timestamp `<= now` (guaranteed by `co
 `now`, `config.yaml`.
 
 ## Produces
-`list[SensorEvent]` with `source="ais"`, a deterministic id and every number the explanation needs in `metrics`.
+`list[SensorEvent]` with `source="ais"` (and `source="sar"` from `sar_rules.py`, plus the status of every radar
+target), a deterministic id and every number the explanation needs in `metrics`.
 No I/O, no state: it does not know how results are delivered.
 
 ## Running it on its own
