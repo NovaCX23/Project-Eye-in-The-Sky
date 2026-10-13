@@ -24,7 +24,7 @@ on reappearance its position does not match its reported speed. A second vessel 
 SeaGrid correlates both tracks with the infrastructure map, plus acoustic and fibre-optic events, and raises
 an alert with a risk score, a template explanation, and the recommended patrol unit with ETA.
 Judged on: detection rate of injected anomalies, false alarms on normal traffic, explanation quality, time to alert.
-All data is synthetic and every simulated item carries `simulated: true`.
+Demo data is synthetic and every simulated item carries `simulated: true`; live mode uses real AIS and Sentinel-1 radar.
 
 ## Architecture (variant B: micro-batch, no server)
 
