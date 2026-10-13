@@ -1210,7 +1210,11 @@ $("theme-toggle").onclick = () => applyTheme(document.documentElement.dataset.th
 
 loadAssets();
 loadAreaAssets(ASSETS);
+$(SeaGridLoader.MODE === "live" ? "mode-live" : "mode-demo").setAttribute("aria-current", "page");
 SeaGridLoader.start(ingest, (err) => {
-  $("status").textContent = `Cannot load ${SeaGridLoader.SRC}: run make demo and serve the repo root.`;
+  const hint = SeaGridLoader.MODE === "live"
+    ? "start python -m data.aisstream and python -m core.live"
+    : "run python -m core.demo";
+  $("status").textContent = `Cannot load ${SeaGridLoader.SRC}: ${hint}, and serve the repo root.`;
   console.error(err);
 });

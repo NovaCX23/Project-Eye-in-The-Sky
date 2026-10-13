@@ -37,7 +37,7 @@ assets/ (infrastructure, patrol units) ──────┘        (<= now only
 - `python -m core.pipeline` runs micro-batches on a simulated clock; `--watch` reruns every N seconds.
 - Live mode on REAL AIS: `python -m data.aisstream` records the aisstream.io feed for the active area (`live.area`) into
   `data/raw/ais/<area>/` (never committed); `python -m core.live` runs the same rules and fusion on it on the wall clock
-  and writes a `mode: "live"` timeline. Real data has no `simulated` flag; only the patrol units stay simulated.
+  and writes a `mode: "live"` timeline to `out/live/timeline.json` (the page's Demo / Live switch, `?mode=live`). Real data has no `simulated` flag; only the patrol units stay simulated.
   aisstream.io has no receiver near Constanța, so real AIS arrives only in the `varna` area.
 - Satellite radar on REAL images: `python -m sar.process --watch` finds ships on each new Sentinel-1 pass over the area
   (Microsoft Planetary Computer, no account) into `data/raw/sar/<area>/`; `core.live` cross-references the targets with

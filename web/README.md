@@ -9,6 +9,7 @@ A static page (Leaflet from a CDN, plain JavaScript, no build) that replays `out
 - the alert list at the cursor time, the score broken down by factor, the explanation lines, the recommended unit with ETA;
 - time slider, play/pause, replay speed, "Live" mode for `--watch`;
 - "SIMULATED" labels on everything simulated and the "SIMULATED DATA" badge.
+- a Demo / Live switch in the header: Demo reads `out/timeline.json`, Live (`?mode=live`) reads `out/live/timeline.json`;
 - live mode (`mode: "live"`, real AIS from `core.live`): a "LIVE · REAL AIS · <area>" badge, an "AIS coverage" layer
   (cells from `ais_coverage` in the timeline), the map centred on that coverage, "Live" ticked; the scripted demo extras
   (hydrophone panel, submerged contacts) are hidden.

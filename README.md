@@ -56,12 +56,14 @@ then tick "Live" on the page. If `--watch` is restarted it resumes where it stop
 3. Three terminals:
    ```bash
    python -m data.aisstream     # = make record: keeps recording into data/raw/ais/<area>/
-   python -m core.live          # = make live: rewrites out/timeline.json every minute
-   python -m http.server 8000   # open http://localhost:8000/web/ (badge "LIVE · REAL AIS")
+   python -m core.live          # = make live: rewrites out/live/timeline.json every minute
+   python -m http.server 8000   # open http://localhost:8000/web/?mode=live (or click "Live" in the header)
    ```
 The rules learn from the recording where AIS is actually received and where ships anchor, so a ship leaving radio range
 or waiting at an anchorage is not an alert. A useful coverage map needs a few hours of recording.
 `python -m core.live --at <ISO time> --ais-dir <folder>` replays one moment of an existing recording.
+Live mode writes its own file, so running the demo (or `/verify`) never replaces it: the Demo / Live switch in the
+page header picks which one you see.
 
 ## Architecture (variant B, micro-batch)
 

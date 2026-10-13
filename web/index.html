@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
   <header>
@@ -22,6 +22,10 @@
       <h1>SeaGrid</h1>
       <span class="subtitle">Romanian maritime infrastructure · Black Sea</span>
     </div>
+    <nav class="mode-switch" aria-label="Data source">
+      <a id="mode-demo" href="./">Demo</a>
+      <a id="mode-live" href="./?mode=live">Live</a>
+    </nav>
     <span id="sim-badge" class="badge sim" hidden>SIMULATED DATA</span>
     <span id="live-badge" class="badge live" hidden>LIVE · REAL AIS</span>
     <span class="badge approx">Approximate coordinates</span>
@@ -137,7 +141,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="loader.js?v=7"></script>
-  <script src="app.js?v=12"></script>
+  <script src="loader.js?v=8"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

@@ -5,7 +5,9 @@
 const SeaGridLoader = (() => {
   const params = new URLSearchParams(location.search);
   // Serviți rădăcina repo-ului (python -m http.server 8000) și deschideți /web/.
-  const SRC = params.get("src") || "../out/timeline.json";
+  // ?mode=live citește fișierul scris de python -m core.live; fără parametru, demo-ul (python -m core.demo).
+  const MODE = params.get("mode") === "live" ? "live" : "demo";
+  const SRC = params.get("src") || (MODE === "live" ? "../out/live/timeline.json" : "../out/timeline.json");
   const DEFAULT_RELOAD_S = 3;
 
   async function fetchTimeline() {
@@ -44,5 +46,5 @@ const SeaGridLoader = (() => {
     return res.json();
   }
 
-  return { start, fetchJSON, SRC };
+  return { start, fetchJSON, SRC, MODE };
 })();

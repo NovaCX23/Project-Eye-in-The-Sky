@@ -3,8 +3,8 @@
 Rulare (patru terminale, din rădăcina repo-ului):
   python -m data.aisstream          # 1: înregistrează AIS real (zona live.area din config.yaml)
   python -m sar.process --watch     # 2: (opțional) procesează fiecare trecere Sentinel-1 nouă peste zonă
-  python -m core.live               # 3: rescrie out/timeline.json la fiecare live.tick_s secunde
-  python -m http.server 8000        # 4: http://localhost:8000/web/ și bifați "Live"
+  python -m core.live               # 3: rescrie out/live/timeline.json la fiecare live.tick_s secunde
+  python -m http.server 8000        # 4: http://localhost:8000/web/?mode=live (butonul "Live")
 
   python -m core.live --once                                   # un singur batch, apoi iese
   python -m core.live --at 2026-10-08T16:00:00Z --ais-dir DIR  # un batch la un moment trecut al unei înregistrări
@@ -28,6 +28,8 @@ from data.aisstream import active_area, area_dir
 from sar.store import area_dir as sar_area_dir
 from data.recorded import anchorage_cells, coverage_boxes, coverage_cells
 from detect.zones import LearnedZones
+
+LIVE_OUT_DIR = OUT_DIR / "live"
 
 MODE = "live"
 
@@ -104,7 +106,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ais-dir", type=Path, default=None, help="recording folder (default: data/raw/ais/<area>)")
     ap.add_argument("--sar-dir", type=Path, default=None,
                     help="processed Sentinel-1 passes (default: data/raw/sar/<area>, written by python -m sar.process)")
-    ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
+    # Fișier separat de demo: core.demo / verify nu suprascriu modul live (și invers).
+    ap.add_argument("--out-dir", type=Path, default=LIVE_OUT_DIR, help="default: out/live")
     args = ap.parse_args(argv)
     live = Live(cfg, args.ais_dir or area_dir(cfg), args.out_dir, args.sar_dir or sar_area_dir(cfg))
     if args.at:

@@ -26,7 +26,7 @@
 - `live.py`: LIVE mode on real AIS recorded by `data.aisstream`, on the wall clock. Every `live.tick_s` seconds it loads the
   last `live.window_min` minutes (plus `live.lookback_min` for the rules that look back) through `sources.load_live`,
   relearns receiver coverage and anchorages every `live.zones_refresh_min` minutes (`detect.zones.LearnedZones`),
-  and writes `out/timeline.json` with `mode: "live"`, the area name and the coverage cells. On start it replays the
+  and writes `out/live/timeline.json` (separate from the demo) with `mode: "live"`, the area name and the coverage cells. On start it replays the
   window once so alerts keep their history. `--at ISO --ais-dir DIR` runs one batch at a past moment of a recording.
   No injected anomalies: only the patrol units are simulated.
 
