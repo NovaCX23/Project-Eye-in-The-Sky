@@ -12,7 +12,8 @@ A static page (Leaflet from a CDN, plain JavaScript, no build) that replays `out
 - a Demo / Live switch in the header: Demo reads `out/timeline.json`, Live (`?mode=live`) reads `out/live/timeline.json`;
 - live mode (`mode: "live"`, real AIS from `core.live`): a "LIVE · REAL AIS · <area>" badge, an "AIS coverage" layer
   (cells from `ais_coverage` in the timeline), the map centred on that coverage, "Live" ticked; the scripted demo extras
-  (hydrophone panel, submerged contacts) are hidden.
+  (hydrophone panel, submerged contacts) are hidden; the area's SIMULATED hydrophone stations
+  (`hydrophones.json` next to its infrastructure) are drawn with their range and no detections.
 
 **Display only.** No rule, threshold or score is computed here.
 

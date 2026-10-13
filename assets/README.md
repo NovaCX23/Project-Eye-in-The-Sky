@@ -17,6 +17,8 @@
   Kaliakra/Kamchia wellheads, the Galata pipeline, the KAFOS Varna branch and the Caucasus Cable System landing at
   Balchik (protected), plus the Varna Bay and Balchik harbour approaches (exclusion); same properties as above, each
   with a `source` link. `areas/varna/patrol_units.json`: three FICTITIOUS units at Varna naval base and Balchik.
+  `areas/varna/hydrophones.json`: five SIMULATED hydrophone stations (position and range only); live mode shows them
+  labelled as simulated and never reports an acoustic detection from them.
   The demo scenario never reads `areas/`.
 - `reference_infrastructure.geojson`: DISPLAY ONLY. Real-world infrastructure from the documents in this folder
   (`Rezumat.docx` and its subfolders): Neptun Deep (Domino, Pelican Sud) and its pipeline to Tuzla, the Port of

@@ -221,6 +221,7 @@ map.createPane("glowHigh").style.zIndex = 450;
 const glowIcon = (cls, size) => L.divIcon({ className: "", html: `<div class="${cls}"></div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 
 const layers = {
+  areaHydro: L.layerGroup(),
   radarImage: L.layerGroup(),
   coverage: L.layerGroup(),
   reference: L.layerGroup(),
@@ -419,13 +420,27 @@ async function loadAssets() {
 async function loadAreaAssets(base) {
   if (S.assetsBase === base) return;
   S.assetsBase = base;
-  const [gj, pu] = await Promise.allSettled([
+  const [gj, pu, hy] = await Promise.allSettled([
     SeaGridLoader.fetchJSON(base + "infrastructure.geojson"),
     SeaGridLoader.fetchJSON(base + "patrol_units.json"),
+    // Hidrofoanele SIMULATE ale zonei live (doar poziție și rază; nu există flux acustic real).
+    base === ASSETS ? Promise.reject(new Error("demo hydrophones are scripted in the page")) : SeaGridLoader.fetchJSON(base + "hydrophones.json"),
   ]);
   if (S.assetsBase !== base) return;   // între timp a sosit un timeline din altă zonă
   layers.infra.clearLayers();
   layers.units.clearLayers();
+  layers.areaHydro.clearLayers();
+  if (hy.status === "fulfilled") {
+    const rangeM = (hy.value.range_km || 15) * 1000;
+    for (const h of hy.value.stations) {
+      L.circle([h.lat, h.lon], { radius: rangeM, color: "#0284c7", weight: 1, opacity: 0.25, dashArray: "5 5", fillOpacity: 0.02, interactive: false })
+        .addTo(layers.areaHydro);
+      L.marker([h.lat, h.lon], { icon: glowIcon("glow-dot", 24), pane: "glowLow", keyboard: false })
+        .bindTooltip(`<b>${esc(h.id)}</b> · ${esc(h.name)}<br><span class="tt-info">SIMULATED station · ${hy.value.range_km || 15} km range · no live acoustic feed</span>`,
+          { direction: "top", offset: [0, -8] })
+        .addTo(layers.areaHydro);
+    }
+  }
   S.infraGeo = null; S.infraById = {}; S.infraHighlight = null;
   S.units = {}; S.unitByMmsi = {};
   if (gj.status === "fulfilled") {
