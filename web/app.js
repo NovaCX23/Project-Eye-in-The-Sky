@@ -36,6 +36,18 @@ const REF_STYLE = {
   license_block: { color: "#9fe870", weight: 1, opacity: 0.6, fillColor: "#9fe870", fillOpacity: 0.06 },
 };
 // Infrastructura cea mai apropiată de alerta selectată (din nearest_infrastructure, calculat de core).
+// Ținte radar Sentinel-1, după comparația cu AIS (statusul îl calculează core; pagina doar îl afișează).
+const RADAR_STATUS = {
+  dark: { color: "#f0525b", label: "No AIS · AIS is received here" },
+  dark_uncovered: { color: "#e3b341", label: "No AIS · reception unproven" },
+  matched: { color: "#3fb6a8", label: "Matched to AIS" },
+  fixed: { color: "#8195ab", label: "Fixed structure" },
+  coastal: { color: "#8195ab", label: "Harbour / coastal clutter" },
+  excluded: { color: "#8195ab", label: "Inside an exclusion zone" },
+  unchecked: { color: "#b9c6d4", label: "Not checked: no AIS recorded at the image time" },
+};
+const RADAR_IMAGE_OPACITY = 0.8;
+const SENTINEL_ATTRIBUTION = 'Radar: contains modified <a href="https://dataspace.copernicus.eu/">Copernicus Sentinel</a> data (ESA)';
 const LIVE_FIT_MAX_ZOOM = 10;   // prima centrare pe date reale nu intră mai aproape de atât
 const COVERAGE_STYLE = { stroke: false, fillColor: "#3fb6a8", fillOpacity: 0.07, interactive: false };  // canvas: stil direct
 const INFRA_HIGHLIGHT = { color: "#ffe066", weight: 6, opacity: 1, fillOpacity: 0.18 };
@@ -137,7 +149,16 @@ const S = {
   userSelected: false,   // până la primul clic, panoul urmărește alerta cu scorul cel mai mare
   realData: false,       // timeline în modul live (AIS real): fără elementele scriptate ale scenariului demo
   fitted: false,         // harta s-a centrat o dată pe datele reale
+  radar: [],             // trecerile Sentinel-1 din timeline (doar pe date reale)
+  radarEvents: {},       // event_id -> eveniment radar (dovada factorilor sar_*)
 };
+
+// Numele unei alerte: nava AIS, sau ținta radar fără AIS.
+const shortTarget = (id) => String(id || "").replace(/^S1(\w)_(\d{8})T(\d{4})\d*_\d+-/, "S1$1 $2 $3 #");
+const alertName = (a) => a.vessel_name || a.mmsi || (a.target_id ? `Radar target ${shortTarget(a.target_id)}` : "Unknown vessel");
+// Pagina arată doar ce știa sistemul la momentul t: o trecere radar există de la publicarea ei.
+const radarPassAt = (t) => { let p = null; for (const r of S.radar) if (r.avail <= t) p = r; return p; };
+const findTarget = (id) => { for (const r of S.radar) for (const x of r.targets) if (x.target_id === id) return { pass: r, target: x }; return null; };
 
 // Elementele scenariului demo (hidrofoane și contacte submarine scriptate în pagină) nu au sens pe date reale.
 const showsDemoExtras = () => !S.realData;
@@ -200,6 +221,7 @@ map.createPane("glowHigh").style.zIndex = 450;
 const glowIcon = (cls, size) => L.divIcon({ className: "", html: `<div class="${cls}"></div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 
 const layers = {
+  radarImage: L.layerGroup(),
   coverage: L.layerGroup(),
   reference: L.layerGroup(),
   infra: L.layerGroup(),
@@ -212,6 +234,7 @@ const layers = {
   vessels: L.layerGroup(),
   submarines: L.layerGroup(),
   routes: L.layerGroup(),
+  radarTargets: L.layerGroup(),
 };
 for (const g of Object.values(layers)) g.addTo(map);
 
@@ -241,6 +264,14 @@ legend.onAdd = () => {
     `<div><i class="glow-swatch"></i>Patrol unit (simulated) · dashed line = dispatched</div>` +
     `<div><i class="base-swatch"></i>Patrol base</div>` +
     `<div data-live-only hidden><i style="background:rgba(63,182,168,.35)"></i>AIS coverage (reception measured)</div>` +
+    `<div data-radar-only hidden>` +
+    `<div class="legend-head">Sentinel-1 radar</div>` +
+    `<div><i class="radar-swatch strong" style="--c:#f0525b"></i>Target with no AIS (AIS received here)</div>` +
+    `<div><i class="radar-swatch strong" style="--c:#e3b341"></i>Target with no AIS (reception unproven)</div>` +
+    `<div><i class="radar-swatch" style="--c:#3fb6a8"></i>Target matched to AIS</div>` +
+    `<div><i class="radar-swatch" style="--c:#8195ab"></i>Fixed structure / coastal clutter</div>` +
+    `<div><i class="radar-swatch" style="--c:#b9c6d4"></i>Not checked (no AIS recorded then)</div>` +
+    `</div>` +
     `<div data-demo-only>` +
     `<div class="legend-head">Sensors</div>` +
     `<div><i style="background:#a855f7; border-radius:50%"></i>Hydrophone with contact</div>` +
@@ -320,7 +351,7 @@ function renderPatrols(t, active) {
       } else {
         etaLeft = m.st.eta_min;
       }
-      const name = esc(m.a.vessel_name || m.a.mmsi);
+      const name = esc(alertName(m.a));
       const onScene = etaLeft === 0;
       status = onScene ? `On scene: ${name}` : `Dispatched to ${name} · ETA ${Number(etaLeft).toFixed(0)} min${m.a.scripted ? " (scripted re-task)" : ""}`;
       if (!onScene) {
@@ -446,11 +477,19 @@ function ingest(tl) {
   for (const e of tl.events.filter((e) => e.event_type === "ais_gap")) {
     (S.gapsByMmsi[e.mmsi] ||= []).push({ ...e, s: ms(e.start), e: e.end ? ms(e.end) : S.end });
   }
-  S.sensors = tl.events.filter((e) => e.source !== "ais").map((e) => ({ ...e, s: ms(e.start) }))
+  S.sensors = tl.events.filter((e) => e.source === "acoustic" || e.source === "fibre").map((e) => ({ ...e, s: ms(e.start) }))
     .sort((a, b) => a.s - b.s);
+  S.radar = (tl.radar_passes || []).map((r) => ({ ...r, avail: ms(r.available_at), acq: ms(r.acquired_at) }))
+    .sort((a, b) => a.acq - b.acq);
+  S.radarEvents = Object.fromEntries(tl.events.filter((e) => e.source === "sar").map((e) => [e.event_id, e]));
+  for (const el of document.querySelectorAll("[data-radar-only]")) el.hidden = !S.radar.length;
+  if (S.radar.length && !S.sentinelCredited) {
+    S.sentinelCredited = true;
+    map.attributionControl.addAttribution(SENTINEL_ATTRIBUTION);
+  }
   $("sim-badge").hidden = !tl.simulated;
   $("live-badge").hidden = !S.realData;
-  $("live-badge").textContent = `LIVE · REAL AIS${tl.area_name ? " · " + tl.area_name : ""}`;
+  $("live-badge").textContent = `LIVE · REAL AIS${S.radar.length ? " + RADAR" : ""}${tl.area_name ? " · " + tl.area_name : ""}`;
   drawCoverage(tl.ais_coverage || []);
   loadAreaAssets(tl.area_assets ? "../" + tl.area_assets + "/" : ASSETS);
   if (S.realData && !S.fitted) {
@@ -548,6 +587,7 @@ function render() {
   if (!S.userSelected) S.selected = active.length ? active[0].a.alert_id : null;
   const levelByMmsi = {};
   for (const { a, st } of active) {
+    if (!a.mmsi) continue;   // ținte radar fără AIS: se colorează în renderRadar
     const cur = levelByMmsi[a.mmsi];
     if (!cur || LEVEL_RANK[st.level] > LEVEL_RANK[cur]) levelByMmsi[a.mmsi] = st.level;
   }
@@ -627,6 +667,7 @@ function render() {
     highlightActiveHistoryItem(t);
   }
   renderPatrols(t, active);
+  renderRadar(t, active);
   renderAlertList(active);
   renderDetail(t);
   renderTimelineMarkers(t);
@@ -854,6 +895,103 @@ $("btn-realtime-audio").onclick = () => {
 };
 $("btn-close-audio-banner").onclick = () => { $("realtime-audio-banner").hidden = true; };
 
+// ---------- radar Sentinel-1 ----------
+// Decupajul radar al țintei (scris de sar.process) și legătura spre produsul ESA din catalog.
+function radarEvidence(e) {
+  const hit = findTarget(e.target_id);
+  const m = e.metrics || {};
+  const chip = hit && hit.target.chip;
+  return `
+    <div class="evidence radar-evidence">
+      ${chip ? `<img class="radar-chip" src="../${esc(chip)}" alt="Radar crop of the target" width="96" height="96">` : ""}
+      <div>
+        <div class="evidence-title">RADAR TARGET · ${esc(m.satellite || "Sentinel-1")} · ${esc(m.acquired || "")}</div>
+        <div class="evidence-sub">${num(m.length_m, 0)} m apparent length · ${num(m.peak_db, 1)} dB over the sea clutter</div>
+        ${hit && hit.pass.source_url ? `<a class="evidence-link" href="${esc(hit.pass.source_url)}" target="_blank" rel="noopener">ESA product in the catalogue ↗</a>` : ""}
+      </div>
+    </div>`;
+}
+
+let radarKey = "";
+function renderRadar(t, active) {
+  const pass = radarPassAt(t);
+  const selected = S.alerts.find((a) => a.alert_id === S.selected);
+  const alertByTarget = {};
+  for (const { a, st } of active) if (a.target_id) alertByTarget[a.target_id] = st.level;
+  const key = [pass ? pass.pass_id : "", selected ? selected.target_id || "" : "", JSON.stringify(alertByTarget)].join("|");
+  renderDarkTargets(pass);
+  if (key === radarKey) return;   // nimic nou: fără redesenare (tooltipurile nu clipesc)
+  radarKey = key;
+  layers.radarImage.clearLayers();
+  layers.radarTargets.clearLayers();
+  if (!pass) return;
+  if (pass.image && pass.image_bounds.length === 2) {
+    L.imageOverlay("../" + pass.image, pass.image_bounds, { opacity: RADAR_IMAGE_OPACITY, interactive: false, className: "radar-image" })
+      .addTo(layers.radarImage);
+  }
+  if (pass.footprint.length > 2) {
+    L.polygon(pass.footprint, { color: "#9ab8d8", weight: 1, dashArray: "4 6", fill: false, interactive: false })
+      .addTo(layers.radarImage);
+  }
+  const when = `${esc(pass.satellite)} · image ${fmtTime(pass.acq)} · published ${fmtTime(pass.avail)}`;
+  for (const x of pass.targets) {
+    const look = RADAR_STATUS[x.status] || RADAR_STATUS.fixed;
+    const level = alertByTarget[x.target_id];
+    const strong = x.status === "dark" || x.status === "dark_uncovered";
+    const isSel = selected && selected.target_id === x.target_id;
+    const size = strong ? 18 : 11;
+    const marker = L.marker([x.lat, x.lon], {
+      icon: L.divIcon({
+        className: "",
+        html: `<div class="radar-target${strong ? " strong" : ""}${isSel ? " selected" : ""}" style="--c:${level ? LEVEL_COLOR[level] : look.color}"></div>`,
+        iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+      }),
+      keyboard: false, zIndexOffset: strong ? 500 : 0,
+    });
+    const who = x.mmsi
+      ? `<br>${x.status === "matched" ? "AIS" : "Silent vessel"}: ${esc(x.vessel_name || "unknown")} (MMSI ${esc(x.mmsi)})${x.match_km != null ? ` · ${num(x.match_km, 2)} km` : ""}`
+      : "";
+    marker.bindTooltip(
+      `${x.chip ? `<img class="radar-chip small" src="../${esc(x.chip)}" alt="" width="64" height="64"><br>` : ""}` +
+      `<b>Radar target</b> · ${num(x.length_m, 0)} m · ${num(x.peak_db, 1)} dB<br>${esc(look.label)}${who}` +
+      `${x.note ? `<br><i>${esc(x.note)}</i>` : ""}<br><span class="muted">${when}</span>`,
+      { direction: "top", offset: [0, -8] });
+    const a = S.alerts.find((al) => al.target_id === x.target_id);
+    if (a) marker.on("click", () => select(a.alert_id));
+    marker.addTo(layers.radarTargets);
+  }
+}
+
+// Lista țintelor fără AIS ale trecerii vizibile (cele mai luminoase primele).
+let darkKey = "";
+function renderDarkTargets(pass) {
+  const dark = pass ? pass.targets.filter((x) => x.status === "dark" || x.status === "dark_uncovered") : [];
+  const key = (pass ? pass.pass_id : "") + "|" + dark.length;
+  if (key === darkKey) return;
+  darkKey = key;
+  $("radar-count").textContent = dark.length;
+  $("radar-meta").textContent = pass
+    ? `${pass.satellite} · image ${fmtTime(pass.acq)} · published ${fmtTime(pass.avail)} · ${pass.targets.length} targets on the sea`
+    : "No radar image published up to this moment.";
+  $("no-radar").hidden = dark.length > 0 || !pass;
+  $("radar-list").innerHTML = dark.sort((a, b) => b.peak_db - a.peak_db).map((x) => `
+    <li data-id="${esc(x.target_id)}" tabindex="0">
+      ${x.chip ? `<img class="radar-chip small" src="../${esc(x.chip)}" alt="" width="40" height="40">` : ""}
+      <span><b>${num(x.length_m, 0)} m</b> · ${num(x.peak_db, 1)} dB<br><span class="muted">${esc((RADAR_STATUS[x.status] || {}).label || x.status)}${x.mmsi ? ` · ${esc(x.vessel_name || x.mmsi)}` : ""}</span></span>
+    </li>`).join("");
+  for (const li of $("radar-list").querySelectorAll("li")) {
+    const go = () => {
+      const hit = findTarget(li.dataset.id);
+      if (!hit) return;
+      map.setView([hit.target.lat, hit.target.lon], Math.max(map.getZoom(), 11));
+      const a = S.alerts.find((al) => al.target_id === li.dataset.id);
+      if (a) select(a.alert_id);
+    };
+    li.onclick = go;
+    li.onkeydown = (ev) => { if (ev.key === "Enter") go(); };
+  }
+}
+
 function renderAlertList(active) {
   $("alert-count").textContent = active.length;
   $("no-alerts").hidden = active.length > 0;
@@ -862,7 +1000,7 @@ function renderAlertList(active) {
     return `
     <li data-id="${esc(a.alert_id)}" class="${cls}" tabindex="0">
       <span class="chip lvl-${esc(st.level)}"></span>
-      <span class="name">${esc(a.vessel_name || a.mmsi)}${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}</span>
+      <span class="name">${esc(alertName(a))}${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}</span>
       <span class="score">${st.score}</span>
       <span class="sub">${esc(a.alert_type)} · ${LEVEL_LABEL[st.level] || esc(st.level)} · since ${fmtTime(a.created)}</span>
     </li>`;
@@ -879,10 +1017,10 @@ function renderDetail(t) {
   $("detail").hidden = !st;
   if (!st) return;
   const factors = a.factors.filter((f) => ms(f.added_at) <= t);
-  $("detail-title").innerHTML = `${esc(a.vessel_name || "Unknown vessel")} · ${st.score}/100 ${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}`;
+  $("detail-title").innerHTML = `${esc(a.scripted ? a.vessel_name || "Unknown vessel" : alertName(a))} · ${st.score}/100 ${a.scripted ? SCRIPT_TAG : a.simulated ? SIM_TAG : ""}`;
   $("detail-meta").textContent = (a.scripted
     ? `Submerged contact ${a.sub_id} · scripted demo scenario (not computed by the pipeline) · level ${LEVEL_LABEL[st.level] || st.level} · alert ${fmtTime(a.created)}`
-    : `MMSI ${a.mmsi} · level ${LEVEL_LABEL[st.level] || st.level} · onset ${fmtTime(ms(a.start_time))} · alert ${fmtTime(a.created)} · id ${a.alert_id}`);
+    : `${a.mmsi ? `MMSI ${a.mmsi}` : `No AIS · radar target ${a.target_id}`} · level ${LEVEL_LABEL[st.level] || st.level} · onset ${fmtTime(ms(a.start_time))} · alert ${fmtTime(a.created)} · id ${a.alert_id}`);
   $("factors").innerHTML = factors.map((f) => `
     <div class="factor"><div class="row"><span>${esc(f.label)}${f.simulated ? SIM_TAG : ""}</span><b>+${f.points}</b></div>
     <div class="bar"><span style="width:${Math.min(100, f.points)}%"></span></div></div>`).join("") +
@@ -903,6 +1041,8 @@ function renderDetail(t) {
           ${hyd ? `<button type="button" class="btn-mini" data-hyd="${esc(hyd.id)}">View sonar spectrogram</button>` : ""}
         </div>`;
     }
+    const sar = f.event_id && S.radarEvents[f.event_id];
+    if (sar) extra = radarEvidence(sar);
     return `<li>${esc(f.detail)}${extra}</li>`;
   }).join("");
   for (const b of $("detail-lines").querySelectorAll("button[data-hyd]")) b.onclick = () => openSonarModal(findHydro(b.dataset.hyd));

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
   <header>
@@ -30,6 +30,8 @@
     <div class="map-filters" role="group" aria-label="Map filters">
       <label class="pill"><input type="checkbox" data-layers="vessels,trails,uncertainty" checked><span>AIS vessels</span></label>
       <label class="pill" data-live-only hidden><input type="checkbox" data-layers="coverage" checked><span>AIS coverage</span></label>
+      <label class="pill" data-radar-only hidden><input type="checkbox" data-layers="radarImage" checked><span>Radar image</span></label>
+      <label class="pill" data-radar-only hidden><input type="checkbox" data-layers="radarTargets" checked><span>Radar targets</span></label>
       <label class="pill" data-demo-only><input type="checkbox" data-layers="hydroStations,sensors" checked><span>Hydrophones</span></label>
       <label class="pill" data-demo-only><input type="checkbox" data-layers="hydroCoverage" checked><span>15 km ranges</span></label>
       <label class="pill"><input type="checkbox" data-layers="infra,reference" checked><span>Infrastructure</span></label>
@@ -65,6 +67,14 @@
         </div>
         <h3>Recommended unit</h3>
         <div id="recommendation" class="muted"></div>
+      </section>
+
+      <!-- Radar Sentinel-1: țintele fără AIS ale ultimei treceri publicate (doar pe date reale) -->
+      <section class="card" data-radar-only hidden>
+        <h2>Radar Targets Without AIS <span id="radar-count" class="count">0</span></h2>
+        <p id="radar-meta" class="muted small"></p>
+        <ol id="radar-list" class="radar-list"></ol>
+        <p id="no-radar" class="muted" hidden>Every vessel-sized radar return on the sea is matched to an AIS vessel.</p>
       </section>
 
       <!-- Contacte submarine (scenariu simulat, doar afișare; ascunse în modul live) -->
@@ -128,6 +138,6 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="loader.js?v=7"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>

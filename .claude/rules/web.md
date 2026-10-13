@@ -7,7 +7,8 @@ paths:
 
 - Owns: `index.html`, `app.js` (rendering and replay), `loader.js` (transport: polls `timeline.json`),
   `style.css`. Plain JavaScript, Leaflet from CDN, no build step, no npm.
-- Consumes: `out/timeline.json` (Timeline contract), `assets/infrastructure.geojson`, `assets/patrol_units.json`.
+- Consumes: `out/timeline.json` (Timeline contract), `assets/infrastructure.geojson`, `assets/patrol_units.json`
+  (in live mode the same two files from the folder named by `timeline.area_assets`, e.g. `assets/areas/varna/`).
 - Produces: the demo screen: map, alert list, score broken down by factor, explanation lines, recommended unit,
   time slider with speed control, growing uncertainty circle for a dark vessel, visible SIMULATED labels.
 - Commands: `python -m core.demo`, then `python -m http.server 8000` at the repo root and open
