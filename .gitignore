@@ -21,3 +21,6 @@ CLAUDE.local.md
 # Sistem
 .DS_Store
 Thumbs.db
+
+# /brag: cadre și fișiere intermediare (livrabilele se copiază în pitch/brag/)
+brag-output*/

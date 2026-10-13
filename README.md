@@ -8,7 +8,7 @@ above a cable, or a radar return with no AIS at all. It then raises an alert wit
 explanation and the nearest patrol unit, with its ETA.
 
 [![SeaGrid launch video](pitch/brag/brag.jpg)](pitch/brag/brag.mp4)
-<sub>35-second launch video ([`pitch/brag/brag.mp4`](pitch/brag/brag.mp4)).</sub>
+<sub>50-second launch video, with music ([`pitch/brag/brag.mp4`](pitch/brag/brag.mp4)).</sub>
 
 | | |
 |---|---|
