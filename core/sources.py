@@ -51,6 +51,14 @@ def repo_path(p: Path) -> str | None:
         return None
 
 
+def coast_fn(sar_dir: Path | None) -> Callable[[float, float], float] | None:
+    """Distanța până la coasta OSM, din poligonul mării pus în cache de sar/landmask.py; None dacă lipsește."""
+    if sar_dir is None or not (sea := sar_dir / "sea.geojson").exists():
+        return None
+    raw = read_json(sea)
+    return coast_distance_fn(shape(raw["geometry"]), raw["bbox"])
+
+
 def load_live(ais_dir: Path, start: datetime, now: datetime, cfg: dict, sar_dir: Path | None = None) -> Inputs:
     """AIS real înregistrat între start și now (data/raw/ais/<zonă>/) și trecerile radar publicate până la now
     (data/raw/sar/<zonă>/). Niciun mesaj de după now."""
@@ -60,10 +68,7 @@ def load_live(ais_dir: Path, start: datetime, now: datetime, cfg: dict, sar_dir:
     radar = load_records(sar_dir, now, since) if sar_dir is not None else []
     for rec in radar:
         rec["dir"] = repo_path(sar_dir / rec["pass_id"])   # imaginile se servesc din rădăcina repo-ului
-    coast = None
-    if radar and (sea := sar_dir / "sea.geojson").exists():
-        raw = read_json(sea)
-        coast = coast_distance_fn(shape(raw["geometry"]), raw["bbox"])
+    coast = coast_fn(sar_dir) if radar else None
     lengths = vessel_lengths(start, now, ais_dir, days) if radar else {}
     return Inputs(ais=ais, sensors=[], radar=radar, coast_km=coast, lengths=lengths)
 

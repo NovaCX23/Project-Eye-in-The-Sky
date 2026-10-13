@@ -25,6 +25,7 @@ from contracts.runtime import OUT_DIR, iso, load_config, parse_time, utf8_stdout
 from core import pipeline, sources
 from core.sinks import write_timeline
 from data.aisstream import active_area, area_dir
+from sar.landmask import sea_polygon
 from sar.store import area_dir as sar_area_dir
 from data.recorded import anchorage_cells, coverage_boxes, coverage_cells
 from detect.zones import LearnedZones
@@ -37,7 +38,8 @@ MODE = "live"
 class Live:
     """Starea modului live între batch-uri: zonele învățate, memoria alertelor, epoca unităților de patrulare."""
 
-    def __init__(self, cfg: dict, ais_dir: Path, out_dir: Path, sar_dir: Path | None = None):
+    def __init__(self, cfg: dict, ais_dir: Path, out_dir: Path, sar_dir: Path | None = None,
+                 fetch_coast: bool = False):
         # Copie: epoca rutelor de patrulare (scenario.start) devine începutul primei ferestre, fără a atinge config-ul.
         self.cfg = copy.deepcopy(cfg)
         self.lc = cfg["live"]
@@ -47,10 +49,24 @@ class Live:
         self.cfg["active_area"] = area
         self.area_name = cfg["areas"][area]["name"]
         self.bbox = cfg["areas"][area]["bbox"]
+        self.coast_km = self._coast(area, fetch_coast)
         self.learned: LearnedZones | None = None
         self.learned_at: datetime | None = None
         self.state = pipeline.PipelineState()
         self.last_now: datetime | None = None
+
+    def _coast(self, area: str, fetch: bool):
+        """Distanța până la coastă pentru zona-tampon de port; cu `fetch`, linia de coastă OSM se descarcă o dată
+        (sar/landmask, aceeași cache ca radarul)."""
+        if self.sar_dir is None:
+            return None
+        if fetch and not (self.sar_dir / "sea.geojson").exists():
+            try:
+                sea_polygon(self.cfg, area, self.sar_dir)
+            except (SystemExit, Exception) as e:   # Overpass ocupat: se continuă fără zona-tampon
+                print(f"[core.live] no coastline yet, port buffer off ({e})", flush=True)
+                return None
+        return sources.coast_fn(self.sar_dir)
 
     def refresh_zones(self, now: datetime) -> None:
         if self.learned_at is not None and now - self.learned_at < timedelta(minutes=self.lc["zones_refresh_min"]):
@@ -59,7 +75,8 @@ class Live:
         self.learned = LearnedZones(
             bbox=self.bbox, coverage_cell_deg=self.lc["coverage_cell_deg"],
             anchorage_cell_deg=self.lc["anchorage_cell_deg"],
-            coverage=frozenset(coverage_cells(hist, self.cfg)), anchorages=frozenset(anchorage_cells(hist, self.cfg)))
+            coverage=frozenset(coverage_cells(hist, self.cfg)), anchorages=frozenset(anchorage_cells(hist, self.cfg)),
+            coast_km=self.coast_km)
         self.learned_at = now
 
     def _prune(self, window_start: datetime) -> None:
@@ -109,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     # Fișier separat de demo: core.demo / verify nu suprascriu modul live (și invers).
     ap.add_argument("--out-dir", type=Path, default=LIVE_OUT_DIR, help="default: out/live")
     args = ap.parse_args(argv)
-    live = Live(cfg, args.ais_dir or area_dir(cfg), args.out_dir, args.sar_dir or sar_area_dir(cfg))
+    live = Live(cfg, args.ais_dir or area_dir(cfg), args.out_dir, args.sar_dir or sar_area_dir(cfg), fetch_coast=True)
     if args.at:
         return 0 if live.tick(parse_time(args.at)) else 1
     try:

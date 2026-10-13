@@ -16,6 +16,8 @@ Naive but real AIS rules (they catch the demo scenario), in `ais_rules.py`:
 - `ais_gap` fires only where AIS is actually received (receiver coverage) and only for a vessel that was reporting
   regularly (`detect.gap.min_messages_last_hour`): leaving radio range is not "going dark";
 - learned anchorages count as exclusion zones, like the drawn ones;
+- the port buffer: closer than `detect.exclusion.port_buffer_km` to the OpenStreetMap coastline (harbours, quays,
+  basins behind breakwaters) is port activity, excluded like a drawn zone (coastline cached by `sar/landmask.py`);
 - a vessel sitting still (mean speed <= `detect.loitering.max_moored_sog_kn`) is moored, not loitering.
 
 **Radar** (`sar_rules.py`, real data only): when a Sentinel-1 pass is published, `core` hands over its targets

@@ -191,6 +191,17 @@ def test_learned_anchorage_excludes_loitering(t0, cfg):
     assert "loitering" in _types(ais_rules.detect_loitering(to_df(rows), cfg, _learned(cfg, *OPEN_SEA)))
 
 
+def test_port_buffer_excludes_loitering_near_the_coast(t0, cfg):
+    from dataclasses import replace
+
+    rows = straight_track("111111111", t0, range(0, 90), *OPEN_SEA, sog=0.5)
+    buffer_km = cfg["detect"]["exclusion"]["port_buffer_km"]
+    near = replace(_learned(cfg, *OPEN_SEA), coast_km=lambda lat, lon: buffer_km / 2)
+    far = replace(_learned(cfg, *OPEN_SEA), coast_km=lambda lat, lon: buffer_km * 5)
+    assert ais_rules.detect_loitering(to_df(rows), cfg, near) == []
+    assert "loitering" in _types(ais_rules.detect_loitering(to_df(rows), cfg, far))
+
+
 def test_moored_vessel_is_not_loitering(t0, cfg):
     still = cfg["detect"]["loitering"]["max_moored_sog_kn"] / 2
     rows = straight_track("111111111", t0, range(0, 90), *OPEN_SEA, sog=still)

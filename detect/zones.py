@@ -4,18 +4,22 @@ Două surse:
   - zonele desenate din infrastructure.geojson al zonei rulate (proprietatea "exclusion": true), mereu active
     (assets/ pentru scenariul demo, assets/areas/<zonă>/ în modul live, vezi contracts.assets.area_assets_dir);
   - zonele învățate din înregistrarea AIS reală (LearnedZones, construite de core din data/recorded.py):
-    ancorajele (excludere) și acoperirea de recepție (o tăcere în afara ei nu e o gaură AIS).
+    ancorajele (excludere) și acoperirea de recepție (o tăcere în afara ei nu e o gaură AIS);
+  - pe date reale, zona-tampon de port: mai aproape de coasta OpenStreetMap decât detect.exclusion.port_buffer_km
+    (porturi, cheiuri, bazine; core dă funcția de distanță, construită de sar/landmask.py).
 Ce reguli țin cont de excludere se decide în config.yaml: detect.exclusion.applies_to.
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from contracts.assets import area_infrastructure, in_exclusion_zone
 
 LEARNED_ANCHORAGE = "learned-anchorage"
+PORT_BUFFER = "port-buffer"
 
 
 @dataclass(frozen=True)
@@ -27,6 +31,8 @@ class LearnedZones:
     anchorage_cell_deg: float
     coverage: frozenset = field(default_factory=frozenset)
     anchorages: frozenset = field(default_factory=frozenset)
+    # f(lat, lon) -> km până la coastă (0 pe uscat și în bazinele portuare); None = linia de coastă necunoscută.
+    coast_km: Callable[[float, float], float] | None = field(default=None, compare=False)
 
 
 def _cell(lat: float, lon: float, size: float) -> tuple[int, int]:
@@ -40,6 +46,9 @@ def is_excluded(rule: str, lat: float, lon: float, cfg: dict, learned: LearnedZo
     zone = in_exclusion_zone(lat, lon, area_infrastructure(cfg))
     if zone is None and learned is not None and _cell(lat, lon, learned.anchorage_cell_deg) in learned.anchorages:
         zone = LEARNED_ANCHORAGE
+    if (zone is None and learned is not None and learned.coast_km is not None
+            and learned.coast_km(lat, lon) < cfg["detect"]["exclusion"]["port_buffer_km"]):
+        zone = PORT_BUFFER
     return zone
 
 

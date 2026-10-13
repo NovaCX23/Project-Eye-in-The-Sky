@@ -183,6 +183,7 @@ detect:
   exclusion:
     # Zonele din assets/infrastructure.geojson cu proprietatea "exclusion": true
     applies_to: [loitering, ais_gap, rendezvous, speed_inconsistency, sar_dark_target]
+    port_buffer_km: 2.0           # doar pe date reale: mai aproape de coasta OSM de atât = activitate de port
 
 acoustic:
   band_hz: [10.0, 200.0]          # banda de joasă frecvență
