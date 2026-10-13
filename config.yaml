@@ -20,9 +20,11 @@ areas:
   constanta:
     name: "Constanța sector, Romanian Black Sea"
     bbox: {lat_min: 43.55, lat_max: 44.95, lon_min: 28.30, lon_max: 30.90}
+    sea_seed: [44.20, 29.80]      # [lat, lon] în larg: alege fața "mare" din linia de coastă (sar/landmask.py)
   varna:
     name: "Varna sector, Bulgarian Black Sea"
     bbox: {lat_min: 42.65, lat_max: 43.55, lon_min: 27.85, lon_max: 29.30}
+    sea_seed: [43.10, 28.70]
     assets: areas/varna           # infrastructură și unități de patrulare proprii (relativ la assets/)
 
 live:                             # data/aisstream.py, data/recorded.py
@@ -37,7 +39,8 @@ live:                             # data/aisstream.py, data/recorded.py
   coverage_history_days: 14
   coverage_cell_deg: 0.05         # grila acoperirii de recepție
   coverage_min_messages: 20       # o celulă e "acoperită" cu cel puțin N mesaje ...
-  coverage_min_vessels: 2         # ... de la cel puțin M nave, pe toată înregistrarea
+  coverage_min_vessels: 2         # ... de la cel puțin M nave, pe toată înregistrarea ...
+  coverage_min_hours: 3           # ... în cel puțin atâtea ore diferite (nu o rafală a unei flotile trecătoare)
   anchorage_cell_deg: 0.02        # ancoraje învățate: celule unde multe nave stau pe loc
   anchorage_max_sog_kn: 0.5
   anchorage_min_vessels: 3
@@ -46,6 +49,38 @@ live:                             # data/aisstream.py, data/recorded.py
   window_min: 180                 # cât istoric recent arată pagina
   lookback_min: 120               # AIS încărcat înaintea ferestrei (reguli care privesc înapoi: gaură, loitering)
   zones_refresh_min: 60           # cât de des se reînvață acoperirea și ancorajele
+
+sar:                              # sar/: radar Sentinel-1 (imagini reale, Microsoft Planetary Computer, fără cont)
+  stac_url: "https://planetarycomputer.microsoft.com/api/stac/v1"
+  collection: "sentinel-1-grd"
+  coastline_urls:                 # OpenStreetMap natural=coastline (mască de uscat), API Overpass; se încearcă pe rând
+    - "https://overpass-api.de/api/interpreter"
+    - "https://overpass.private.coffee/api/interpreter"
+    - "https://overpass.kumi.systems/api/interpreter"
+  coastline_attempts: 3           # încercări pe fiecare server (Overpass e des ocupat: 429/504)
+  coastline_margin_deg: 0.05      # cerere puțin mai mare decât zona, ca linia de coastă să-i taie marginile
+  pixel_m: 20                     # grila de analiză (metri la sol)
+  min_area_coverage: 0.15         # se ignoră trecerile care acoperă mai puțin din zonă
+  land_buffer_m: 250              # pixelii mai aproape de uscat de atât sunt mascați (diguri, cheiuri)
+  cfar:                           # detecție de nave: CFAR cu doi parametri pe clutter-ul local al mării
+    background_px: 41             # latura ferestrei de fond (pixeli)
+    guard_px: 9                   # latura ferestrei de gardă, exclusă din fond
+    k_sigma: 6.0                  # candidat: I > medie + k * abatere standard
+    min_ratio_db: 6.0             # ... și cel puțin atât peste media locală
+    seed_ratio_db: 10.0           # o țintă are cel puțin un pixel atât de luminos
+  min_pixels: 3
+  min_length_m: 25
+  max_length_m: 450               # mai mari nu sunt nave (margini de pete, uscat, siaj)
+  merge_distance_m: 120           # candidați mai apropiați de atât = o singură țintă
+  chip_px: 48                     # decupajul radar al fiecărei ținte (afișare)
+  image_max_side_px: 4000         # plafonul imaginii radar afișate
+  fixed:                          # structuri fixe (platforme, geamanduri, epave) apar la fiecare trecere
+    lookback_days: 30
+    passes: 4                     # treceri anterioare comparate
+    radius_m: 200
+    min_hits: 2                   # în același loc pe cel puțin N treceri anterioare => fixă
+    platform_radius_m: 600        # atât de aproape de o platformă cunoscută => fixă
+  watch_interval_min: 10          # python -m sar.process --watch: cât de des se întreabă catalogul
 
 generator:                        # data/generate.py
   n_transit_inbound: 5
@@ -123,13 +158,31 @@ detect:
     time_window_min: 5.0          # toleranță temporală între rapoarte
     min_messages: 4               # rapoarte apropiate minime pentru fiecare navă din pereche
     max_moored_sog_kn: 0.3        # ambele nave atât de nemișcate => ancorate alături, nu rendezvous
+    ignore_pair_types: [fishing]  # două nave de pescuit împreună (traul în pereche, flotilă) nu sunt un transfer STS
   identity_spoofing:
     min_distance_km: 15.0         # distanță minimă între poziții simultane/aproape simultane
     max_dt_min: 3.0               # ecart maxim de timp între două rapoarte
     min_implied_kn: 120.0         # viteză fizic imposibilă între două rapoarte apropiate în timp
+  sar:                            # detect/sar_rules.py: ținte radar <-> AIS la momentul imaginii
+    max_interp_gap_min: 30        # interpolare între două poziții AIS aflate la cel mult atât
+    max_extrapolate_min: 20       # extrapolare (dead reckoning) din cea mai apropiată poziție, cel mult atât
+    gate_km: 1.0                  # raza de bază a asocierii țintă-navă
+    gate_km_per_min_extrap: 0.08  # raza crește cu timpul de extrapolare
+    doppler_gate_km: 0.6          # navele în mișcare apar deplasate în azimut pe imaginea SAR
+    doppler_min_sog_kn: 3.0
+    dark_min_coast_km: 0.5        # ținte neasociate mai aproape de coastă: clutter de port
+    min_length_no_return_m: 80    # doar navele mari trebuie să apară sigur pe radar
+    no_return_max_extrap_min: 5   # "AIS fără ecou radar" doar când poziția AIS e aproape sigură
+    gap_min_silent_min: 30        # o țintă poate confirma o navă tăcută de cel puțin atât ...
+    gap_lookback_min: 360         # ... și de cel mult atât
+    gap_min_speed_kn: 5.0         # raza de incertitudine folosește cel puțin această viteză ...
+    gap_speed_factor: 1.3         # ... înmulțită cu această marjă (nava poate accelera), plus gate_km
+    max_age_h: 6                  # trecerile mai vechi de atât (față de now) nu mai deschid alerte
+    recording_window_min: 10      # AIS trebuie să fi fost înregistrat în ± atâtea minute în jurul imaginii ...
+    min_recording_messages: 20    # ... cel puțin atâtea mesaje; altfel țintele rămân neverificate (fără alerte)
   exclusion:
     # Zonele din assets/infrastructure.geojson cu proprietatea "exclusion": true
-    applies_to: [loitering, ais_gap, rendezvous]
+    applies_to: [loitering, ais_gap, rendezvous, speed_inconsistency, sar_dark_target]
 
 acoustic:
   band_hz: [10.0, 200.0]          # banda de joasă frecvență
@@ -163,6 +216,7 @@ fusion:
   context_before_min: 60
   context_after_min: 180
   correlation_radius_km: 10.0     # altă navă suspectă în apropiere
+  weak_event_types: [sar_dark_target_uncovered, ais_no_radar_return]  # nu fac suspectă o navă vecină
   infra_radius_km: 8.0
 
 score:
@@ -173,6 +227,10 @@ score:
     position_jump: 20
     rendezvous: 25
     identity_spoofing: 30
+    sar_gap_confirmation: 40      # radarul vede o țintă fără AIS în zona în care putea fi nava tăcută
+    sar_dark_target: 35           # țintă radar de mărimea unei nave, fără AIS, unde AIS se recepționează
+    sar_dark_target_uncovered: 10 # aceeași, dar unde recepția AIS nu e dovedită: tăcerea nu spune mult
+    ais_no_radar_return: 15       # navă mare raportează o poziție sigură, radarul nu vede nimic acolo
     acoustic_lowfreq: 15
     fibre_vibration: 20
     near_infrastructure: 15

@@ -16,3 +16,10 @@ soundfile==0.13.1
 
 # Doar pentru datele AIS reale (data/aisstream.py)
 websockets==17.2
+
+# Doar pentru radarul Sentinel-1 (sar/): catalog STAC, citire GRD, mască de uscat, imagini
+rasterio==1.5.2
+pystac-client==0.9.0
+planetary-computer==1.0.0
+pillow==12.3.0
+requests==2.34.2
